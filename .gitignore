@@ -41,3 +41,4 @@ _*.json
 _archive/
 .spike/
 _combat_backup_*/
+ml_candidate_map.txt

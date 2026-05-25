@@ -1,11 +1,7 @@
 {
   "name": "e7-codex",
   "version": "1.0.0",
-  "description": "Static artwork + pose archive for Epic Seven, 7dshub-style. Browse units, browse by patch codename, view rebuilt Spine poses, link to ceciliabot.",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "Build tooling for a static Epic Seven artwork and Spine pose archive: converts extracted game assets into a browsable site with a live model viewer.",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },

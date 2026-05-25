@@ -23,7 +23,9 @@ auditable.
 - **epic7rtastats.com** — hero metadata fallback for the most recent releases.
 - **EpicSevenAssetRipper** (https://github.com/CeciliaBot/EpicSevenAssetRipper)
   — raw asset extraction from the game client. `tools/decode_sct.py` is a
-  standalone port of its `.sct` texture decoder and follows that project's terms.
+  standalone port of its `.sct` texture decoder. The upstream project states no
+  explicit license; the port is included here with attribution and will be
+  removed at the author's request.
 
 ## Runtime
 
