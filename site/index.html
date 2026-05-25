@@ -538,7 +538,7 @@ function hub() {
   });
 
   $("#app").innerHTML = `
-    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site</code> then reload.</div>` : ""}
+    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img &lt;img_dir&gt; --raw &lt;raw_dir&gt; --out ./site</code> then reload.</div>` : ""}
     <div class="bar">
       <div class="q-wrap">
         <input id="q" placeholder="search name or id  ·  iseria, c1019, ravi…" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false">

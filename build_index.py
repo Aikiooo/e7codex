@@ -14,12 +14,11 @@ Names come from two community-maintained JSONs in `data_external/`:
   - HeroDatabase.json  c####           -> {_id, name, rarity, ...}
   - HeroSkins.json     c####_sNN       -> {_id, name}   (skin variants)
 
-Both are one-shot snapshots from CeciliaBot/E7Tools — the encrypted output/db
-is the long-term source of truth, but no decoder exists publicly. See
-project_e7_db_encrypted memory note.
+Both are one-shot snapshots from public community datasets (see CREDITS.md);
+the game's own encrypted string table has no public decoder.
 
 Run:
-    python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site
+    python build_index.py --img <img_dir> --raw <raw_dir> --out ./site
 """
 from __future__ import annotations
 import argparse, json, os, re, shutil, sys

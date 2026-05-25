@@ -15,7 +15,7 @@ Both Spine versions are staged. 2.1.27 dispatches to convert_2_1 +
 post_process_2_1_27 (spine-player 3.8 compatibility patches); 3.8.99
 dispatches to convert_3_8 directly. The 2.1.27 path was unblocked
 2026-05-22 by decoding modes 9/10 and skipping per-animation trailers
-via scan-forward — see [[project-e7-2127-mode9-blocker]] in memory.
+via scan-forward.
 
 Usage:
   python prepare_combat_assets.py [--all] [--stems abigail harsetti] [--force]

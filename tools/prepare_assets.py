@@ -19,8 +19,8 @@ import argparse, re, shutil, sys, traceback
 from pathlib import Path
 
 THIS   = Path(__file__).resolve()
-REPO   = THIS.parents[1]                       # E7 Codex
-ROOT   = REPO.parent                           # D:\Claude\E7
+REPO   = THIS.parents[1]                       # repo root
+ROOT   = REPO.parent                           # parent dir holding your asset dump
 PORT   = ROOT / "output" / "portrait"
 YESDIR = ROOT / "yes"
 SITE   = REPO / "site" / "assets"
