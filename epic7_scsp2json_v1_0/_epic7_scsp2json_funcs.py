@@ -49,8 +49,11 @@ def _scsp_4fuckingfloats2rgba(fR_, fG_, fB_, fA_): # i hate that genius dude, wh
   return '{:x}'.format(RBGa_).upper() # text like: FF5BA125
   
 def _scsp_remove_float_zero (fl_var_): # clean values like 0.0, 3.0, 7.0 etc to like > 0, 3, 7
+  import math
   result = fl_var_
-  if (round(result) == fl_var_): result = round(result)
+  # Handle NaN and Inf safely
+  if not math.isnan(result) and math.isfinite(result):
+    if (round(result) == fl_var_): result = round(result)
   
   return result
 

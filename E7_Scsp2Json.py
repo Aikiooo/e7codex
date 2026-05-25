@@ -18,8 +18,8 @@ from typing import Any, Dict, List, Optional, Tuple, Set
 # ==============================
 # Config
 # ==============================
-INPUT_PATH = r"D:\Games\GameUnpackAssets\mymodel\Spine\EpicSeven\portrait"
-OUTPUT_PATH = r"D:\Games\GameUnpackAssets\mymodel\Spine\EpicSeven\TestScsp"
+INPUT_PATH = r"D:\Claude\E7\output\portrait"
+OUTPUT_PATH = r"D:\Claude\E7\yes"
 
 
 IS_COMPRESS_JSON = True
