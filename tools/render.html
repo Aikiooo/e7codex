@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>spine renderer</title>
+<link rel="stylesheet" href="spine-player.css">
+<script src="spine-player.js"></script>
+<style>
+  /* Stage CSS pixels DRIVE the spine-player canvas backing-buffer size.
+     spine-player's resize() does `canvas.width = canvas.clientWidth` —
+     it does NOT multiply by devicePixelRatio. So setting puppeteer's
+     deviceScaleFactor only bilinear-upscales whatever spine drew into a
+     small canvas; it doesn't increase render fidelity. To get a sharp
+     render we have to grow the *CSS* size of #stage itself.
+
+     4800×6240 keeps the 10:13 aspect ratio and stays below the Chromium
+     WebGL framebuffer cap (~33M RGBA8 pixels ≈ 133 MB). At 6000×7800 the
+     GL drawing buffer was silently capped to ~5051×6567, which caused
+     spine-player's camera zoom (computed for 6000×7800) to misalign with
+     the actual framebuffer — the rendered character was ~17% too large and
+     heads were clipped off the canvas top before puppeteer ever screenshotted.
+     4800×6240 = 29.95M pixels, safely under the cap, so drawingBufferWidth
+     == canvas.width and the projection math is correct. */
+  html,body{margin:0;padding:0;background:transparent}
+  #stage{width:4800px;height:6240px;background:transparent}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+  // ?slug=c1001 -> loads site/assets/c1001/{c1001.json,c1001.atlas,c1001.png}
+  // Signals via window.__renderState; render_poses.js polls it.
+  //
+  // E7 skins split a character's appearance across three layers:
+  //   default     — body + chassis (sometimes head silhouette + FX)
+  //   normal      — neutral face features (eyes, lip, brow); on some rigs
+  //                 it is empty or just decorative FX
+  //   <expression> — angry / panic / sad / smile / special, with the
+  //                  face base + expression overlay
+  // The runtime needs all three layered to produce a "rested" pose:
+  // default + normal + first non-empty expression. See docs/TASKS.md.
+  //
+  // Optional URL params for diagnosing:
+  //   ?face=off          — no combining; use default skin as-is
+  //   ?face=<skinName>   — pick this exact skin as the expression layer
+  //   ?layers=a,b,c      — override entirely; combine these named skins
+  //   ?probe=<regex>     — log per-slot debug info for matching slot names
+  //   ?thumb=1           — character-only render: wipe FX/aura/backdrop
+  //                        attachments from every skin so the auto-fit
+  //                        viewport tightens onto the character body.
+  //                        Backs Task #8 (hub thumbnails). See HIDE_PREFIX
+  //                        / HIDE_FX_SUFFIX below for the slot-name patterns.
+  const params  = new URLSearchParams(location.search);
+  const slug    = params.get("slug");
+  const faceArg = params.get("face");
+  const layersArg = params.get("layers");
+  const thumbMode = params.get("thumb") === "1";
+  const baseDir = `../site/assets/${slug}/`;
+  window.__renderState = { slug, ready: false, error: null, anims: [], skins: [] };
+
+  // Slot-name patterns the thumb pass strips. Anchored at the start of the
+  // slot name (HIDE_PREFIX) plus a suffix rule for `<word>fx<digits>` style
+  // (HIDE_FX_SUFFIX) catches FX names regardless of their prefix.
+  // Audit results (run check yourself with tools/audit_thumb_slots.js):
+  //   - 510/827 rigs have zero hits (thumb is identical to pose — skipped).
+  //   - normal heroes hit 0–8% (only stray ef*/flare slots), so the
+  //     character itself is never clipped.
+  //   - FX-heavy rigs (c5070, c1141, c1155, c2076_1, c6005) hit 30–70%
+  //     and end up with auras/smoke/backdrops fully removed.
+  // Extend per-slug overrides in tools/render_thumbs.js if a specific rig
+  // needs additional hides or false-positive rescues.
+  // `b_\d` removed 2026-05-21: it was hiding c4004's body slots (b_1..b_29 are
+  // the character's torso/legs there, not backdrops). The original intent was
+  // backdrop slabs named b_1, b_2 — those rigs either don't exist or use the
+  // `bground` prefix instead.
+  // Added 2026-05-21 to catch leaks reported by user:
+  //   stone(...)      — c2019 rocks at feet (stone27, stone129y*, stone fx2)
+  //   maple_?\d       — c5110 maple leaves (maple_11..21)
+  //   star[_\d]       — c2091 comet trail (star_01..60, star_1..8)
+  //   fl_\d           — c1129 petals (fl_01..10, fl_1..8)
+  //   fly\d           — c5110 flies
+  //   ss_\d{4,}       — c1148 high-numbered ss_2841/2833333/28777 FX dupes
+  //                     (character ss_* slots only go up to ~ss_50)
+  //   \d+$            — c4042 numeric-only slot names "2", "45", "46" used as
+  //                     geometric backdrops
+  //   eff\d           — c2019 'eff3' (existing ef\d only catches the 2-char
+  //                     prefix, but several rigs use the 3-char 'eff' form)
+  const HIDE_PREFIX = /^(bground|bgshadow|bg(?![a-z])|back(?![a-z])|cloud|sky|stage|background|effect|eff(?:[/_]|$)|eff\d|ef[/_]|ef\d|efef|d_|\d+_chick|ttt\d|sdss|bbfire|bfire|pfire|lfire|dfire|afire|panicfx|wingsFx|flare\d?|spark|particle|smoke|dust|aura|glow|halo|light[_]?\d|fx|stone(?:[\d _]|fx|bb|y\d)|maple_?\d|star[_\d]|fl_\d|fly\d|ss_\d{4,}|\d+$|\d+(?:particle|eff|fx|spark|smoke|flame|aura))/i;
+  // 2026-05-21: space-tolerant `fx` separator catches `head eff`/`stone fx2`
+  // style names; added `eff\d*$` alternative for *eff suffixes: arm_eff,
+  // neck_eff (c3084), eyeeff/eyeeff2 (c2019), normal3eff/neck1eff (c2048).
+  const HIDE_FX_SUFFIX = /[a-z_ ]fx[a-z\d]*$|_particle\d*\b|[a-z_ \d\/]eff\d*$/i;
+  // FX-keyword tokens that show up mid-name on rigs where the FX
+  // slot has a single-letter prefix (`ch_aura`, `sword_glow*`,
+  // `door_flare_3`, `images/Particle*`, `Nfx/smoke*`, ...). Matches the
+  // FX keyword after a path separator OR an underscore, OR the eff/fx
+  // path tokens anywhere in the name.
+  const HIDE_FX_TOKEN = /(?:[\/_](?:particle|spark|smoke|flame|aura|glow|halo|flare|effect)(?:[\d_\/]|$))|(?:(?:^|[\s\/_])(?:eff|fx)[\/_])/i;
+  // Per-slug extra hide patterns for rigs whose backdrop slot names don't
+  // match the generic HIDE_PREFIX rules. Each entry is an array of narrow
+  // regexes specific to that slug — we don't want these in the global
+  // HIDE_PREFIX where they'd risk false positives on other rigs.
+  //
+  // When a slug appears in this map, the strip pass runs even WITHOUT
+  // `?thumb=1`, so pose.png is also character-only. Detail pages lose the
+  // baked-in backdrop for these slugs, but the live viewer still shows
+  // the full rig (it doesn't honor SLUG_EXTRA_HIDE).
+  //
+  //   c1067_s02 (Tamarinne Sunday Service): the rig bundles the entire
+  //   stage backdrop with the character. Without stripping the stage,
+  //   the auto-fit camera frames everything and the character renders
+  //   at ~530 px tall (the rest of the 4800×6240 canvas is stage). After
+  //   stripping `glo_*` / `spt_*` / `balloon_*` / `b_star_*` / `rrione_*`
+  //   / bare `ttt` / `bone88dg`, the character takes the full framebuffer.
+  const SLUG_EXTRA_HIDE = {
+    "c1067_s02": [
+      /^glo_\d+$/i,
+      /^spt(?:_\d+(?:_\d+)?)?$/i,
+      /^balloon(?:_\d+)?$/i,
+      /^b_star_\d+$/i,
+      /^rrione_\d+$/i,
+      /^ttt$/i,
+      /^bone88dg$/i,
+      /^white$/i,                  // EXACT `white` only — keeps white_skirt_*
+                                   // and white_skirt_tt_* (character clothing).
+                                   // The bare `white` slot is a large stage
+                                   // plane at world (-4751, 3862) that drags
+                                   // the auto-fit camera ~5500 units left.
+    ],
+  };
+  const extraHideList = SLUG_EXTRA_HIDE[slug] || null;
+  function extraHide(name) {
+    if (!extraHideList) return false;
+    for (const re of extraHideList) if (re.test(name)) return true;
+    return false;
+  }
+  // Rigs whose `default` skin is mostly numerically-named slots (>30%) treat
+  // those numerics as character body parts (npc1157 type — minimalist face
+  // rigs with body slot literally named `4`, or large rigs like c1172 / c5033
+  // / c6050 / c2112_s01_1 whose entire chassis uses numeric slot names). For
+  // those, suppress the `^\d+$` rule so the body isn't stripped in thumb mode.
+  // c4042 stays correct because only 3/89 (~3%) of its default slots are
+  // numeric — well below the threshold.
+  let protectNumericSlots = false;
+  function shouldHide(name) {
+    if (extraHide(name)) return true;
+    if (protectNumericSlots && /^\d+$/.test(name)) return false;
+    return HIDE_PREFIX.test(name) || HIDE_FX_SUFFIX.test(name) || HIDE_FX_TOKEN.test(name);
+  }
+
+  if (!slug) {
+    window.__renderState.error = "missing ?slug=";
+  } else {
+    new spine.SpinePlayer("stage", {
+      jsonUrl:  baseDir + slug + ".json",
+      atlasUrl: baseDir + slug + ".atlas",
+      backgroundColor: "#00000000",
+      alpha: true,
+      premultipliedAlpha: true,
+      showControls: false,
+      // Match site/viewer.html — absolute world-unit padding instead of the
+      // percentage default. The default 10% on each side adds 20% of the
+      // animation-bound box to the viewport, and many E7 rigs have wide
+      // animation bounds, so 20% of "wide" pushes the character even smaller
+      // in the canvas. Absolute small values keep the auto-fit tight.
+      // transitionTime:0 makes the viewport snap on the first frame (no
+      // 0.2s ease) so the screenshot we capture is at the final scale.
+      viewport: { padLeft: 80, padRight: 80, padTop: 40, padBottom: 80,
+                  transitionTime: 0 },
+      success: (p) => {
+        const anims = p.skeleton.data.animations.map(a => a.name);
+        const skins = p.skeleton.data.skins.map(s => s.name);
+        window.__renderState.anims = anims;
+        window.__renderState.skins = skins;
+
+        // Build the skin layer stack. Order matters: later layers override
+        // (slotIndex, attachmentName) keys added by earlier layers.
+        const data = p.skeleton.data;
+        const EXPR_ORDER = ["smile", "angry", "panic", "sad", "special"];
+        // Critical slot-name + setup-attachment-name patterns. A rig "needs"
+        // the expression layer only when a generically-named face slot has
+        // a generically-named setup attachment unsatisfied by default+normal.
+        // This avoids regressing working rigs (most heroes) whose `normal`
+        // already carries the neutral face features — adding an expression
+        // there would overlay an unwanted smile/etc on top.
+        const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;
+        const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
+        // Per-slug overrides for rigs whose missing-face slot does NOT match
+        // the regex above. See tools/audit_skins.py EXPRESSION_FORCE.
+        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01"]);
+        // Second heuristic: rigs that have NO neutral face anywhere in
+        // default+normal but expressions provide one. Broader face-piece
+        // regex (allows suffixes like `_ag`/`_sm`, path prefixes like
+        // `normal/face_nm`) — deliberately excludes bare `normal` since
+        // in minimalist NPC rigs that slot is the body, not the face.
+        // Catches npc1136 / npc1138 / npc1175. See tools/audit_skins.py.
+        const FACE_PIECE_RE = /^(?:[a-z]+\/)?(face|head|eye|mouth|lip|brow|eyebrow|nose|cheek)(?:[A-Z\d]|[_/]\w+)?$/i;
+        const EXPR_SKIN_NAMES = ["smile","angry","panic","sad","special","special2","special3"];
+        function skinHasFacePiece(skinName) {
+          const sk = data.findSkin(skinName);
+          if (!sk) return false;
+          for (let i = 0; i < sk.attachments.length; i++) {
+            if (!sk.attachments[i]) continue;
+            if (FACE_PIECE_RE.test(data.slots[i].name)) return true;
+          }
+          return false;
+        }
+        function needsLayerNoNeutralFace() {
+          if (skinHasFacePiece("default") || skinHasFacePiece("normal")) return false;
+          for (const e of EXPR_SKIN_NAMES) if (skinHasFacePiece(e)) return true;
+          return false;
+        }
+        function needsExpressionLayer() {
+          if (EXPRESSION_FORCE.has(slug)) return true;
+          if (needsLayerNoNeutralFace()) return true;
+          const defSkin = data.findSkin("default");
+          const normSkin = data.findSkin("normal");
+          for (let i = 0; i < data.slots.length; i++) {
+            const sd = data.slots[i];
+            const setup = sd.attachmentName;
+            if (!setup) continue;
+            if (!CRIT_SLOT_RE.test(sd.name)) continue;
+            if (!CRIT_SETUP_RE.test(setup)) continue;
+            if (defSkin && defSkin.getAttachment(i, setup)) continue;
+            if (normSkin && normSkin.getAttachment(i, setup)) continue;
+            return true;
+          }
+          return false;
+        }
+        let layerNames;
+        if (layersArg) {
+          layerNames = layersArg.split(",").map(s => s.trim()).filter(n => data.findSkin(n));
+        } else if (faceArg === "off") {
+          layerNames = data.findSkin("default") ? ["default"] : [];
+        } else {
+          layerNames = [];
+          if (data.findSkin("default")) layerNames.push("default");
+          // 'normal' = neutral face features (eyes/lip/brow). Layer it even
+          // when it's an empty skin — addSkin is a no-op then.
+          if (data.findSkin("normal")) layerNames.push("normal");
+          // Expression layer: forced via ?face=<skin>, or auto-picked only
+          // when the rig actually needs it (broken-by-design — face features
+          // live only in expression skins).
+          let expr = null;
+          if (faceArg && faceArg !== "off" && skins.includes(faceArg) && faceArg !== "normal" && faceArg !== "default") {
+            expr = faceArg;
+          } else if (needsExpressionLayer()) {
+            for (const e of EXPR_ORDER) {
+              const s = data.findSkin(e);
+              if (s && s.getAttachments().length > 0) { expr = e; break; }
+            }
+          }
+          if (expr) layerNames.push(expr);
+        }
+        window.__renderState.faceUsed = layerNames.join("+") || "(none)";
+
+        if (layerNames.length > 1) {
+          const combo = new spine.Skin("combo");
+          for (const n of layerNames) combo.addSkin(data.findSkin(n));
+          p.skeleton.setSkin(combo);
+          p.skeleton.setSlotsToSetupPose();
+        } else if (layerNames.length === 1 && layerNames[0] !== "default") {
+          // Single non-default skin (rare). Use it directly.
+          p.skeleton.setSkinByName(layerNames[0]);
+          p.skeleton.setSlotsToSetupPose();
+        }
+        // else: layerNames === ["default"] or [] — leave the skin spine-player
+        // applied at init (the default skin).
+
+        // Thumb mode: wipe FX/aura/backdrop slot attachments from every skin
+        // in the skeleton data so (a) skeleton.getAttachment falls all the way
+        // through to null for those slots, (b) any AttachmentTimeline keyframe
+        // in the idle animation resolves to null and can't re-attach the FX,
+        // and (c) the auto-fit viewport spine-player computes inside
+        // setAnimation→calculateAnimationViewport gets character-only bounds.
+        // The mutation lives on the just-loaded SkeletonData; spine-player
+        // reloads it per-slug, so wiping is safe between renders.
+        //
+        // Also fires when SLUG_EXTRA_HIDE has an entry for this slug — those
+        // rigs need the strip regardless of thumb=1, so the baked pose.png is
+        // character-only too (see comment block at SLUG_EXTRA_HIDE).
+        if (thumbMode || extraHideList) {
+          // Decide numeric-slot protection from the default skin composition.
+          const defaultSkin = data.defaultSkin;
+          if (defaultSkin) {
+            let totalDef = 0, numericDef = 0;
+            for (let i = 0; i < defaultSkin.attachments.length; i++) {
+              if (!defaultSkin.attachments[i]) continue;
+              totalDef++;
+              if (/^\d+$/.test(data.slots[i].name)) numericDef++;
+            }
+            protectNumericSlots = totalDef > 0 && numericDef / totalDef > 0.30;
+          }
+          const hideIndices = [];
+          for (let i = 0; i < p.skeleton.slots.length; i++) {
+            if (shouldHide(p.skeleton.slots[i].data.name)) hideIndices.push(i);
+          }
+          // The "combo" skin built above is a fresh instance not registered
+          // in data.skins, so we must wipe it explicitly. Skeleton.getAttachment
+          // chains active skin → data.defaultSkin → null; wiping all three
+          // guarantees no fallback path resurrects the FX attachments.
+          const allSkins = new Set();
+          if (p.skeleton.skin) allSkins.add(p.skeleton.skin);
+          if (data.defaultSkin) allSkins.add(data.defaultSkin);
+          for (const s of data.skins) allSkins.add(s);
+          for (const skin of allSkins) {
+            for (const idx of hideIndices) {
+              const dict = skin.attachments[idx];
+              if (dict) for (const key of Object.keys(dict)) dict[key] = null;
+            }
+          }
+          for (const idx of hideIndices) p.skeleton.slots[idx].attachment = null;
+          p.skeleton.setSlotsToSetupPose();
+          window.__renderState.hideCount = hideIndices.length;
+        }
+
+        const pick = anims.find(n => /idle|wait|stand/i.test(n)) || anims[0];
+        if (pick) p.setAnimation(pick);
+
+        // Debug: capture per-slot info for slots whose name matches the
+        // optional `?probe=` regex (e.g. probe=head|face|body). Useful when
+        // a unit's face is missing — we want to know whether the slot has
+        // an attachment, where its bone is in world space, etc.
+        const probeArg = params.get("probe");
+        if (probeArg) {
+          try {
+            const re = new RegExp(probeArg, "i");
+            const sk = p.skeleton;
+            // Force a world-transform update so worldX/Y are populated.
+            sk.updateWorldTransform();
+            const info = [];
+            for (const slot of sk.slots) {
+              if (!re.test(slot.data.name)) continue;
+              const a = slot.getAttachment();
+              info.push({
+                name: slot.data.name,
+                bone: slot.bone.data.name,
+                wx: slot.bone.worldX, wy: slot.bone.worldY,
+                attached: a ? (a.name || "(unnamed)") : null,
+                attType: a ? (a.constructor && a.constructor.name) : null,
+                setupName: slot.data.attachmentName,
+              });
+            }
+            window.__renderState.probe = info;
+          } catch (e) {
+            window.__renderState.probeError = String(e);
+          }
+        }
+
+        // Capture the viewport spine-player ended up with (after setAnimation
+        // computes it from the chosen animation's bounds). Useful for debug.
+        const v = p.currentViewport || {};
+        window.__renderState.bounds = (typeof v.width === "number")
+          ? { x: v.x, y: v.y, w: v.width, h: v.height } : null;
+
+        // Verify GL drawing buffer matches CSS stage size. If they differ the
+        // Chromium WebGL framebuffer cap was hit and the projection will be wrong.
+        const gl = p.context.gl;
+        const dbW = gl.drawingBufferWidth, dbH = gl.drawingBufferHeight;
+        const stageEl = document.getElementById("stage");
+        if (dbW !== stageEl.clientWidth || dbH !== stageEl.clientHeight) {
+          window.__renderState.error =
+            `GL framebuffer capped: drawing buffer ${dbW}x${dbH} != stage ${stageEl.clientWidth}x${stageEl.clientHeight}. Reduce stage CSS size.`;
+          return;
+        }
+
+        // Let several frames paint. spine-player still steps the animation
+        // even though the viewport is pinned; we want the canvas cleared and
+        // composited at the new viewport before puppeteer screenshots.
+        let frames = 0;
+        const settle = () => {
+          if (frames++ < 4) requestAnimationFrame(settle);
+          else window.__renderState.ready = true;
+        };
+        requestAnimationFrame(settle);
+      },
+      error: (_p, msg) => { window.__renderState.error = String(msg); },
+    });
+  }
+</script>
+</body>
+</html>

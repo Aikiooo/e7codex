@@ -1,0 +1,21 @@
+{
+  "name": "e7-codex",
+  "version": "1.0.0",
+  "description": "Static artwork + pose archive for Epic Seven, 7dshub-style. Browse units, browse by patch codename, view rebuilt Spine poses, link to ceciliabot.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@esotericsoftware/spine-webgl": "^4.3.0",
+    "puppeteer": "^25.0.4",
+    "sharp": "^0.34.5"
+  }
+}

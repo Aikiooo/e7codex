@@ -1,0 +1,43 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Game assets — NEVER commit. This repo ships tooling, not Epic Seven content.
+# Bring your own extracted assets; the pipeline populates these directories.
+# ─────────────────────────────────────────────────────────────────────────
+site/assets/
+site/data/
+*.scsp
+*.sct
+*.atlas
+*.spine
+
+# Cached third-party runtime — fetch from Esoteric on setup (see README)
+spine-player.js
+spine-player.css
+**/spine-player.js
+**/spine-player.css
+
+# Community datasets — fetch your own (see README / CREDITS.md)
+data_external/
+HeroDatabase.json
+HeroSkins.json
+HeroNames_rtastats.json
+
+# Deploy / infra artifacts & logs
+*.log
+r2_files.txt
+.wrangler/
+cors_rules.json
+
+# Reverse-engineering artifacts (game-derived — do not publish)
+*.bin
+tools/Dump*.java
+
+# Python / Node
+__pycache__/
+*.pyc
+node_modules/
+
+# Local scratch
+_*.json
+_archive/
+.spike/
+_combat_backup_*/

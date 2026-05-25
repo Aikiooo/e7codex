@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>E7 Codex — live viewer</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Spline+Sans+Mono:wght@400;500&family=Outfit:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="spine-player.css">
+<script src="spine-player.js"></script>
+<style>
+  :root{--ink:#0c0d12;--ink-2:#13141d;--panel:#171826;--line:#2a2c3f;
+    --gold:#d8b06a;--gold-dim:#9a824e;--text:#e7e5dd;--mut:#8d8c9c}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:radial-gradient(900px 600px at 80% -10%,rgba(216,176,106,.08),transparent 60%),var(--ink);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+  header a.back{font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.12em;color:var(--mut);text-decoration:none}
+  header a.back:hover{color:var(--gold)}
+  header .small{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.18em;text-transform:uppercase}
+  header .id{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold);margin-left:auto}
+  main{max-width:1300px;margin:0 auto;padding:14px;display:grid;gap:12px}
+  #stage-wrap{position:relative;background:var(--ink-2);border:1px solid var(--line);border-radius:6px;height:78vh;min-height:480px;overflow:hidden;touch-action:none}
+  #stage-scaler{position:absolute;left:0;top:0;transform-origin:0 0;transition:transform .15s ease-out;will-change:transform}
+  #stage{position:absolute;inset:0}
+  /* Backdrop player sits behind the character at the same coordinates so the
+     character renders on top. pointer-events:none so the wrap-level pan/zoom
+     handlers still receive drags; the backdrop has no control bones anyway. */
+  #stage-bg{position:absolute;inset:0;pointer-events:none}
+  /* Spine-player draws its own play/scrub bar inside the target div, which
+     puts it inside our pan/zoom transform — the bar moves with the character
+     and gets clipped when the user pans. We relocate it to a wrapper *outside*
+     the transformed scaler so it stays put and is always reachable. */
+  /* z-index:20 lifts the spine-player's popup menus (animation/skin chooser,
+     settings cog — they open *upward* from the bar) above the .zoom-controls
+     stack (z:10) inside #stage-wrap. Without this, the popups render visually
+     but the zoom buttons sit on top and intercept the click. */
+  .spine-controls-host{margin-top:8px;background:var(--ink-2);border:1px solid var(--line);border-radius:5px;padding:8px 10px;min-height:46px;position:relative;z-index:20}
+  .spine-controls-host .spine-player-controls{position:static!important;display:block!important;opacity:1!important;background:transparent!important}
+  .spine-controls-host .spine-player-controls-hidden{opacity:1!important}
+  .zoom-controls{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;z-index:10}
+  .zoom-controls button{width:42px;height:42px;background:rgba(13,14,22,.85);backdrop-filter:blur(6px);border:1px solid var(--line);color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:18px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;touch-action:manipulation}
+  .zoom-controls button:hover{border-color:var(--gold-dim);color:var(--gold)}
+  .zoom-controls button:active{transform:scale(.94)}
+  .zoom-controls .label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);text-align:center;margin-top:2px;font-family:'Spline Sans Mono',monospace}
+  .zoom-pct{position:absolute;left:10px;bottom:10px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);background:rgba(13,14,22,.85);padding:6px 11px;border-radius:3px;border:1px solid var(--line);letter-spacing:.05em;z-index:10}
+  .info{display:flex;gap:10px;flex-wrap:wrap;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--mut)}
+  .info span{padding:5px 11px;border:1px solid var(--line);border-radius:2px;background:var(--ink-2)}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .controls label{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--mut);text-transform:uppercase}
+  .controls select{background:var(--ink-2);border:1px solid var(--line);color:var(--text);padding:7px 11px;border-radius:2px;font-family:'Spline Sans Mono',monospace;font-size:12px;min-width:160px}
+  .controls select:focus{outline:none;border-color:var(--gold-dim)}
+  .stage-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;padding:6px 10px;border:1px solid var(--line);border-radius:2px;background:var(--ink-2);transition:border-color .15s}
+  .stage-toggle:hover{border-color:var(--gold-dim)}
+  .stage-toggle input{accent-color:var(--gold);cursor:pointer;margin:0}
+  .stage-toggle[hidden]{display:none}
+  .err{color:#d98a8a;font-family:'Spline Sans Mono',monospace;font-size:12px;padding:18px}
+  .hint{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.06em;text-align:center;margin-top:-4px}
+  @media (max-width:640px){
+    main{padding:8px}
+    .controls select{min-width:140px}
+    .hint{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="#" id="back">‹ back to codex</a>
+  <span class="small">live spine viewer</span>
+  <span class="id" id="title">…</span>
+</header>
+<main>
+  <div id="stage-wrap">
+    <div id="stage-scaler">
+      <div id="stage-bg"></div>
+      <div id="stage"></div>
+    </div>
+    <div class="zoom-controls">
+      <button id="zin" title="zoom in">+</button>
+      <button id="zfit" title="fit / reset" style="font-size:14px">⛶</button>
+      <button id="zout" title="zoom out">−</button>
+      <button id="zshot" title="download current frame as transparent PNG" aria-label="download PNG">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="zoom-pct" id="zoompct">100%</div>
+  </div>
+  <div class="spine-controls-host" id="ctrls-host"></div>
+  <div class="hint">mouse wheel · drag to pan · pinch on mobile · or use the buttons</div>
+  <div class="info" id="info"></div>
+  <div class="controls">
+    <label for="anim">Animation</label><select id="anim"></select>
+    <label for="skin">Skin</label><select id="skin"></select>
+    <label for="quality">Quality</label>
+    <select id="quality" title="render-side upscale: makes the canvas backing store NxN larger, browser downsamples back — sharper for small assets">
+      <option value="1">1× (native)</option>
+      <option value="1.5">1.5×</option>
+      <option value="2" selected>2×</option>
+      <option value="3">3×</option>
+      <option value="4">4× (slow)</option>
+    </select>
+    <label class="stage-toggle" id="stage-label" hidden title="composite the backdrop rig behind the character"><input type="checkbox" id="stage-on"> Stage</label>
+  </div>
+</main>
+<script>
+const params = new URLSearchParams(location.search);
+const slug   = params.get("slug") || "";
+// ?rig=combat loads the skill-animation rig staged under <slug>/combat/.
+// Combat rigs carry skill1/skill2/skill3/run/knock_down/rise the lobby rig
+// lacks. v1: only the 3.8.99 subset is staged (see tools/prepare_combat_assets.py
+// and docs/TASKS.md "Combat rig live viewer").
+const rig    = params.get("rig") || "";
+const isCombat = rig === "combat";
+// ?stage=<backdrop_slug> composites the backdrop rig (PRIMARY_SWAP bare slug,
+// e.g. c1183 for Estelle c1183_1) behind the character. Only honored on the
+// default rig — combat rigs have their own coordinate system that wouldn't
+// align with the lobby-scale backdrop.
+const stageSlug = (!isCombat && params.get("stage")) || "";
+const titleSuffix = isCombat ? " · combat" : "";
+document.getElementById("title").textContent = (slug || "(no slug)") + titleSuffix;
+// Back nav: the codex links into the viewer with target="_blank" (new tab) but
+// some webviews open it in-tab. When we DO have in-tab history, pop back to the
+// character page instead of pushing a fresh index.html#/u/<slug> entry — pushing
+// created a [char, viewer, char] stack where browser-back re-entered the viewer.
+const _backHref = "index.html" + (slug ? `#/u/${encodeURIComponent(slug)}` : "");
+const _backEl = document.getElementById("back");
+_backEl.href = _backHref;
+_backEl.addEventListener("click", (e) => {
+  if (history.length > 1) { e.preventDefault(); history.back(); }
+});
+
+// Source spine version (2.1.27 vs 3.8.99). The converted JSON's skeleton.spine is
+// always rewritten to "3.8.99" for spine-player compat, so the rig itself can't
+// tell us the real source version — look it up from units.json (keyed by rig-json
+// basename, which matches both the portrait and combat asset for a slug). The
+// #info panel's "spine" span (built on load) reads this; we also patch it here in
+// case the fetch resolves after the rig finished loading.
+let sourceSpineVer = null;
+function applySpineVer() {
+  const sp = document.getElementById("infospine");
+  if (sp && sourceSpineVer) sp.textContent = "spine " + sourceSpineVer;
+}
+if (slug) {
+  fetch("data/units.json").then(r => r.json()).then(d => {
+    const units = Array.isArray(d) ? d : (d.units || Object.values(d));
+    const ver = {};
+    for (const u of units) for (const s of (u.spine || [])) {
+      const b = (s.json || "").split("/").pop().replace(/\.json$/, "");
+      if (b && s.version) ver[b] = s.version;
+    }
+    sourceSpineVer = ver[slug] || null;
+    applySpineVer();
+  }).catch(() => {});
+}
+
+const wrap    = document.getElementById("stage-wrap");
+const scaler  = document.getElementById("stage-scaler");
+const stage   = document.getElementById("stage");
+const stageBg = document.getElementById("stage-bg");
+const info    = document.getElementById("info");
+const animSel = document.getElementById("anim");
+const skinSel = document.getElementById("skin");
+const qSel    = document.getElementById("quality");
+const zinBtn  = document.getElementById("zin");
+const zoutBtn = document.getElementById("zout");
+const zfitBtn = document.getElementById("zfit");
+const zshotBtn= document.getElementById("zshot");
+const zPct    = document.getElementById("zoompct");
+const stageLabel = document.getElementById("stage-label");
+const stageOnInput = document.getElementById("stage-on");
+
+let player = null;
+let bgPlayer = null;
+let zoom = 1, panX = 0, panY = 0;
+const ZMIN = 0.3, ZMAX = 5;
+
+// Render-scale trick: size the inner scaler at Nx of the wrap, then visually
+// scale it back via CSS transform. spine-player's canvas grows with the div,
+// so it renders at NxN backing-store resolution and the browser downsamples
+// the result — sharp for small assets (c1019_s01, c1117_s01). 2× is the
+// default; higher costs proportional GPU time.
+//
+// Transform-origin is top-left (CSS sets it to "0 0"), so scale(s) keeps the
+// scaler's natural top-left anchored at (0,0) inside wrap. To put the scaler
+// (and therefore the character, which spine-player auto-frames at canvas
+// centre) at the wrap's centre, we add a centre-offset translate that
+// depends on zoom: visual scaler size after scale = zoom*wrap, so we shift
+// by (wrap - zoom*wrap)/2 so the visible bounding box is wrap-centred when
+// pan is zero. panX/panY are added on top in screen pixels.
+function apply() {
+  const q = parseFloat(qSel.value) || 1;
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  const cx = (w - w * zoom) / 2;
+  const cy = (h - h * zoom) / 2;
+  scaler.style.width     = (100 * q) + "%";
+  scaler.style.height    = (100 * q) + "%";
+  scaler.style.transform = `translate(${cx + panX}px, ${cy + panY}px) scale(${zoom / q})`;
+  zPct.textContent = Math.round(zoom * 100) + "%";
+}
+qSel.addEventListener("change", () => {
+  // Reset pan/zoom; centre-offset in apply() puts the character back at the
+  // wrap's centre regardless of the new quality multiplier.
+  zoom = 1; panX = 0; panY = 0;
+  apply();
+  window.dispatchEvent(new Event("resize"));
+});
+function zoomBy(factor, cx, cy) {
+  const newZoom = Math.max(ZMIN, Math.min(ZMAX, zoom * factor));
+  if (cx !== undefined) {
+    // Keep the point under cursor stable when zooming. With top-left origin
+    // and a wrap-centred view, the cursor's offset from wrap centre is the
+    // anchor: after the zoom change, pan compensates so the cursor still
+    // hovers the same scaler-space point.
+    //   panX_new = (cursor.x - wrap.w/2)·(1 - r) + panX_old·r ,   r = newZoom/zoom
+    const rect = wrap.getBoundingClientRect();
+    const dx = (cx - rect.left) - rect.width / 2;
+    const dy = (cy - rect.top)  - rect.height/ 2;
+    const r  = newZoom / zoom;
+    panX = dx * (1 - r) + panX * r;
+    panY = dy * (1 - r) + panY * r;
+  }
+  zoom = newZoom;
+  apply();
+}
+function resetView() { zoom = 1; panX = 0; panY = 0; apply(); }
+
+zinBtn.onclick  = () => zoomBy(1.25);
+zoutBtn.onclick = () => zoomBy(1/1.25);
+zfitBtn.onclick = resetView;
+
+// Always download at Quality=4× regardless of the dropdown's current value.
+// The user shouldn't have to remember to bump quality before clicking the
+// download button. We briefly switch to 4×, wait two frames so spine-player
+// resizes its canvas backing buffer to the new scaler size and paints once,
+// snapshot, then restore the prior quality + pan/zoom. The visual flicker is
+// usually a single frame so it's barely noticeable in practice.
+zshotBtn.onclick = async () => {
+  const c = stage.querySelector("canvas");
+  if (!c) return;
+
+  const prevQ    = qSel.value;
+  const prevZoom = zoom, prevPanX = panX, prevPanY = panY;
+  const restore  = () => {
+    qSel.value = prevQ;
+    zoom = prevZoom; panX = prevPanX; panY = prevPanY;
+    apply();
+    window.dispatchEvent(new Event("resize"));
+  };
+
+  if (prevQ !== "4") {
+    qSel.value = "4";
+    // qSel.onchange resets pan/zoom and dispatches resize, but doing it via
+    // the change event from script doesn't fire the handler — call by hand.
+    zoom = 1; panX = 0; panY = 0;
+    apply();
+    window.dispatchEvent(new Event("resize"));
+    // Two RAFs: first commits the layout change, second lets spine-player
+    // resize its canvas and render one frame into the new backing buffer.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  }
+
+  const canvas = stage.querySelector("canvas");
+  if (!canvas) { restore(); return; }
+  // With the Stage toggle on, two canvases are stacked — composite both into an
+  // offscreen 2D canvas so the saved PNG carries the backdrop + character.
+  // Without this the saved file would be character-only, defeating the point
+  // of enabling the stage.
+  const bgCanvas = (bgPlayer && stageBg) ? stageBg.querySelector("canvas") : null;
+  let outSource = canvas;
+  if (bgCanvas) {
+    const w = canvas.width, h = canvas.height;
+    const off = document.createElement("canvas");
+    off.width = w; off.height = h;
+    const ctx = off.getContext("2d");
+    ctx.drawImage(bgCanvas, 0, 0, w, h);
+    ctx.drawImage(canvas, 0, 0, w, h);
+    outSource = off;
+  }
+  outSource.toBlob((blob) => {
+    try {
+      if (!blob) return;
+      const url  = URL.createObjectURL(blob);
+      const anim = animSel.value || "pose";
+      const skin = skinSel.value || "default";
+      const a = document.createElement("a");
+      a.href = url;
+      const rigTag = isCombat ? "__combat" : "";
+      const stageTag = bgCanvas ? "__stage" : "";
+      a.download = `${slug}${rigTag}${stageTag}__${anim}__${skin}__4x.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } finally {
+      restore();
+    }
+  }, "image/png");
+};
+
+// Mouse wheel zoom centred on cursor.
+wrap.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 1/1.12;
+  zoomBy(factor, e.clientX, e.clientY);
+}, { passive: false });
+
+// Mouse drag pan.
+let dragging = false, lastX = 0, lastY = 0;
+wrap.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "touch") return; // touch handled separately
+  // Don't hijack pointer events that originated on the zoom-controls buttons.
+  // Without this, wrap.setPointerCapture redirects the subsequent pointerup
+  // away from the button and the synthetic click event never fires — which
+  // is why every zoom/screenshot button looked dead on Firefox desktop.
+  if (e.target.closest(".zoom-controls")) return;
+  dragging = true; lastX = e.clientX; lastY = e.clientY;
+  wrap.setPointerCapture(e.pointerId);
+});
+wrap.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  panX += e.clientX - lastX;
+  panY += e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  apply();
+});
+wrap.addEventListener("pointerup", (e) => { dragging = false; });
+wrap.addEventListener("pointercancel", () => { dragging = false; });
+
+// Touch: 1-finger pan, 2-finger pinch zoom.
+const touches = new Map();
+let pinchDist = 0, pinchMid = null;
+wrap.addEventListener("touchstart", (e) => {
+  for (const t of e.changedTouches) touches.set(t.identifier, { x: t.clientX, y: t.clientY });
+  if (touches.size === 2) {
+    const [a, b] = [...touches.values()];
+    pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+    pinchMid  = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  }
+}, { passive: true });
+wrap.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (!touches.has(t.identifier)) continue;
+    const prev = touches.get(t.identifier);
+    if (touches.size === 1) {
+      panX += t.clientX - prev.x;
+      panY += t.clientY - prev.y;
+      apply();
+    }
+    touches.set(t.identifier, { x: t.clientX, y: t.clientY });
+  }
+  if (touches.size === 2) {
+    const [a, b] = [...touches.values()];
+    const d  = Math.hypot(a.x - b.x, a.y - b.y);
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    if (pinchDist) zoomBy(d / pinchDist, mx, my);
+    pinchDist = d; pinchMid = { x: mx, y: my };
+  }
+}, { passive: false });
+wrap.addEventListener("touchend", (e) => {
+  for (const t of e.changedTouches) touches.delete(t.identifier);
+  if (touches.size < 2) { pinchDist = 0; pinchMid = null; }
+});
+
+// Where the viewer loads Spine bulk (<slug>.json/.atlas/.png) from.
+//
+// Local dev serves them with relative `assets/` (python -m http.server from
+// site/, or file://). In production the assets are typically offloaded to
+// object storage on a separate host — set PROD_ASSET_BASE to that host's URL
+// (and configure CORS on it to allow your site's origin). Leave it as 'assets'
+// to serve everything from the same origin as the page.
+const PROD_ASSET_BASE = 'assets';  // e.g. 'https://assets.example.com'
+
+const host = location.hostname;
+const isLocal = host === 'localhost'
+  || host === '127.0.0.1'
+  || host === ''  // file://
+  || /^192\.168\./.test(host)
+  || /^10\./.test(host)
+  || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+const spineBase = isLocal ? 'assets' : PROD_ASSET_BASE;
+
+if (!slug) {
+  stage.innerHTML = '<div class="err">missing ?slug= in URL.</div>';
+} else {
+  // Stage toggle is only meaningful when ?stage= was passed AND we're on the
+  // default rig (combat rigs don't share coords with the lobby backdrop).
+  if (stageSlug) {
+    stageLabel.hidden = false;
+    stageOnInput.onchange = () => loadScene();
+  }
+  loadScene();
+}
+
+function disposePlayers() {
+  // Best-effort teardown. spine-player exposes stopRendering() to halt its
+  // animation loop; clearing the host div removes the canvas. The internal
+  // window.onresize handler is left dangling but the next loadScene wires up
+  // a fresh one (the LAST player to load owns window.onresize — see
+  // spine-player.js:11174). The bg's resize handler is therefore stomped by
+  // the character's, which is intentional: bg's canvas auto-resizes inside
+  // its own draw loop too.
+  if (player) { try { player.stopRendering(); } catch(_) {} player = null; }
+  if (bgPlayer) { try { bgPlayer.stopRendering(); } catch(_) {} bgPlayer = null; }
+  stage.innerHTML = "";
+  stageBg.innerHTML = "";
+  // The spine controls bar is reparented out of #stage into #ctrls-host on
+  // every successful load (see end of loadCharacter success()). #stage gets
+  // cleared above, but ctrls-host doesn't — so without this, toggling Stage
+  // stacks a new bar each time.
+  document.getElementById("ctrls-host").innerHTML = "";
+  info.innerHTML = "";
+  animSel.innerHTML = "";
+  skinSel.innerHTML = "";
+}
+
+function loadScene() {
+  disposePlayers();
+  const wantStage = !!stageSlug && stageOnInput.checked;
+  if (wantStage) {
+    // Load the backdrop first so its auto-fit viewport can be reused for the
+    // character. Identical viewports → identical projection → the rigs line
+    // up in shared world coordinates (they were authored together as one
+    // Spine scene; PRIMARY_SWAP just split the export by visible slots).
+    loadBackdrop().then((bgViewport) => loadCharacter(bgViewport));
+  } else {
+    loadCharacter(null);
+  }
+}
+
+function loadBackdrop() {
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (v) => { if (!resolved) { resolved = true; resolve(v); } };
+    try {
+      bgPlayer = new spine.SpinePlayer("stage-bg", {
+        jsonUrl:  `${spineBase}/${stageSlug}/${stageSlug}.json`,
+        atlasUrl: `${spineBase}/${stageSlug}/${stageSlug}.atlas`,
+        backgroundColor: "#00000000",
+        alpha: true,
+        premultipliedAlpha: true,
+        showControls: false,
+        viewport: { padLeft: 80, padRight: 80, padTop: 40, padBottom: 80, debugRender: false },
+        success: (p) => {
+          // Pick first animation just to populate currentViewport — most
+          // backdrops only ship one (`idle`/`wait`) and don't visibly move.
+          const anims = p.skeleton.data.animations;
+          if (anims.length > 0) {
+            const pick = anims.find(a => /idle|wait|stand/i.test(a.name)) || anims[0];
+            p.setAnimation(pick.name);
+          }
+          const v = p.currentViewport;
+          finish(v ? { x: v.x, y: v.y, width: v.width, height: v.height,
+                       padLeft: v.padLeft, padRight: v.padRight,
+                       padTop: v.padTop, padBottom: v.padBottom } : null);
+        },
+        error: (_p, msg) => {
+          console.warn("backdrop load failed:", msg);
+          finish(null);
+        },
+      });
+    } catch (e) {
+      console.warn("backdrop init threw:", e);
+      finish(null);
+    }
+  });
+}
+
+function loadCharacter(bgViewport) {
+  try {
+    const rigPath = isCombat ? `${slug}/combat` : `${slug}`;
+    // When syncing to backdrop, mirror its exact viewport (incl. padding) so
+    // the character projects through the same camera. When standalone, fall
+    // back to the historical absolute-unit padding that frames the rig
+    // tightly.
+    const charViewport = bgViewport
+      ? { x: bgViewport.x, y: bgViewport.y,
+          width: bgViewport.width, height: bgViewport.height,
+          padLeft: bgViewport.padLeft, padRight: bgViewport.padRight,
+          padTop: bgViewport.padTop, padBottom: bgViewport.padBottom,
+          debugRender: false }
+      : { padLeft: 80, padRight: 80, padTop: 40, padBottom: 80, debugRender: false };
+    player = new spine.SpinePlayer("stage", {
+      jsonUrl:  `${spineBase}/${rigPath}/${slug}.json`,
+      atlasUrl: `${spineBase}/${rigPath}/${slug}.atlas`,
+      // Fully-transparent BLACK (not the theme dark with alpha=0) — the WebGL
+      // context runs with premultipliedAlpha:true, so toBlob un-premultiplies
+      // on read: rgb_out = rgb_buf / alpha. If we clear to (#13141d, α=0) the
+      // un-premultiply does rgb / 0 → Infinity → clamps to 255 and every
+      // transparent pixel comes out pure white in the saved PNG. Clearing to
+      // (0,0,0,0) keeps rgb at 0 so the math stays sane.
+      // #stage-wrap supplies the visible dark colour via CSS — the canvas is
+      // alpha-blended over it, so the user still sees the panel tone.
+      backgroundColor: "#00000000",
+      alpha: true,
+      premultipliedAlpha: true,
+      showControls: true,
+      // Generous padding so weapons/auras don't get clipped by the auto-frame
+      // and the figure sits roughly centred. Some rigs (e.g. c1117_s01) compute
+      // bounds that leave the character off-centre; padding evens that out.
+      viewport: charViewport,
+      success: (p) => {
+        // Filter 0-duration animations. Combat rigs ship "set pose" entries
+        // (appear, attacked_damage, flying_damage) the game engine snaps to
+        // for state transitions — they freeze the rig in the viewer because
+        // they ARE a single frame. Hiding them keeps the dropdown to anims
+        // the user can actually watch play.
+        const allAnims = p.skeleton.data.animations;
+        const anims = allAnims.filter(a => a.duration > 0).map(a => a.name);
+        const skins = p.skeleton.data.skins.map(s => s.name);
+        info.innerHTML = `<span>${anims.length} animation${anims.length>1?'s':''}</span>
+                          <span>${skins.length} skin${skins.length>1?'s':''}</span>
+                          <span>${p.skeleton.data.bones.length} bones</span>
+                          <span id="infospine">spine ${sourceSpineVer || '3.8.99'}</span>`;
+        applySpineVer();
+        animSel.innerHTML = anims.map(n => `<option value="${n}">${n}</option>`).join("");
+        skinSel.innerHTML = skins.map(n => `<option value="${n}">${n}</option>`).join("");
+        // E7 rigs layer their look across three skins: default (body chassis),
+        // normal (neutral eyes/lip/brow), and an expression (smile/angry/etc
+        // that fills the face silhouette or the lit-face overlay). Most rigs
+        // look correct with just default+normal; only "broken-by-design" rigs
+        // (where face features live only in expression skins, see
+        // tools/audit_skins.py for the heuristic) need the third layer. The
+        // skin dropdown lets the user override the expression layer.
+        const data = p.skeleton.data;
+        const EXPR_ORDER = ["smile", "angry", "panic", "sad", "special"];
+        const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;
+        const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
+        // Per-slug overrides for rigs whose missing-face slot does NOT match
+        // the regex above. See tools/audit_skins.py EXPRESSION_FORCE.
+        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01"]);
+        // Second heuristic: rigs with no neutral face anywhere in
+        // default+normal but expressions provide one. See tools/audit_skins.py.
+        const FACE_PIECE_RE = /^(?:[a-z]+\/)?(face|head|eye|mouth|lip|brow|eyebrow|nose|cheek)(?:[A-Z\d]|[_/]\w+)?$/i;
+        const EXPR_SKIN_NAMES = ["smile","angry","panic","sad","special","special2","special3"];
+        function skinHasFacePiece(skinName) {
+          const sk = data.findSkin(skinName);
+          if (!sk) return false;
+          for (let i = 0; i < sk.attachments.length; i++) {
+            if (!sk.attachments[i]) continue;
+            if (FACE_PIECE_RE.test(data.slots[i].name)) return true;
+          }
+          return false;
+        }
+        function needsLayerNoNeutralFace() {
+          if (skinHasFacePiece("default") || skinHasFacePiece("normal")) return false;
+          for (const e of EXPR_SKIN_NAMES) if (skinHasFacePiece(e)) return true;
+          return false;
+        }
+        function needsExpressionLayer() {
+          if (EXPRESSION_FORCE.has(slug)) return true;
+          if (needsLayerNoNeutralFace()) return true;
+          const defSkin = data.findSkin("default");
+          const normSkin = data.findSkin("normal");
+          for (let i = 0; i < data.slots.length; i++) {
+            const sd = data.slots[i];
+            const setup = sd.attachmentName;
+            if (!setup) continue;
+            if (!CRIT_SLOT_RE.test(sd.name)) continue;
+            if (!CRIT_SETUP_RE.test(setup)) continue;
+            if (defSkin && defSkin.getAttachment(i, setup)) continue;
+            if (normSkin && normSkin.getAttachment(i, setup)) continue;
+            return true;
+          }
+          return false;
+        }
+        function pickExpression() {
+          for (const e of EXPR_ORDER) {
+            const s = data.findSkin(e);
+            if (s && s.getAttachments().length > 0) return e;
+          }
+          return null;
+        }
+        const autoNeedsExpr = needsExpressionLayer();
+        function applyCombined(expr, force) {
+          // expr can be: null/"" (auto-pick), "default" (no combine),
+          // "normal" (default+normal only), or any expression skin name.
+          // `force` (true when the user picks from the dropdown) bypasses
+          // the needsExpressionLayer check, so users can preview expressions
+          // on rigs whose default+normal already looks correct.
+          //
+          // Layering rule:
+          //   - resting pose (expr null/"normal"):   default + normal
+          //   - broken-by-design + expression:       default + normal + <expr>
+          //       (expression doesn't carry a full face; normal supplies the
+          //       base that the expression overlays.)
+          //   - working rig + expression preview:    default + <expr>
+          //       (expression IS a full alternative face on c1171/c5110/etc.
+          //       Layering normal too keeps normal's attachments visible on
+          //       different slot names and visually duplicates eyebrows/eyes.)
+          const layers = [];
+          if (data.findSkin("default")) layers.push("default");
+          if (expr === "default") {
+            // user explicitly wants the bare default skin
+          } else if (!expr || expr === "normal") {
+            // resting pose
+            if (data.findSkin("normal")) layers.push("normal");
+            if (autoNeedsExpr && !expr) {
+              const auto = pickExpression();
+              if (auto) layers.push(auto);
+            }
+          } else if (data.findSkin(expr) && expr !== "default") {
+            // user picked an expression
+            if (autoNeedsExpr) {
+              // broken-by-design: keep normal as the face base
+              if (data.findSkin("normal")) layers.push("normal");
+            }
+            layers.push(expr);
+          }
+          if (layers.length > 1) {
+            const combo = new spine.Skin("combo");
+            for (const n of layers) combo.addSkin(data.findSkin(n));
+            p.skeleton.setSkin(combo);
+          } else if (layers.length === 1 && layers[0] !== "default") {
+            p.skeleton.setSkinByName(layers[0]);
+          } else if (layers.length === 1) {
+            p.skeleton.setSkinByName("default");
+          }
+          p.skeleton.setSlotsToSetupPose();
+        }
+        applyCombined(null);
+        if (autoNeedsExpr) {
+          const initialExpr = pickExpression();
+          if (initialExpr) skinSel.value = initialExpr;
+        }
+        const pick = anims.find(n => /idle|wait|stand/i.test(n)) || anims[0];
+        if (pick) { p.setAnimation(pick); animSel.value = pick; }
+        animSel.onchange = () => p.setAnimation(animSel.value);
+        skinSel.onchange = () => applyCombined(skinSel.value, true);
+        // Relocate the play/scrub bar from inside the transformed scaler to
+        // its own host below the stage so it isn't clipped or moved when the
+        // user pans/zooms. Spine-player still owns the element (event
+        // handlers + show/hide logic continue working); we just reparent it.
+        const ctrls = stage.querySelector(".spine-player-controls");
+        if (ctrls) document.getElementById("ctrls-host").appendChild(ctrls);
+      },
+      error: (_p, msg) => { stage.innerHTML = `<div class="err">spine error: ${msg}</div>`; },
+    });
+  } catch (e) {
+    stage.innerHTML = `<div class="err">${e.message}</div>`;
+  }
+}
+apply();
+</script>
+</body>
+</html>
