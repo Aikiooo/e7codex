@@ -15,7 +15,7 @@ Usage:
     python scsp_to_json.py <input.scsp> <output.json>
 """
 from __future__ import annotations
-import argparse, struct, subprocess, sys, tempfile, shutil
+import argparse, re, struct, subprocess, sys, tempfile, shutil
 from pathlib import Path
 import lz4.block
 
@@ -52,9 +52,16 @@ def convert_2_1(scsp: Path, out_json: Path) -> bool:
     return out_json.exists()
 
 def convert_3_8(scsp: Path, out_json: Path) -> bool:
-    """E7_Scsp2Json.py reads INPUT_PATH from a constant. Stage the file in a tempdir
-    and rewrite the constants for this one run."""
+    """E7_Scsp2Json.py reads INPUT_PATH/OUTPUT_PATH from module constants. Stage
+    the file in a tempdir and rewrite those constants for this one run,
+    regardless of their default values."""
     src = CONV_3_8.read_text(encoding="utf-8")
+
+    def _set_const(text: str, name: str, value: Path) -> str:
+        # Forward slashes work on every OS and dodge backslash-escaping in r"".
+        v = str(value).replace("\\", "/")
+        return re.sub(rf"^{name}\s*=.*$", f'{name} = r"{v}"', text, count=1, flags=re.M)
+
     with tempfile.TemporaryDirectory() as td:
         td_in  = Path(td) / "in"
         td_out = Path(td) / "out"
@@ -64,12 +71,8 @@ def convert_3_8(scsp: Path, out_json: Path) -> bool:
         for ext in (".scsp", ".atlas", ".sct"):
             sib = scsp.with_suffix(ext)
             if sib.exists(): shutil.copy2(sib, td_in / sib.name)
-        # patch the two path constants
-        patched = (src
-                   .replace('INPUT_PATH = r"D:\\Claude\\E7\\output\\portrait"',
-                            f'INPUT_PATH = r"{td_in}"')
-                   .replace('OUTPUT_PATH = r"D:\\Claude\\E7\\yes"',
-                            f'OUTPUT_PATH = r"{td_out}"'))
+        patched = _set_const(src, "INPUT_PATH", td_in)
+        patched = _set_const(patched, "OUTPUT_PATH", td_out)
         patched_script = Path(td) / "_run.py"
         patched_script.write_text(patched, encoding="utf-8")
         r = subprocess.run([sys.executable, str(patched_script)], capture_output=True, text=True)

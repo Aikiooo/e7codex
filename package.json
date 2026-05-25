@@ -11,10 +11,9 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "@esotericsoftware/spine-webgl": "^4.3.0",
     "puppeteer": "^25.0.4",
     "sharp": "^0.34.5"
   }

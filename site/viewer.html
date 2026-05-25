@@ -113,8 +113,7 @@ const params = new URLSearchParams(location.search);
 const slug   = params.get("slug") || "";
 // ?rig=combat loads the skill-animation rig staged under <slug>/combat/.
 // Combat rigs carry skill1/skill2/skill3/run/knock_down/rise the lobby rig
-// lacks. v1: only the 3.8.99 subset is staged (see tools/prepare_combat_assets.py
-// and docs/TASKS.md "Combat rig live viewer").
+// lacks (staged by tools/prepare_combat_assets.py).
 const rig    = params.get("rig") || "";
 const isCombat = rig === "combat";
 // ?stage=<backdrop_slug> composites the backdrop rig (PRIMARY_SWAP bare slug,

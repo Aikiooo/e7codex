@@ -10,6 +10,8 @@ It does NOT apply to:
   - The vendored third-party SCSP->JSON converters (epic7_scsp2json_v1_0/ and
     E7_Scsp2Json.py), which retain their original authors' terms. See
     CREDITS.md.
+  - tools/decode_sct.py, which is a port of EpicSevenAssetRipper's sct decoder
+    and follows that project's terms. See CREDITS.md.
   - spine-player (Esoteric Software), which is not redistributed here and is
     governed by the Spine Runtimes License.
   - Any Epic Seven game assets, which are the intellectual property of

@@ -100,6 +100,11 @@ python -m http.server 8765
 # visit http://localhost:8765/
 ```
 
+> Note: `site/index.html`, `viewer.html`, and `404.html` reference
+> `favicon-16.png`, `favicon-32.png`, and `apple-touch-icon.png`, which are not
+> shipped. Drop your own icons into `site/` or remove the `<link rel="icon">`
+> tags — the site works either way (the browser just shows a default favicon).
+
 ## Deploying
 
 `site/` is a self-contained static bundle — serve it from any static host

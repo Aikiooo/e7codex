@@ -186,7 +186,7 @@ def load_artifact_db(root: Path) -> dict[str, dict]:
 def build(img: Path, raw: Path, out: Path) -> None:
     site_assets = out / "assets"
     if not site_assets.exists():
-        raise SystemExit(f"no {site_assets} — run `python tools/prepare_assets.py --from-yes` then "
+        raise SystemExit(f"no {site_assets} — run `python tools/prepare_assets.py --all` then "
                           "`node tools/render_poses.js` first")
 
     name_base, name_skin = load_name_db(out.parent if out.name == "site" else Path("."))
@@ -306,7 +306,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
             # The staged JSON can't tell us — the 2.1.27 converter rewrites
             # skeleton.spine to "3.8.99" for spine-player compatibility — so we
             # re-detect from the raw .scsp. Fall back to 3.8.99 when the source
-            # isn't locatable (e.g. pre-converted rigs from yes/).
+            # isn't locatable (e.g. pre-converted rigs from the converted_json/ cache).
             src_scsp = raw / "portrait" / f"{slug}.scsp"
             src_ver = (_detect_scsp_version(src_scsp) if src_scsp.exists() else None) or "3.8.99"
             unit["spine"] = [{
@@ -316,10 +316,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
             }]
 
         # Combat rig (skill1/skill2/skill3/run/knock_down/rise animations).
-        # Staged by tools/prepare_combat_assets.py from output/model/. Only
-        # the 3.8.99 subset is currently supported — 2.1.27 combat rigs are
-        # blocked on multi-day RE (events block + post-events deferred
-        # linked-mesh table; see docs/TASKS.md "Combat rig live viewer").
+        # Staged by tools/prepare_combat_assets.py from output/model/.
         combat_json = d / "combat" / f"{slug}.json"
         if combat_json.exists():
             unit["has_combat"] = True
