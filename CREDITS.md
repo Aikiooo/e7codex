@@ -33,6 +33,21 @@ auditable.
   — drives the live viewer. Not redistributed here; the setup step fetches it
   from Esoteric and applies a one-line `preserveDrawingBuffer` patch.
 
+## Animation export encoders (vendored in `site/`)
+
+The live viewer's "Export animation" feature encodes clips entirely in the
+browser, with no runtime third-party dependency. The encoders below are
+vendored verbatim.
+
+- **UPNG.js** by **Ivan Kutskir / Photopea** (https://github.com/photopea/UPNG.js)
+  — MIT License. Encodes the lossless transparent APNG output.
+- **pako** by **Vitaly Puzrin & Andrey Tupitsin / Nodeca**
+  (https://github.com/nodeca/pako) — MIT License. The zlib implementation
+  UPNG.js depends on.
+- **wasm-webp** (npm `wasm-webp` 0.1.0) — a WebAssembly build of Google's
+  **libwebp** (https://chromium.googlesource.com/webm/libwebp, BSD-3-Clause).
+  Encodes the animated transparent WebP output (`webp-wasm.js` + `.wasm`).
+
 ## Copyright
 
 Epic Seven and all related artwork, characters, names, and logos are the

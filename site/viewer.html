@@ -11,6 +11,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Spline+Sans+Mono:wght@400;500&family=Outfit:wght@300;400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="spine-player.css">
 <script src="spine-player.js"></script>
+<!-- APNG export: UPNG.js encoder + pako (its zlib dep). Vendored one-shot,
+     no runtime third-party dependency. The animated-WebP path uses a libwebp
+     WASM build (webp-wasm.js/.wasm, vendored) loaded on demand via dynamic
+     import the first time someone exports a WebP. -->
+<script src="pako.min.js"></script>
+<script src="UPNG.js"></script>
 <style>
   :root{--ink:#0c0d12;--ink-2:#13141d;--panel:#171826;--line:#2a2c3f;
     --gold:#d8b06a;--gold-dim:#9a824e;--text:#e7e5dd;--mut:#8d8c9c}
@@ -45,7 +51,7 @@
   .zoom-controls button:hover{border-color:var(--gold-dim);color:var(--gold)}
   .zoom-controls button:active{transform:scale(.94)}
   .zoom-controls button:disabled{cursor:default}
-  .zoom-controls button.recording{border-color:#d98a8a;color:#d98a8a;animation:recpulse 1s ease-in-out infinite}
+  .zoom-controls button.active{border-color:var(--gold-dim);color:var(--gold)}
   @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
   .zoom-controls .label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);text-align:center;margin-top:2px;font-family:'Spline Sans Mono',monospace}
   .zoom-pct{position:absolute;left:10px;bottom:10px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);background:rgba(13,14,22,.85);padding:6px 11px;border-radius:3px;border:1px solid var(--line);letter-spacing:.05em;z-index:10}
@@ -55,6 +61,23 @@
   .controls label{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--mut);text-transform:uppercase}
   .controls select{background:var(--ink-2);border:1px solid var(--line);color:var(--text);padding:7px 11px;border-radius:2px;font-family:'Spline Sans Mono',monospace;font-size:12px;min-width:160px}
   .controls select:focus{outline:none;border-color:var(--gold-dim)}
+  /* Export popup: opens to the left of the zoom-controls button column. */
+  .export-menu{position:absolute;right:62px;bottom:10px;z-index:12;width:236px;display:flex;flex-direction:column;gap:9px;padding:13px;background:rgba(13,14,22,.96);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
+  .export-menu[hidden]{display:none}
+  .em-title{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+  .exp-opt{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--ink-2);border:1px solid var(--line);border-radius:4px;padding:9px 12px;cursor:pointer;transition:.15s;font-family:'Outfit',sans-serif}
+  .exp-opt:hover{border-color:var(--gold-dim)}
+  .exp-opt:active{transform:scale(.98)}
+  .exp-opt:disabled{cursor:default;opacity:.5}
+  .exp-opt.busy{border-color:#d98a8a;animation:recpulse 1s ease-in-out infinite}
+  .eo-name{font-size:13px;color:var(--text)}
+  .exp-opt:hover .eo-name{color:var(--gold)}
+  .eo-desc{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.02em}
+  .exphint{font-family:'Spline Sans Mono',monospace;font-size:9.5px;color:var(--mut);letter-spacing:.02em;line-height:1.5}
+  .exp-nolimit{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.02em;color:var(--mut);transition:color .15s}
+  .exp-nolimit:hover{color:var(--text)}
+  .exp-nolimit input{accent-color:var(--gold);cursor:pointer;margin:0;flex:0 0 auto}
+  @media (max-width:640px){ .export-menu{width:210px} }
   .stage-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;padding:6px 10px;border:1px solid var(--line);border-radius:2px;background:var(--ink-2);transition:border-color .15s}
   .stage-toggle:hover{border-color:var(--gold-dim)}
   .stage-toggle input{accent-color:var(--gold);cursor:pointer;margin:0}
@@ -91,12 +114,32 @@
           <line x1="12" y1="3" x2="12" y2="15"></line>
         </svg>
       </button>
-      <button id="zclip" title="record the current animation as a WebM clip" aria-label="record WebM clip">
+      <button id="zexport-toggle" title="export / save animation (video, transparent, or lossless)" aria-label="export animation" aria-expanded="false">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polygon points="23 7 16 12 23 17 23 7"></polygon>
           <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
         </svg>
       </button>
+    </div>
+    <div class="export-menu" id="export-menu" hidden>
+      <div class="em-title">Export animation</div>
+      <button id="exp-webm" class="exp-opt">
+        <span class="eo-name">Video</span>
+        <span class="eo-desc">WebM · smallest, plays in Discord</span>
+      </button>
+      <button id="exp-webp" class="exp-opt">
+        <span class="eo-name">Transparent</span>
+        <span class="eo-desc">WebP · animated, plays in Discord</span>
+      </button>
+      <button id="exp-apng" class="exp-opt">
+        <span class="eo-name">Transparent · lossless</span>
+        <span class="eo-desc">APNG · best quality, slow &amp; large *</span>
+      </button>
+      <div class="exphint">Frame rate (and WebP resolution) auto-adjust for long or high-quality clips to keep file size and memory in check. Lower the Quality setting if an export keeps failing.</div>
+      <label class="exp-nolimit" title="Capture at full frame rate and resolution. May produce very large files or run out of memory (WebP can abort).">
+        <input type="checkbox" id="exp-no-limits"> Disable safety limits (I know what I'm doing)
+      </label>
+      <div class="exphint">* APNG keeps perfect transparency but won't animate in Discord or Windows — use it for editing/compositing.</div>
     </div>
     <div class="zoom-pct" id="zoompct">100%</div>
   </div>
@@ -179,7 +222,12 @@ const zinBtn  = document.getElementById("zin");
 const zoutBtn = document.getElementById("zout");
 const zfitBtn = document.getElementById("zfit");
 const zshotBtn= document.getElementById("zshot");
-const zclipBtn= document.getElementById("zclip");
+const expWebmBtn = document.getElementById("exp-webm");
+const expWebpBtn = document.getElementById("exp-webp");
+const expApngBtn = document.getElementById("exp-apng");
+const exportToggleBtn = document.getElementById("zexport-toggle");
+const exportMenu = document.getElementById("export-menu");
+const noLimitsToggle = document.getElementById("exp-no-limits");
 const zPct    = document.getElementById("zoompct");
 const stageLabel = document.getElementById("stage-label");
 const stageOnInput = document.getElementById("stage-on");
@@ -312,105 +360,265 @@ zshotBtn.onclick = async () => {
   }, "image/png");
 };
 
-// Record the playing animation to a WebM clip (one full loop of the selected
-// animation). The viewer canvas clears to #00000000 so screenshots come out
-// transparent, but MediaRecorder's VP8/VP9 encoder can't carry an alpha
-// channel — it flattens transparency to black. So instead of recording the
-// spine canvas directly we composite each frame onto an offscreen 2D canvas
-// filled with the panel colour (the same --ink-2 the user sees behind the
-// character in #stage-wrap), and record THAT. When the Stage backdrop is on,
-// its canvas is composited underneath too, mirroring the screenshot path.
-//
-// We never pause() or set timeScale=0 — both hit spine-player freeze traps
-// (pause skips apply; timeScale=0 leaves load-time mixingFrom undisposed). The
-// rig just keeps playing in real time and we sample its canvas every rAF, so
-// wall-clock seconds == animation seconds at the default timeScale of 1.
-let recording = false;
-zclipBtn.onclick = async () => {
-  if (recording) return;
+// ── Animation export ────────────────────────────────────────────────────────
+// A corner popup with three explicit, self-describing buttons — one per output,
+// so there's no hidden state about what each produces:
+//   Video (WebM)             — opaque, smallest, plays inline in Discord.
+//   Transparent (WebP)       — alpha + animated, efficient (libwebp WASM,
+//                              inter-frame compression). Animates in Discord.
+//   Transparent lossless     — APNG via UPNG. Perfect alpha, but large and
+//   (APNG)                     won't animate in Discord/Windows (editors only).
+// All three capture one full loop with a clean restart (SpinePlayer.setAnimation
+// clears tracks → no crossfade) and sample the canvas every rAF. We never
+// pause()/zero timeScale (spine-player freeze traps). When the Stage backdrop
+// is on it's composited under every format.
+
+// Popup open/close (anchored beside the zoom-controls button column).
+function setExportMenu(open) {
+  exportMenu.hidden = !open;
+  exportToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  exportToggleBtn.classList.toggle("active", open);
+}
+exportToggleBtn.onclick = (e) => { e.stopPropagation(); setExportMenu(exportMenu.hidden); };
+document.addEventListener("click", (e) => {
+  if (exportMenu.hidden || exporting) return;
+  if (exportMenu.contains(e.target) || exportToggleBtn.contains(e.target)) return;
+  setExportMenu(false);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !exporting) setExportMenu(false); });
+
+const EXP_BTNS = [expWebmBtn, expWebpBtn, expApngBtn];
+let exporting = false;
+function expBusy(on, btn) {
+  exporting = on;
+  EXP_BTNS.forEach(b => { b.disabled = on; if (!on) b.classList.remove("busy"); });
+  if (on && btn) btn.classList.add("busy");
+}
+function exportContext() {
   const canvas = stage.querySelector("canvas");
-  if (!canvas || !player) return;
-  if (typeof MediaRecorder === "undefined" || !canvas.captureStream) {
-    alert("Sorry, your browser doesn't support in-page video recording.");
-    return;
-  }
+  if (!canvas || !player) return null;
   const animName  = animSel.value;
   const animEntry = (player.skeleton.data.animations || []).find(a => a.name === animName);
   const duration  = animEntry ? animEntry.duration : 0;
-  if (!duration) return;
+  if (!duration) return null;
+  return { canvas, animName, duration };
+}
+function dlName(ext, extraTag) {
+  const skin = skinSel.value || "default";
+  const rigTag = isCombat ? "__combat" : "";
+  return `${slug}${rigTag}__${animSel.value}__${skin}${extraTag || ""}.${ext}`;
+}
+function download(blob, name) {
+  // Some browsers PREVIEW an animated image/webp blob in a new tab instead of
+  // saving it, even with the download attribute set (WebM/APNG save fine). Hand
+  // WebP an octet-stream copy — the browser can't render that, so it always
+  // downloads. Bytes are unchanged; the filename keeps the real .webp extension.
+  // WebP files are small, so the extra copy is cheap (we skip it for the others).
+  const dl = blob.type === "image/webp"
+    ? new Blob([blob], { type: "application/octet-stream" })
+    : blob;
+  const url = URL.createObjectURL(dl);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.target = "_self";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
 
+async function runExport(btn, fn) {
+  if (exporting) return;
+  const ctx0 = exportContext();
+  if (!ctx0) return;
+  expBusy(true, btn);
+  try { await fn(ctx0); }
+  catch (e) { alert("Export failed: " + e.message); }
+  finally { expBusy(false); }
+}
+expWebmBtn.onclick = () => runExport(expWebmBtn, exportWebm);
+expWebpBtn.onclick = () => runExport(expWebpBtn, exportWebp);
+expApngBtn.onclick = () => runExport(expApngBtn, exportApng);
+
+// WebM — record the canvas composited onto the panel colour (no alpha).
+async function exportWebm({ canvas, animName, duration }) {
+  if (typeof MediaRecorder === "undefined" || !canvas.captureStream) {
+    alert("This browser doesn't support in-page video recording."); return;
+  }
   const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
     .find(m => MediaRecorder.isTypeSupported(m));
-  if (!mime) { alert("Sorry, WebM recording isn't supported in this browser."); return; }
-
-  recording = true;
-  zclipBtn.classList.add("recording");
-  zclipBtn.disabled = true;
-
+  if (!mime) { alert("WebM recording isn't supported in this browser."); return; }
   const w = canvas.width, h = canvas.height;
-  const off = document.createElement("canvas");
-  off.width = w; off.height = h;
+  const off = document.createElement("canvas"); off.width = w; off.height = h;
   const ctx = off.getContext("2d");
-  const bgColor = getComputedStyle(document.documentElement)
-    .getPropertyValue("--ink-2").trim() || "#13141d";
+  const bgColor = getComputedStyle(document.documentElement).getPropertyValue("--ink-2").trim() || "#13141d";
   const bgCanvas = (bgPlayer && stageBg) ? stageBg.querySelector("canvas") : null;
   const drawFrame = () => {
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = bgColor; ctx.fillRect(0, 0, w, h);
     if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0, w, h);
     ctx.drawImage(canvas, 0, 0, w, h);
   };
-
-  // Let captureStream auto-sample the offscreen canvas at 60fps. (An earlier
-  // attempt to drive frames manually with track.requestFrame() collapsed
-  // near-static animations to a single encoded frame — the auto-sampler
-  // captures every tick reliably for both static idles and dynamic skills.)
+  // captureStream auto-samples at 60fps (more reliable than manual
+  // requestFrame, which collapsed near-static anims to one frame). Bitrate
+  // scales with resolution so the Quality multiplier actually affects sharpness.
   const stream = off.captureStream(60);
   const chunks = [];
-  // Scale the target bitrate with the canvas resolution (driven by the Quality
-  // multiplier). A fixed bitrate makes a 4× capture compress to the same file
-  // size as 1× — same bits spread over 16× the pixels, so it looks no sharper.
-  // ~0.05 bits/pixel/frame at 60fps, floored/capped to keep sizes sane.
   const bitrate = Math.max(6e6, Math.min(50e6, Math.round(w * h * 60 * 0.05)));
   const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitrate });
   rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-  rec.onstop = () => {
-    const blob = new Blob(chunks, { type: "video/webm" });
-    const url  = URL.createObjectURL(blob);
-    const skin = skinSel.value || "default";
-    const rigTag = isCombat ? "__combat" : "";
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${slug}${rigTag}__${animName}__${skin}.webm`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    recording = false;
-    zclipBtn.classList.remove("recording");
-    zclipBtn.disabled = false;
-  };
-
-  // Clean restart from t=0 (SpinePlayer.setAnimation clears tracks, so there's
-  // no crossfade from the current loop position), then let spine-player paint
-  // frame 0 before we prime the recorder — otherwise the first captured frame
-  // is the stale pre-restart pose.
-  player.setAnimation(animName);
-  await new Promise(r => requestAnimationFrame(r));
-
-  drawFrame();
-  const start = performance.now();
-  rec.start();
-  const loop = (now) => {
-    drawFrame();
-    if (now - start < duration * 1000) {
+  const wasPaused = player.paused;   // resume if the viewer was paused, restore after
+  await new Promise((resolve) => {
+    rec.onstop = () => {
+      download(new Blob(chunks, { type: "video/webm" }), dlName("webm"));
+      if (wasPaused) player.pause();
+      resolve();
+    };
+    player.setAnimation(animName);
+    if (wasPaused) player.play();
+    requestAnimationFrame(() => {
+      drawFrame();
+      const start = performance.now();
+      rec.start();
+      const loop = (now) => {
+        drawFrame();
+        if (now - start < duration * 1000) requestAnimationFrame(loop);
+        else { try { rec.stop(); } catch (_) {} }
+      };
       requestAnimationFrame(loop);
-    } else {
-      try { rec.stop(); } catch (_) {}
-    }
+    });
+  });
+}
+
+// Capture one loop into offscreen ImageData frames, keeping straight-alpha
+// transparency (drawing the premultiplied WebGL canvas onto a 2D canvas
+// un-premultiplies it). Composites the Stage backdrop when on; otherwise the
+// background stays transparent.
+//
+// The only hard limit is total frame count: unlike WebM (which streams to the
+// recorder), WebP/APNG buffer every frame's raw RGBA in memory before encoding,
+// so a long clip at high res could otherwise eat gigabytes. We cap the frame
+// COUNT (lowering fps for long anims) rather than the resolution, so resolution
+// can stay high — which is what actually matters for quality.
+const MAX_EXPORT_FRAMES = 160;
+async function captureAlphaFrames(canvas, animName, duration, maxH, fps) {
+  // The "disable safety limits" toggle skips the fps clamp so the clip captures
+  // at full frame rate regardless of length (may produce a very large file).
+  if (!noLimitsToggle.checked && duration * fps > MAX_EXPORT_FRAMES) fps = Math.max(8, MAX_EXPORT_FRAMES / duration);
+  const scale = Math.min(1, maxH / canvas.height);
+  const w = Math.max(1, Math.round(canvas.width * scale));
+  const h = Math.max(1, Math.round(canvas.height * scale));
+  const off = document.createElement("canvas"); off.width = w; off.height = h;
+  const ctx = off.getContext("2d");
+  const bgCanvas = (bgPlayer && stageBg) ? stageBg.querySelector("canvas") : null;
+  const frameMs = 1000 / fps;
+  const imgs = [];
+  const capture = () => {
+    ctx.clearRect(0, 0, w, h);
+    if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0, w, h);
+    ctx.drawImage(canvas, 0, 0, w, h);
+    imgs.push(ctx.getImageData(0, 0, w, h));
   };
-  requestAnimationFrame(loop);
-};
+  player.setAnimation(animName);
+  // If the user paused the viewer, the rig won't advance — resume it for the
+  // capture, then restore the paused state afterward.
+  const wasPaused = player.paused;
+  if (wasPaused) player.play();
+  await new Promise(r => requestAnimationFrame(r));
+  const start = performance.now();
+  let lastCap = -Infinity;
+  await new Promise((resolve) => {
+    const loop = (now) => {
+      if (now - lastCap >= frameMs - 1) { capture(); lastCap = now; }
+      if (now - start < duration * 1000) requestAnimationFrame(loop);
+      else resolve();
+    };
+    requestAnimationFrame(loop);
+  });
+  if (wasPaused) player.pause();
+  return { w, h, imgs, fps };
+}
+
+// WebP — libwebp WASM (WebPAnimEncoder): real inter-frame compression + alpha.
+// The encoder (~580 KB) is lazy-loaded the first time someone exports a WebP.
+//
+// Unlike APNG (UPNG runs in the roomy JS heap) and WebM (streams to the
+// recorder), libwebp buffers every raw RGBA frame in a memory-limited WASM
+// heap — at high Quality + many frames it runs out and aborts. So we give WebP
+// a raw-memory budget and shrink ITS capture resolution to fit; for short clips
+// that's still the full 1440 cap, for long/4× clips it drops automatically.
+// 24fps (vs 30 for APNG): fewer frames means WebP can reach the full 1440 cap
+// within a safe memory budget — at 30fps a full-res idle needs ~660 MB of raw
+// frames in the WASM heap, right at the abort threshold seen in testing.
+const WEBP_MAXH = 1440, WEBP_FPS = 24, WEBP_QUALITY = 90;
+const WEBP_MEM_BUDGET = 600 * 1024 * 1024;   // raw RGBA across all frames; WASM heap maxes ~2 GB, so
+                                             // this leaves headroom for libwebp's working buffers while
+                                             // letting typical skills reach the full 1440 cap. Long clips
+                                             // still scale down to avoid the abort.
+let _webpModulePromise = null;
+function getWebpModule() {
+  if (!_webpModulePromise) {
+    _webpModulePromise = import("./webp-wasm.js").then(mod => mod.default());
+  }
+  return _webpModulePromise;
+}
+async function exportWebp({ canvas, animName, duration }) {
+  let m;
+  try { m = await getWebpModule(); }
+  catch (e) { alert("Couldn't load the WebP encoder: " + e.message); return; }
+  // Fit the WASM memory budget: estimate the frame count (matching the capture
+  // helper's clamp), then cap height so w*h*4*frames <= budget.
+  // With safety limits off, capture at the full canvas height (no 1440 cap, no
+  // memory-budget downscale). The WASM encoder may abort on big clips — that's
+  // caught below with a friendly "ran out of memory" message.
+  let maxH;
+  if (noLimitsToggle.checked) {
+    maxH = canvas.height;
+  } else {
+    const nFrames = Math.max(1, Math.min(Math.round(duration * WEBP_FPS), MAX_EXPORT_FRAMES));
+    const aspect  = canvas.width / canvas.height;
+    const budgetH = Math.floor(Math.sqrt(WEBP_MEM_BUDGET / (4 * nFrames * aspect)));
+    maxH    = Math.min(WEBP_MAXH, budgetH);
+  }
+  const { w, h, imgs, fps } = await captureAlphaFrames(canvas, animName, duration, maxH, WEBP_FPS);
+  await new Promise(r => setTimeout(r, 30));   // let the busy pulse paint
+  const dur = Math.round(1000 / fps);
+  let out;
+  try {
+    const vec = new m.VectorWebPAnimationFrame();
+    // Free each JS frame as it's copied into the WASM heap to keep peak RAM down.
+    for (let i = 0; i < imgs.length; i++) {
+      vec.push_back({ duration: dur, data: new Uint8Array(imgs[i].data.buffer),
+                      config: { lossless: 0, quality: WEBP_QUALITY }, has_config: true });
+      imgs[i] = null;
+    }
+    out = m.encodeAnimation(w, h, true, vec);
+    if (typeof vec.delete === "function") vec.delete();
+  } catch (e) {
+    // An aborted WASM module is unusable — drop it so the next try reloads fresh.
+    _webpModulePromise = null;
+    throw new Error("WebP ran out of memory at this resolution — lower the Quality setting, or use WebM / APNG.");
+  }
+  if (!out) { alert("WebP encoding failed."); return; }
+  download(new Blob([new Uint8Array(out)], { type: "image/webp" }), dlName("webp", "__anim"));
+}
+
+// APNG — UPNG.js lossless. Perfect alpha, but large and not animated in
+// Discord/Windows. Same resolution ceiling as WebP; lossless just makes the
+// file bigger and the (synchronous) encode slower — hence the "slow & large"
+// label on the button.
+const APNG_MAXH = 1440, APNG_FPS = 30;
+async function exportApng({ canvas, animName, duration }) {
+  if (typeof UPNG === "undefined") { alert("APNG encoder failed to load."); return; }
+  const maxH = noLimitsToggle.checked ? canvas.height : APNG_MAXH;
+  const { w, h, imgs, fps } = await captureAlphaFrames(canvas, animName, duration, maxH, APNG_FPS);
+  await new Promise(r => setTimeout(r, 30));
+  const frames = imgs.map(img => img.data.buffer);
+  const delays = imgs.map(() => Math.round(1000 / fps));
+  const png = UPNG.encode(frames, w, h, 0, delays);   // cnum=0 → lossless
+  download(new Blob([png], { type: "image/png" }), dlName("png", "__anim"));
+}
 
 // Mouse wheel zoom centred on cursor.
 wrap.addEventListener("wheel", (e) => {
@@ -427,7 +635,7 @@ wrap.addEventListener("pointerdown", (e) => {
   // Without this, wrap.setPointerCapture redirects the subsequent pointerup
   // away from the button and the synthetic click event never fires — which
   // is why every zoom/screenshot button looked dead on Firefox desktop.
-  if (e.target.closest(".zoom-controls")) return;
+  if (e.target.closest(".zoom-controls") || e.target.closest("#export-menu")) return;
   dragging = true; lastX = e.clientX; lastY = e.clientY;
   wrap.setPointerCapture(e.pointerId);
 });
