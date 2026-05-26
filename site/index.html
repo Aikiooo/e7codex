@@ -126,31 +126,6 @@
   .upd-story a{display:block;background:var(--ink-2);overflow:hidden;border:1px solid transparent}
   .upd-story a:hover{border-color:var(--gold-dim)}
   .upd-story img{width:100%;display:block;object-fit:cover}
-  .patches{display:grid;gap:20px;margin-bottom:36px}
-  .patch{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
-  .patch-head{display:flex;align-items:baseline;gap:16px;padding:16px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-  .patch-head h3{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold);font-weight:600}
-  .patch-head .code{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.12em;text-transform:uppercase}
-  .patch-head .count{margin-left:auto;color:var(--gold-dim)}
-  .patch-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:10px;padding:18px 22px}
-  .patch-thumbs .pt{position:relative;display:block;background:var(--ink-2);border:1px solid var(--line);border-radius:4px;overflow:hidden;text-decoration:none;transition:.18s}
-  .patch-thumbs .pt:hover{border-color:var(--gold-dim)}
-  .patch-thumbs .pt img{width:100%;height:130px;object-fit:contain;display:block;background:var(--ink-2)}
-  .patch-thumbs .pt-name{display:block;font-family:'Spline Sans Mono',monospace;font-size:9px;color:var(--mut);letter-spacing:.04em;padding:4px 5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .pt-badge{position:absolute;top:5px;left:5px;width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Spline Sans Mono',monospace;font-size:12px;font-weight:700;line-height:1;color:var(--ink)}
-  .pt-added{background:#7fc99a}.pt-removed{background:var(--rose)}.pt-changed{background:var(--gold)}
-  .patch-raw{border-top:1px solid var(--line)}
-  .patch-raw summary{cursor:pointer;padding:12px 22px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;user-select:none}
-  .patch-raw summary:hover{color:var(--gold-dim)}
-  .patch-group{padding:6px 22px 14px}
-  .pg-label{display:block;font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--gold-dim);letter-spacing:.14em;text-transform:uppercase;margin:10px 0 7px}
-  .pg-label .pg-n{color:var(--mut);margin-left:4px}
-  .pg-items{display:grid;gap:3px}
-  .pe{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--text);display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
-  .pe code{font-size:11px;color:var(--mut)}
-  .pe-sym{font-weight:700;width:11px;flex:0 0 auto;text-align:center}
-  .pe-added .pe-sym{color:#7fc99a}.pe-removed .pe-sym{color:var(--rose)}.pe-changed .pe-sym{color:var(--gold)}
-  .pe-size{font-size:10px;color:var(--mut)}
   .emote-list{display:grid;gap:14px}
   .emote-row{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:14px 18px;display:grid;grid-template-columns:minmax(160px,200px) 1fr;gap:18px;align-items:center}
   @media(max-width:640px){.emote-row{grid-template-columns:1fr;gap:10px}}
@@ -282,7 +257,7 @@ const VARIANT_LABELS = {
   "1":     { tab:"Alt 1",    tagline:"alt model" },
 };
 
-let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], ARTIFACTS = [], PATCHES = [], BY_BASE = new Map(), demo = false;
+let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], ARTIFACTS = [], BY_BASE = new Map(), demo = false;
 let kindF = "all", searchQ = "", currentVariant = "", wpCatF = "all";
 let artiRarityF = new Set(), artiRoleF = new Set(), artiSearchQ = "";
 let elementF = new Set(), rarityF = new Set(), roleF = new Set();
@@ -313,7 +288,6 @@ async function load() {
     try { EMOTES     = await (await fetch("data/emotes.json")).json(); }     catch { EMOTES = []; }
     try { WALLPAPERS = await (await fetch("data/wallpapers.json")).json(); } catch { WALLPAPERS = []; }
     try { ARTIFACTS  = await (await fetch("data/artifacts.json")).json(); }  catch { ARTIFACTS = []; }
-    try { PATCHES    = await (await fetch("data/patches.json")).json(); }    catch { PATCHES = []; }
   } catch (e) {
     demo = true;
     UNITS = [
@@ -366,7 +340,7 @@ function rarityStars(u) {
   return `<span class="stars" title="${u.rarity}★">${"★".repeat(u.rarity)}</span>`;
 }
 
-// Hub uses a tighter, FX-stripped thumb.png when available (Task #8) and
+// Hub uses a tighter, FX-stripped thumb.png when available and
 // falls back to pose.png when render_thumbs.js skipped the slug (no FX
 // slots to strip). The detail page always uses pose.png regardless.
 // Hub thumbnail source chain: thumb → pose → face. Each candidate is
@@ -471,7 +445,7 @@ function applyTrimCrop(img) {
     `left:${imgLeft.toFixed(1)}px;top:${imgTop.toFixed(1)}px`;
 }
 
-// Hub image lazy-loader (Task #13). Native loading="lazy" queues every <img>
+// Hub image lazy-loader. Native loading="lazy" queues every <img>
 // in document order with no abort path, so a fast scroll past ~800 cards keeps
 // the network busy fetching what the user already scrolled past — and that
 // stalls the cards they're actually looking at on mobile. With IntersectionObserver
@@ -638,62 +612,10 @@ function hub() {
   });
 }
 
-const PG_LABEL = { heroes: "Heroes", art: "Artwork", effects: "Effects", engine: "Engine / data", other: "Other" };
-const PG_ORDER = ["heroes", "art", "effects", "engine", "other"];
-const CHANGE_SYM = { added: "+", removed: "−", changed: "~" };
-
-function fmtBytes(n) {
-  if (n == null) return "";
-  if (n < 1024) return n + " B";
-  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
-  return (n / 1048576).toFixed(2) + " MB";
-}
-
-function patchEntryRow(e) {
-  const sym = CHANGE_SYM[e.change] || "·";
-  const delta = (e.old_size != null)
-    ? ` <span class="pe-size">${fmtBytes(e.old_size)} → ${fmtBytes(e.new_size)}</span>` : "";
-  const label = e.name ? escapeHtml(e.name) : `<code>${escapeHtml(e.path)}</code>`;
-  return `<div class="pe pe-${e.change}"><span class="pe-sym">${sym}</span> ${label}${delta}</div>`;
-}
-
-function patchBlock(p) {
-  const groups = p.groups || {};
-  // Visual cards: hero/art entries that resolved to a staged pose thumbnail.
-  const thumbs = [];
-  for (const g of ["heroes", "art"]) for (const e of (groups[g] || [])) {
-    if (e.pose) thumbs.push(e);
-  }
-  const thumbHtml = thumbs.length ? `<div class="patch-thumbs">${thumbs.map(e => `
-    <a class="pt" href="#/u/${encodeURIComponent(e.unit || e.slug)}" title="${escapeHtml((e.name || e.slug))} — ${e.change}">
-      <span class="pt-badge pt-${e.change}">${CHANGE_SYM[e.change] || "·"}</span>
-      <img loading="lazy" src="${e.pose}" alt="${escapeHtml(e.name || e.slug)}">
-      <span class="pt-name">${escapeHtml(e.name || e.slug)}</span>
-    </a>`).join("")}</div>` : "";
-
-  // Text rollup per group (everything, including the thumbnailed ones).
-  const groupHtml = PG_ORDER.filter(g => (groups[g] || []).length).map(g => `
-    <div class="patch-group">
-      <span class="pg-label">${PG_LABEL[g]} <span class="pg-n">${groups[g].length}</span></span>
-      <div class="pg-items">${groups[g].map(patchEntryRow).join("")}</div>
-    </div>`).join("");
-
-  const c = p.counts || {};
-  return `<div class="patch">
-    <div class="patch-head">
-      <h3>Data pack · ${escapeHtml(p.label || p.id)}</h3>
-      <span class="code count">+${c.added||0} · −${c.removed||0} · ~${c.changed||0}</span>
-      ${p.date ? `<span class="code">${escapeHtml(p.date)}</span>` : ""}
-    </div>
-    ${thumbHtml}
-    <details class="patch-raw"${thumbs.length ? "" : " open"}><summary>file changes by area</summary>${groupHtml}</details>
-  </div>`;
-}
-
 function updates() {
   setNav("updates");
   const labels = Object.keys(UPDATES);
-  if (!labels.length && !PATCHES.length) {
+  if (!labels.length) {
     $("#app").innerHTML = `<p class="empty">No updates indexed — run build_index.py.</p>`;
     return;
   }
@@ -702,12 +624,8 @@ function updates() {
     return yearOf(a) - yearOf(b) || a.localeCompare(b);
   });
 
-  const patchHtml = PATCHES.length ? `
-    <p class="section-label first">Patch diff · last ${PATCHES.length} data pack${PATCHES.length>1?'s':''} · previews hosted temporarily</p>
-    <div class="patches">${PATCHES.map(patchBlock).join("")}</div>` : "";
-
-  $("#app").innerHTML = `${patchHtml}
-    <p class="section-label${PATCHES.length?'':' first'}">${labels.length} update codenames discovered · per-unit tagging requires the encrypted output/db</p>
+  $("#app").innerHTML = `
+    <p class="section-label first">${labels.length} update codenames discovered</p>
     <div class="updates-list">${labels.map(label => {
       const u = UPDATES[label];
       const story = u.story || [];

@@ -86,6 +86,14 @@ dispatches to the right converter.
 node tools/render_poses.js        # bakes site/assets/<slug>/pose.png
 ```
 
+Optionally, bake tighter character-only hub thumbnails and pose-crop hints
+(the site falls back to `pose.png` / no crop when these are absent):
+
+```powershell
+node tools/render_thumbs.js       # site/assets/<slug>/thumb.png (FX/backdrop stripped)
+node tools/compute_trim_data.js   # site/assets/<slug>/pose_trim.json (CSS crop hints)
+```
+
 ### 5. Build the data index
 
 ```powershell

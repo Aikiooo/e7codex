@@ -328,7 +328,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
             if trim:
                 unit["pose_trim"] = trim
 
-        # Character-only hub thumbnail (Task #8). Only emitted for slugs whose
+        # Character-only hub thumbnail. Only emitted for slugs whose
         # rig has any FX/aura/backdrop slots — tools/render_thumbs.js skips
         # zero-hit slugs so their hub card falls back to pose.png. The smart-
         # crop (SLUG_THRESHOLDS) is baked into thumb.png at render time, so no

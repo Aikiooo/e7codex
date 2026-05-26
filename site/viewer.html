@@ -524,18 +524,18 @@ function loadCharacter(bgViewport) {
         // normal (neutral eyes/lip/brow), and an expression (smile/angry/etc
         // that fills the face silhouette or the lit-face overlay). Most rigs
         // look correct with just default+normal; only "broken-by-design" rigs
-        // (where face features live only in expression skins, see
-        // tools/audit_skins.py for the heuristic) need the third layer. The
+        // (where face features live only in expression skins) need the third
+        // layer. The
         // skin dropdown lets the user override the expression layer.
         const data = p.skeleton.data;
         const EXPR_ORDER = ["smile", "angry", "panic", "sad", "special"];
         const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;
         const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
         // Per-slug overrides for rigs whose missing-face slot does NOT match
-        // the regex above. See tools/audit_skins.py EXPRESSION_FORCE.
+        // the regex above.
         const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01"]);
         // Second heuristic: rigs with no neutral face anywhere in
-        // default+normal but expressions provide one. See tools/audit_skins.py.
+        // default+normal but expressions provide one.
         const FACE_PIECE_RE = /^(?:[a-z]+\/)?(face|head|eye|mouth|lip|brow|eyebrow|nose|cheek)(?:[A-Z\d]|[_/]\w+)?$/i;
         const EXPR_SKIN_NAMES = ["smile","angry","panic","sad","special","special2","special3"];
         function skinHasFacePiece(skinName) {

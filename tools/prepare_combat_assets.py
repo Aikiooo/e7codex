@@ -13,9 +13,8 @@ For each mapped (and 3.8.99) rig, produces:
 
 Both Spine versions are staged. 2.1.27 dispatches to convert_2_1 +
 post_process_2_1_27 (spine-player 3.8 compatibility patches); 3.8.99
-dispatches to convert_3_8 directly. The 2.1.27 path was unblocked
-2026-05-22 by decoding modes 9/10 and skipping per-animation trailers
-via scan-forward.
+dispatches to convert_3_8 directly. The 2.1.27 path decodes modes 9/10
+and skips per-animation trailers via scan-forward.
 
 Usage:
   python prepare_combat_assets.py [--all] [--stems abigail harsetti] [--force]
@@ -52,7 +51,7 @@ STEM_OVERRIDE: dict[str, str] = {
     # ML units are separate units (different art) that only share the base
     # character's lore name, so the <base>_m rig belongs to the c2xxx/c5xxx
     # form, not the base. Mapped by single-candidate name-token match and
-    # VISUALLY VERIFIED 2026-05-24 (combat render vs known pose.png).
+    # Verified visually (combat render vs known pose.png).
     "araminta_m": "c2048",   # Silver Blade Aramintha
     "aria_m":     "c2129",   # Disciplinary Prefect Aria
     "baal_sezan_m": "c2015", # Sage Baal & Sezan
@@ -86,7 +85,7 @@ STEM_OVERRIDE: dict[str, str] = {
     "zerato_m":   "c2010",   # Champion Zerato
     # Multi-form characters disambiguated by suffix->c-slug series
     # (_m -> c2xxx ML, _a01 -> c5xxx seasonal, _m2 -> c6xxx anniversary).
-    # VISUALLY VERIFIED 2026-05-24 (each form renders distinct + matches pose).
+    # Verified visually (each form renders distinct + matches pose).
     "achates_m":   "c2017",  # Shooting Star Achates
     "achates_m2":  "c6017",  # Infinite Horizon Achates
     "angelica_m":  "c2062",  # Sinful Angelica
@@ -120,7 +119,7 @@ STEM_OVERRIDE: dict[str, str] = {
     "tenebria_m2": "c6050",  # Witch of the Mere Tenebria
     "yupine_a01":  "c5016",  # Holiday Yufine
     "yupine_m":    "c2016",  # Abyssal Yufine
-    # Recovered 2026-05-24 session 2 after the trailer-skip false-header fix
+    # Recovered after the trailer-skip false-header fix
     # (these previously crashed the 2.1.27 converter mid-parse). Verified.
     "chloe_m":      "c2049", # Maid Chloe
     "aither_m":     "c2018", # Guider Aither
@@ -135,7 +134,7 @@ STEM_OVERRIDE: dict[str, str] = {
     "schuri_m2":    "c6020", # (Schuri c6xxx form)
     "senya_m":      "c2106", # (Senya ML form)
     # Collab units whose rig drops the HeroDatabase 'ae-' prefix (aespa collab).
-    # Rig 'winter' = aewinter = c1139, etc. Verified 2026-05-24.
+    # Rig 'winter' = aewinter = c1139, etc.
     "winter":       "c1139", # ae-WINTER
     "giselle":      "c1138", # ae-GISELLE
     "ningning":     "c1140", # ae-NINGNING
@@ -149,7 +148,7 @@ STEM_OVERRIDE: dict[str, str] = {
     "riza":         "c1136", # Riza Hawkeye (FMA collab)
     "kanna":        "c1097", # Bomb Model Kanna
     "laika":        "c1099", # Command Model Laika
-    # 2026-05-24 session 3: AMBIG resolved by suffix->series rule + name match.
+    # AMBIG resolved by suffix->series rule + name match.
     # (luluka/politis AMBIG had both c2xxx and c5xxx candidates; _m->c2xxx,
     # _a01->c5xxx disambiguates. hwayoung_a01 -> c5128 Argent Waves was missed
     # by the name-token matcher which only surfaced c2128.)
@@ -187,8 +186,8 @@ STEM_OVERRIDE: dict[str, str] = {
 # transliteration than the ceciliabot kebab for these base heroes, so the
 # normal kebab lookup misses them even though the rig is present and
 # converts cleanly. Maps dump spelling → ceciliabot kebab. Applied to both
-# the bare-stem and suffix-peeled-base lookups in map_stem(). Verified
-# 2026-05-24: all 11 convert via convert_2_1 and resolve to a staged unit.
+# the bare-stem and suffix-peeled-base lookups in map_stem(). All 11
+# convert via convert_2_1 and resolve to a staged unit.
 SPELLING_ALIAS: dict[str, str] = {
     "alensia":  "alencia",
     "araminta": "aramintha",

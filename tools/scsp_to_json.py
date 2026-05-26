@@ -304,10 +304,9 @@ def post_process_2_1_27(out_json: Path) -> None:
     # scale (which stores absolute ratios with default 1.0). When the mix
     # timeline keyframes don't align with the bone-timeline keyframes, the
     # mix is linear-interpolated at the bone keyframe times. The bone's
-    # curve metadata is preserved unchanged. Verified visually on c1144
-    # idle 2026-05-23: head/center/leg bones with mode 9 mix=1 reverted from
-    # animated deltas to setup pose, fixing the user-reported "head offset"
-    # and splayed-leg symptoms.
+    # curve metadata is preserved unchanged. Verified visually on c1144 idle:
+    # head/center/leg bones with mode 9 mix=1 reverted from animated deltas to
+    # setup pose, fixing the "head offset" and splayed-leg symptoms.
     bone_names_e7 = [b.get("name", "") for b in data.get("bones", [])]
 
     def _e7_mix_at(frames, t):
@@ -354,18 +353,13 @@ def post_process_2_1_27(out_json: Path) -> None:
                         else:
                             entry[axis] = round(new, 4)
 
-    # Re-enabled 2026-05-24: the byte-layout sanity check via
-    # tools/_dump_mode9_subtype.py confirmed converter's idx(4)+sub_type(4)+
-    # count(4)+frames(time,mix) interpretation is correct (every idx resolves
-    # to a real bone, sub_type is a constant per-mode flag = 1 for mode 9 and
-    # 0 for mode 10). The Ghidra-derived "two float arrays" hypothesis from
-    # the late+2 disable is contradicted by that data. c1018 specifically has
-    # 17 mode-9 records targeting arm bones (l_shoulder0, l_arm2, l_hend,
-    # r_arm0/2, r_hend) with mix=1 keyframes — without the bake, the arms
-    # animate freely where the binary says "clamp to setup", producing the
-    # "left arm rotates wrong direction" symptom. The late+1 mix-bake-ship
-    # saw c1018 still broken, but at that point ffd→deform hadn't shipped
-    # yet (late+5), so cloth/skirt/cape artefacts likely masked the arm fix.
+    # The mode 9/10 record layout is idx(4)+sub_type(4)+count(4)+frames(time,mix):
+    # every idx resolves to a real bone, and sub_type is a constant per-mode flag
+    # (1 for mode 9, 0 for mode 10). Example: c1018 has 17 mode-9 records
+    # targeting arm bones (l_shoulder0, l_arm2, l_hend, r_arm0/2, r_hend) with
+    # mix=1 keyframes — without the bake, the arms animate freely where the
+    # binary says "clamp to setup", producing a "left arm rotates wrong
+    # direction" defect.
     for anim in data.get("animations", {}).values():
         recs = anim.pop("_e7_mix_records", None) or []
         if not recs:
@@ -383,7 +377,7 @@ def post_process_2_1_27(out_json: Path) -> None:
                 continue
             _e7_apply_mix_to_bone(tls, rec.get("frames", []))
 
-    # Per-animation drawOrder timeline (2026-05-25, mode-6 revision).
+    # Per-animation drawOrder timeline (mode-6 revision).
     #
     # The 2.1.27 reader now decodes timeline mode 6 as the DrawOrder timeline.
     # It was previously mislabeled FLIPY and skipped, which BOTH lost the
