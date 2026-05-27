@@ -211,6 +211,24 @@
   .skill-gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000}
   .skill-gallery a:hover{border-color:var(--gold-dim)}
   .skill-gallery img{width:100%;display:block}
+  .voice-actors{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 16px}
+  .voice-actors .va{display:flex;gap:7px;align-items:baseline;font-size:14px}
+  .voice-actors .va .lang{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--mut);min-width:22px}
+  .voice-actors .va .nm{color:var(--text)}
+  .voice-lines{display:flex;flex-direction:column;gap:16px}
+  .vl-group .vl-cat{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:6px}
+  .vl-group .vl-items{display:flex;flex-wrap:wrap;gap:9px}
+  .vl-group .vl-items span{font-size:13px;color:var(--mut);border:1px solid var(--line);border-radius:3px;padding:2px 9px;white-space:nowrap}
+  .vlang-row{display:flex;align-items:center;gap:6px;margin:0 0 12px}
+  .vlang{background:none;border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.12em;padding:3px 10px;border-radius:2px;cursor:pointer;transition:.15s}
+  .vlang:hover{color:var(--gold);border-color:var(--gold-dim)}
+  .vlang.on{color:var(--ink);background:var(--gold);border-color:var(--gold)}
+  .vlang-hint{font-size:11px;color:var(--mut);margin-left:6px;font-style:italic}
+  .vlclip{font-size:13px;color:var(--text);background:rgba(20,21,30,.5);border:1px solid var(--line);border-radius:3px;padding:5px 13px;white-space:nowrap;cursor:pointer;font-family:inherit;transition:.15s}
+  .vlclip:hover{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.08)}
+  .lb-audio{display:none}
+  .lightbox.audio{cursor:default}
+  .lightbox.audio .lb-audio{display:block;width:min(440px,90vw)}
   .section-label{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--mut);margin:30px 0 14px;border-top:1px solid var(--line);padding-top:18px}
   .section-label.first{border-top:none;margin-top:0;padding-top:0}
   .back{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--mut);cursor:pointer;letter-spacing:.12em;margin-bottom:20px;display:inline-block}
@@ -253,6 +271,7 @@
   <button class="lb-close" id="lbClose" aria-label="close">×</button>
   <a class="lb-download" id="lbDownload" download aria-label="download" title="download"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></a>
   <img id="lbImage" alt="">
+  <audio id="lbAudio" class="lb-audio" controls preload="auto"></audio>
   <div id="lbCaption" class="lb-caption"></div>
 </div>
 <script>
@@ -274,7 +293,14 @@ const VARIANT_LABELS = {
   "1":     { tab:"Alt 1",    tagline:"alt model" },
 };
 
-let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], ARTIFACTS = [], BY_BASE = new Map(), demo = false;
+let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], ARTIFACTS = [], VOICES = {}, VOICE_CLIPS = {}, BY_BASE = new Map(), demo = false;
+// Voice-clip OGGs: local (same-origin site/voice/) when developing, else the CDN.
+const VOICE_BASE = (() => {
+  const h = location.hostname;
+  const local = h === "localhost" || h === "127.0.0.1" || h === "" ||
+    /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(h);
+  return local ? "voice" : "https://assets.e7codex.com/voice";
+})();
 let kindF = "all", searchQ = "", currentVariant = "", wpCatF = "all";
 let artiRarityF = new Set(), artiRoleF = new Set(), artiSearchQ = "";
 let elementF = new Set(), rarityF = new Set(), roleF = new Set();
@@ -305,6 +331,8 @@ async function load() {
     try { EMOTES     = await (await fetch("data/emotes.json")).json(); }     catch { EMOTES = []; }
     try { WALLPAPERS = await (await fetch("data/wallpapers.json")).json(); } catch { WALLPAPERS = []; }
     try { ARTIFACTS  = await (await fetch("data/artifacts.json")).json(); }  catch { ARTIFACTS = []; }
+    try { VOICES     = await (await fetch("data/voices.json")).json(); }     catch { VOICES = {}; }
+    try { VOICE_CLIPS = await (await fetch("data/voices_audio.json")).json(); } catch { VOICE_CLIPS = {}; }
   } catch (e) {
     demo = true;
     UNITS = [
@@ -662,6 +690,90 @@ function updates() {
     }).join("")}</div>`;
 }
 
+// Per-hero voice section. Actor credits come from data/voices.json (decoded from
+// character_voice.db). Playable voice lines come from data/voices_audio.json (a
+// catalog built from the FMOD bank sample names — see tools/extract_voice_audio.py);
+// the audio OGGs are served from VOICE_BASE/<lang>/voc_<slug>_<action>_<take>.ogg.
+// Clicking a clip opens the shared lightbox in audio mode.
+const VOICE_LANGS = [["en","EN"],["ja","JA"],["kr","KR"],["zhs","CN"]];   // actor-credit langs
+const AUDIO_LANGS = [["en","EN"],["ja","JA"],["ko","KR"]];               // available audio langs
+const VOICE_CATS  = [["battle","Battle"],["skill","Skill"],["camping","Camping"],["misc","Other"]];
+// Priority order for action rows (lower = earlier); unknown actions sort last by label.
+const ACTION_ORDER = ["skill1","sk1","shout","skill2","sk2","skill3","sk3","skill3_1","sk3_1",
+  "skill3_2","sk3_2","skill3_3","sk3_3","skill3_4","sk3_4","attacked","dmg","answer","call",
+  "win","lose","defeat","dead","lvup","lv","get","idle","idle_s","utterance","camping","emotion","touch"];
+// Group clip actions onto their own rows: skills | combat | status events | rest.
+const VCLIP_GROUPS = [
+  ["skills", "Skills",  a => a === "shout" || a.startsWith("skill") || /^sk\d/.test(a)],
+  ["combat", "Combat",  a => ["attacked","dmg","answer","call"].includes(a)],
+  ["status", "Status",  a => ["win","lose","defeat","dead","lvup","lv","get"].includes(a)],
+  ["other",  "Idle & misc", () => true],
+];
+let voiceLang = "en";
+function voiceFor(u) { return VOICES[u.id] || VOICES[u.base_id] || null; }
+function clipsFor(u) {
+  if (VOICE_CLIPS[u.id]) return [u.id, VOICE_CLIPS[u.id]];
+  if (u.base_id && VOICE_CLIPS[u.base_id]) return [u.base_id, VOICE_CLIPS[u.base_id]];
+  return [null, null];
+}
+function clipLangHas(clips, lang) {
+  return Object.values(clips).some(c => (c.takes[lang] || []).length);
+}
+// Render the grouped, playable clip rows for ONE language. Only actions/takes
+// that have an OGG on disk for `lang` are shown (per-lang availability lives in
+// the catalog), so a JA-only take never renders a dead EN button.
+function renderVoiceClips(clipSlug, clips, lang) {
+  const actions = Object.keys(clips)
+    .filter(a => (clips[a].takes[lang] || []).length)
+    .sort((a,b) => {
+      const ia = ACTION_ORDER.indexOf(a), ib = ACTION_ORDER.indexOf(b);
+      return (ia<0?999:ia) - (ib<0?999:ib) || clips[a].label.localeCompare(clips[b].label);
+    });
+  const buckets = {};
+  for (const act of actions) {
+    const grp = (VCLIP_GROUPS.find(([,,test]) => test(act)) || VCLIP_GROUPS[VCLIP_GROUPS.length-1])[0];
+    const { label } = clips[act];
+    const takes = clips[act].takes[lang];
+    (buckets[grp] = buckets[grp] || []).push(...takes.map(t => {
+      const lab = takes.length > 1 ? `${label} ${t}` : label;
+      return `<button class="vlclip" data-slug="${clipSlug}" data-action="${escapeHtml(act)}" data-take="${t}" data-label="${escapeHtml(label)}">▶ ${escapeHtml(lab)}</button>`;
+    }));
+  }
+  return VCLIP_GROUPS.filter(([k]) => buckets[k]).map(([k, glab]) =>
+    `<div class="vl-group"><div class="vl-cat">${glab}</div><div class="vl-items">${buckets[k].join("")}</div></div>`).join("");
+}
+function voiceSection(u) {
+  const v = voiceFor(u);
+  const [clipSlug, clips] = clipsFor(u);
+  if (!v && !clips) return "";
+  let html = `<p class="section-label">Voice</p>`;
+  if (v && v.actors) {
+    const cells = VOICE_LANGS.filter(([k]) => v.actors[k])
+      .map(([k,lab]) => `<span class="va"><span class="lang">${lab}</span><span class="nm">${escapeHtml(v.actors[k])}</span></span>`).join("");
+    if (cells) html += `<div class="voice-actors">${cells}</div>`;
+  }
+  if (clips) {
+    // Only offer languages this hero actually has clips for; pick an effective
+    // lang (the current global pick, or the first available) for the first render.
+    const avail = AUDIO_LANGS.filter(([k]) => clipLangHas(clips, k));
+    const lang = avail.some(([k]) => k === voiceLang) ? voiceLang : (avail[0] ? avail[0][0] : voiceLang);
+    const langBtns = avail.map(([k,lab]) =>
+      `<button class="vlang${k===lang?' on':''}" data-lang="${k}">${lab}</button>`).join("");
+    html += `<div class="vlang-row">${langBtns}<span class="vlang-hint">click a line to play</span></div>`;
+    html += `<div class="voice-lines" id="voiceClips" data-clipslug="${clipSlug}">${renderVoiceClips(clipSlug, clips, lang)}</div>`;
+  } else if (v && (v.lines||[]).length) {
+    // fallback: non-playable DB catalog (heroes without extracted audio yet)
+    const byCat = {};
+    for (const ln of v.lines) (byCat[ln.category] = byCat[ln.category] || []).push(ln);
+    const groups = VOICE_CATS.filter(([c]) => byCat[c]).map(([c,lab]) => {
+      const items = byCat[c].map(ln => `<span title="${escapeHtml(ln.event)}">${escapeHtml(ln.label)}</span>`).join("");
+      return `<div class="vl-group"><div class="vl-cat">${lab} · ${byCat[c].length}</div><div class="vl-items">${items}</div></div>`;
+    }).join("");
+    html += `<div class="voice-lines">${groups}</div>`;
+  }
+  return html;
+}
+
 function detail(baseId, variantSuf) {
   const group = (BY_BASE.get(baseId) || []).slice().sort((a,b)=>(a.variant||"").localeCompare(b.variant||""));
   if (!group.length) {
@@ -757,6 +869,7 @@ function detail(baseId, variantSuf) {
           <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">Intimacy illustration</p>
           <div class="skill-gallery"><a href="${u.intimacy}" data-zoom data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" target="_blank" rel="noopener"><img loading="lazy" src="${u.intimacy}" alt="${escapeHtml(u.id)} intimacy illustration"></a></div>
         ` : ''}
+        ${voiceSection(u)}
         <p class="section-label">Bundled artwork</p>
         ${(u.artworks||[]).length
           ? `<div class="gallery">${u.artworks.map(a => `<a href="${a}" data-zoom data-cap="${escapeHtml(displayName(u))} · ${escapeHtml(a.split('/').pop())}" target="_blank" rel="noopener"><img loading="lazy" src="${a}"></a>`).join("")}</div>`
@@ -1025,9 +1138,13 @@ document.querySelectorAll("nav button").forEach(b =>
 // "open in new tab" keeps working.
 const LB        = document.getElementById("lightbox");
 const LB_IMG    = document.getElementById("lbImage");
+const LB_AUDIO  = document.getElementById("lbAudio");
 const LB_DL     = document.getElementById("lbDownload");
 const LB_CAP    = document.getElementById("lbCaption");
 function openLightbox(src, caption) {
+  LB.classList.remove("audio");
+  LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
+  LB_IMG.style.display = "";
   LB_IMG.src = src;
   LB_DL.href = src;
   LB_DL.download = decodeURIComponent(src.split("/").pop() || "asset");
@@ -1035,22 +1152,57 @@ function openLightbox(src, caption) {
   LB.classList.add("open");
   LB.setAttribute("aria-hidden", "false");
 }
+function openLightboxAudio(src, caption) {
+  LB.classList.add("audio");
+  LB_IMG.style.display = "none"; LB_IMG.src = "";
+  LB_AUDIO.src = src;
+  LB_DL.href = src;
+  LB_DL.download = decodeURIComponent(src.split("/").pop() || "clip");
+  LB_CAP.textContent = caption || "";
+  LB.classList.add("open");
+  LB.setAttribute("aria-hidden", "false");
+  LB_AUDIO.play().catch(() => {}); // autoplay; ignore if blocked
+}
 function closeLightbox() {
-  LB.classList.remove("open");
+  LB.classList.remove("open", "audio");
   LB.setAttribute("aria-hidden", "true");
   LB_IMG.src = "";
+  LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
 }
 document.addEventListener("click", (e) => {
   // Modifier-click / non-primary buttons preserve the native link behaviour.
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+  // Voice-line clip → audio lightbox.
+  const clip = e.target.closest(".vlclip");
+  if (clip) {
+    const { slug, action, take, label } = clip.dataset;
+    const url = `${VOICE_BASE}/${voiceLang}/voc_${slug}_${action}_${take}.ogg`;
+    const langLab = (AUDIO_LANGS.find(([k]) => k === voiceLang) || ["", voiceLang])[1];
+    openLightboxAudio(url, `${label}${+take > 1 ? " (" + take + ")" : ""} · ${langLab}`);
+    return;
+  }
+  // Voice language toggle → re-render the clip rows for the chosen language.
+  const lang = e.target.closest(".vlang");
+  if (lang) {
+    voiceLang = lang.dataset.lang;
+    lang.parentElement.querySelectorAll(".vlang").forEach(b =>
+      b.classList.toggle("on", b === lang));
+    const box = document.getElementById("voiceClips");
+    if (box) {
+      const slug = box.dataset.clipslug;
+      box.innerHTML = renderVoiceClips(slug, VOICE_CLIPS[slug], voiceLang);
+    }
+    return;
+  }
   const a = e.target.closest("a[data-zoom]");
   if (!a) return;
   e.preventDefault();
   openLightbox(a.getAttribute("href"), a.dataset.cap || "");
 });
 LB.addEventListener("click", (e) => {
-  // Clicks on backdrop close; clicks on the image / download / close don't.
-  if (e.target === LB_IMG || e.target.closest(".lb-download")) return;
+  // Clicks on backdrop close; clicks on the image / audio / download / close don't.
+  if (e.target === LB_IMG || e.target === LB_AUDIO ||
+      e.target.closest(".lb-download") || e.target.closest(".lb-audio")) return;
   closeLightbox();
 });
 document.getElementById("lbClose").addEventListener("click", closeLightbox);
