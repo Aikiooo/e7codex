@@ -21,6 +21,11 @@ outer layer is a 256-byte rolling XOR.
 import struct, json, os, sys
 from pathlib import Path
 
+try:  # JP/KR actor names in debug prints crash on a cp1252 console (Windows)
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # Local-only secrets + paths. Copy tools/voice_keys.example.json → voice_keys.json
 # (gitignored) and fill in the values from your own install.
 _CFG_PATH = Path(__file__).parent / 'voice_keys.json'
