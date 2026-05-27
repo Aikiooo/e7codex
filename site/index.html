@@ -1205,6 +1205,28 @@ LB.addEventListener("click", (e) => {
       e.target.closest(".lb-download") || e.target.closest(".lb-audio")) return;
   closeLightbox();
 });
+// Force a real download (not open-in-tab) for any lightbox asset. The native
+// `download` attr is ignored cross-origin (e.g. audio/textures on R2), so fetch
+// the bytes as a blob and save those. R2 CORS allows GET from the site origin;
+// same-origin Pages assets (skill webp, pose, face art) need no CORS. Falls back
+// to opening the URL if the fetch is blocked.
+document.getElementById("lbDownload").addEventListener("click", async (e) => {
+  const src = LB_DL.href;
+  if (!src) return;
+  e.preventDefault();
+  const name = LB_DL.getAttribute("download") || "download";
+  try {
+    const resp = await fetch(src);
+    if (!resp.ok) throw new Error(resp.status);
+    const url = URL.createObjectURL(await resp.blob());
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (_) {
+    window.open(src, "_blank", "noopener");
+  }
+});
 document.getElementById("lbClose").addEventListener("click", closeLightbox);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && LB.classList.contains("open")) closeLightbox();
