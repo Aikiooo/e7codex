@@ -29,6 +29,8 @@ def _decode_legacy(data: bytes) -> Image.Image:
         rgb = Image.frombytes("RGB", (width, height), raw, "raw", "BGR;16", 0, 1)
         rgb.putalpha(Image.frombytes("L", (width, height), raw[-width*height:]))
         return rgb
+    if byte_format == 102:  # single-channel grayscale
+        return Image.frombytes("L", (width, height), raw)
     raise ValueError(f"unsupported legacy SCT byte_format={byte_format}")
 
 def _decode_sct2(data: bytes) -> Image.Image:
