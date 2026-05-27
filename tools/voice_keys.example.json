@@ -1,0 +1,6 @@
+{
+  "_comment": "Copy this file to tools/voice_keys.json (gitignored) and fill in values from your own game install. No keys are bundled with this repo.",
+  "dump_dir": "<path to your extracted game output dir — the parent of output/>",
+  "outer_key_file": "<path to your outer-XOR key file; relative paths resolve against tools/>",
+  "default_xxtea_key": ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+}

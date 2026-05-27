@@ -113,6 +113,41 @@ python -m http.server 8765
 > shipped. Drop your own icons into `site/` or remove the `<link rel="icon">`
 > tags — the site works either way (the browser just shows a default favicon).
 
+## Optional: voice pipeline
+
+The site can show per-hero voice-actor credits and a clickable catalog of voice
+clips. This is an **optional** add-on with extra prerequisites, and like the rest
+of the repo it ships **no game data and no keys** — you supply both.
+
+You'll need:
+
+- **vgmstream** — download a release build from
+  [vgmstream](https://github.com/vgmstream/vgmstream/releases) and unzip it into
+  `tools/vendor/vgmstream/` (so `tools/vendor/vgmstream/vgmstream-cli.exe` exists).
+- **FFmpeg** — install it and make sure `ffmpeg` is on your `PATH`.
+- **Your own keys + data** — copy `tools/voice_keys.example.json` to
+  `tools/voice_keys.json` (gitignored) and fill in the values from your own
+  install: your game output directory, your outer-XOR key file, and the default
+  XXTEA key. None of these are provided here.
+- **Your own voice banks** — the FMOD `.bank` files, under
+  `<sound_dir>/<lang>/*.bank`.
+
+Then:
+
+```powershell
+# Credits + a fallback line catalog from your local data files → site/data/voices.json
+python tools/build_voices.py
+
+# Decode the voice banks → OGG + a per-language catalog
+python tools/extract_voice_audio.py --langs en --slugs c1001     # subset / pilot
+python tools/extract_voice_audio.py --langs en ja ko --all       # full
+```
+
+`extract_voice_audio.py` defaults its input/output to `<repo>/_voice_work/`;
+override with `--sound` / `--out` (or the `E7_VOICE_SOUND` / `E7_VOICE_OUT` env
+vars). The generated audio and JSON stay local — they're gitignored and not part
+of this repository.
+
 ## Deploying
 
 `site/` is a self-contained static bundle — serve it from any static host

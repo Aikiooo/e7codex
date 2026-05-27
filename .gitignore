@@ -31,6 +31,19 @@ cors_rules.json
 # Reverse-engineering artifacts (game-derived — do not publish)
 *.bin
 tools/Dump*.java
+_game_re/
+
+# Decryption key material — NEVER commit. Bring your own (see README).
+# *.bin above already covers the outer-XOR key file.
+*.pass
+tools/voice_keys.json
+
+# Voice pipeline — game-derived audio + the FSB5 decoder (fetched, not vendored)
+site/voice/
+site/data/voices.json
+site/data/voices_audio.json
+_voice_work/
+tools/vendor/vgmstream/
 
 # Python / Node
 __pycache__/

@@ -48,6 +48,14 @@ vendored verbatim.
   **libwebp** (https://chromium.googlesource.com/webm/libwebp, BSD-3-Clause).
   Encodes the animated transparent WebP output (`webp-wasm.js` + `.wasm`).
 
+## Voice pipeline (not bundled — install yourself)
+
+- **vgmstream** (https://github.com/vgmstream/vgmstream) — decodes the FMOD
+  audio banks into WAV. GPL/ISC-licensed; **not redistributed here**. The setup
+  step downloads a release build into `tools/vendor/vgmstream/`.
+- **FFmpeg** (https://ffmpeg.org) — re-encodes the decoded WAV to OGG Vorbis.
+  Used as an external command; install it yourself and ensure it's on `PATH`.
+
 ## Copyright
 
 Epic Seven and all related artwork, characters, names, and logos are the
