@@ -66,6 +66,14 @@ This is the step you do yourself. You need:
   [EpicSevenAssetRipper](https://github.com/CeciliaBot/EpicSevenAssetRipper).
 - **Names / slugs** — point the indexer at the public community databases
   (ceciliabot, epic7rtastats). See `CREDITS.md`. These are not bundled.
+  - *Optional, self-sufficient:* if you have your own decrypted game data +
+    keys set up (see the voice pipeline below — same `voice_keys.json`), run
+    `python tools/build_names.py` to pull names + rarity/attribute/role
+    straight from the game into `data_external/names_from_db.json`. The indexer
+    layers it ahead of the community DBs. This also writes
+    `unreleased_units.json` (units the game still labels "Unknown Hero"); the
+    indexer drops those — the project does not publish unannounced/datamined
+    units. Both files are gitignored.
 
 Drop the raw assets where the pipeline expects them and adjust the paths at the
 top of `tools/prepare_assets.py` / `E7_Scsp2Json.py` to match.

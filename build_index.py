@@ -132,19 +132,27 @@ def kebab(s: str) -> str:
 
 
 def load_name_db(root: Path) -> tuple[dict, dict]:
-    """Load HeroDatabase + HeroSkins and layer in the rtastats scrape.
+    """Load HeroDatabase + HeroSkins, layer in the rtastats scrape, then
+    overlay the in-game names_from_db.json.
 
-    HeroDatabase is preferred when present because it carries the canonical
-    kebab `_id` used by ceciliabot's URL routing. The rtastats fallback only
-    fills in heroes the snapshot misses (c1144+); we synthesise a kebab from
-    the name so ceciliabot links still work for those (they may 404 on
-    ceciliabot itself but at least carry the right shape).
+    HeroDatabase carries the canonical kebab `_id` used by ceciliabot's URL
+    routing (not present in the game data), so it remains the source for that.
+    The rtastats fallback fills heroes the snapshot misses (c1144+).
+
+    `names_from_db.json` (built by tools/build_names.py from the game's own
+    character_player.db + text.db) is applied LAST and WINS on name / rarity /
+    attribute / role — it covers more c-slugs than HeroDatabase and needs no
+    community dependency. For c-slugs only the DB knows, we synthesise a kebab
+    from the name so a ceciliabot link still has the right shape (may 404 on
+    ceciliabot itself). Skin DISPLAY names stay with HeroSkins — the DB only
+    carries the base hero's name per costume.
     """
     base: dict[str, dict] = {}
     skin: dict[str, dict] = {}
     p1 = root / "data_external" / "HeroDatabase.json"
     p2 = root / "data_external" / "HeroSkins.json"
     p3 = root / "data_external" / "HeroNames_rtastats.json"
+    p4 = root / "data_external" / "names_from_db.json"
     if p1.exists():
         for v in json.loads(p1.read_text("utf-8")).values():
             base[v["id"]] = v
@@ -163,6 +171,16 @@ def load_name_db(root: Path) -> tuple[dict, dict]:
                 "name": rec["name"],
                 **{k: rec[k] for k in ("attribute", "role") if k in rec},
             }
+    if p4.exists():
+        for code, rec in json.loads(p4.read_text("utf-8")).items():
+            entry = base.get(code)
+            if entry is None:
+                entry = {"id": code, "_id": kebab(rec["name"])}
+                base[code] = entry
+            entry["name"] = rec["name"]           # in-game name wins
+            for k in ("rarity", "attribute", "role"):
+                if k in rec:
+                    entry[k] = rec[k]
     return base, skin
 
 
@@ -189,7 +207,19 @@ def build(img: Path, raw: Path, out: Path) -> None:
         raise SystemExit(f"no {site_assets} — run `python tools/prepare_assets.py --all` then "
                           "`node tools/render_poses.js` first")
 
-    name_base, name_skin = load_name_db(out.parent if out.name == "site" else Path("."))
+    root = out.parent if out.name == "site" else Path(".")
+    name_base, name_skin = load_name_db(root)
+
+    # Unreleased-unit guard: slugs the game still labels "Unknown Hero" are
+    # unannounced (placeholder rows in character_player.db; see
+    # tools/build_names.py). This project does not publish unreleased/datamined
+    # content, so they're dropped here and never listed. The flag flips to a
+    # real name shortly before release, so a unit surfaces automatically once
+    # it is officially announced.
+    unreleased: set[str] = set()
+    p_unrel = root / "data_external" / "unreleased_units.json"
+    if p_unrel.exists():
+        unreleased = set(json.loads(p_unrel.read_text("utf-8")).get("slugs", []))
 
     # Step 1: every staged dir with a pose.png is a unit. Two-pass approach so
     # the PRIMARY_SWAP override works regardless of iteration order:
@@ -202,6 +232,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
     all_dirs = [d for d in sorted(site_assets.iterdir())
                 if d.is_dir() and d.name not in _RESERVED_ASSET_DIRS
                 and (d / "pose.png").exists()]
+    # Drop unreleased units (by slug OR base hero slug) before anything sees
+    # them — keeps them out of units.json, extras, emote links, everything.
+    n_dirs_before = len(all_dirs)
+    all_dirs = [d for d in all_dirs
+                if d.name not in unreleased
+                and split_variant(d.name)[0] not in unreleased]
+    n_hidden = n_dirs_before - len(all_dirs)
     staged = {d.name for d in all_dirs}
 
     # slug -> ("primary", "")   or   ("extra", parent_slug)
@@ -677,8 +714,11 @@ def build(img: Path, raw: Path, out: Path) -> None:
     print(f"\n[units] {len(units)} total")
     for k, n in sorted(by_kind.items(), key=lambda x: -x[1]):
         print(f"  {k:10s} {n}")
+    if n_hidden:
+        print(f"\n[hidden]  {n_hidden} unreleased unit(s) suppressed "
+              f"(game flag 'Unknown Hero')")
     print(f"\n[names]   {with_name} units with display name "
-          f"(from HeroDatabase.json + HeroSkins.json)")
+          f"(from HeroDatabase.json + HeroSkins.json + names_from_db.json)")
     print(f"[artwork] {with_art} units with at least one face PNG bundled")
     print(f"[skills]  {with_skill} units with S3 skill animation")
     print(f"[spine]   {with_spine} units with live-viewer JSON")
