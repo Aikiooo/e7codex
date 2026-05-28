@@ -28,7 +28,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
 from scsp_to_json import detect_version as _detect_scsp_version
 
-# Codename pattern: v + 2-letter theme + (year-2020) digit + 'aa'
+# Codename pattern: v + 2-letter theme + (year-2020) digit + 'aa'.
+# This map is a FALLBACK only — the in-game event titles come from
+# data_external/codename_labels.json (built by tools/build_codename_labels.py
+# from substory_main.db + text.db) and WIN on overlap. See load_event_labels().
+# Year-tagged labels here stay around for codenames the DB doesn't carry yet,
+# so the Updates view still has a meaningful heading even before a rebuild.
 KNOWN_UPDATES: dict[str, str] = {
     "vsu1aa": "Summer 2021",   "vsu2aa": "Summer 2022", "vsu3aa": "Summer 2023",
     "vsu4aa": "Summer 2024",   "vsu5aa": "Summer 2025",
@@ -184,6 +189,31 @@ def load_name_db(root: Path) -> tuple[dict, dict]:
     return base, skin
 
 
+def load_event_labels(root: Path) -> dict[str, str]:
+    """Codename -> human event label, merged from the in-game DB and the
+    legacy KNOWN_UPDATES fallback.
+
+    `data_external/codename_labels.json` (built by tools/build_codename_labels.py
+    from substory_main.db joined through text.db) carries the proper in-game
+    event title for each codename (e.g. vsu5aa -> "Intense! Tropical Days!!").
+    KNOWN_UPDATES is kept as the fallback for codenames the DB hasn't picked up
+    yet — they still need a heading the user can read.
+
+    Only updates-style codenames (v + 3 chars + 'aa', matching CODE_RE) flow
+    into the Updates view. The DB also resolves story-style codenames
+    (v1070a -> "My Knight Would Never!") and a handful of irregular shapes;
+    those are returned too so future tabs can use them, but the path-token
+    matcher in Step 4 deliberately narrows to updates-style.
+    """
+    labels: dict[str, str] = dict(KNOWN_UPDATES)
+    p = root / "data_external" / "codename_labels.json"
+    if p.exists():
+        for code, lbl in json.loads(p.read_text("utf-8")).items():
+            if lbl:
+                labels[code] = lbl              # DB WINS on overlap
+    return labels
+
+
 def load_artifact_db(root: Path) -> dict[str, dict]:
     """Load the artifact catalog keyed by in-game id (`art####`).
 
@@ -224,6 +254,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
 
     root = out.parent if out.name == "site" else Path(".")
     name_base, name_skin = load_name_db(root)
+    event_labels = load_event_labels(root)   # codename -> human label (DB > KNOWN_UPDATES)
 
     # Unreleased-unit guard: slugs the game still labels "Unknown Hero" are
     # unannounced (placeholder rows in character_player.db; see
@@ -490,7 +521,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
 
     for p in walk(img / "banner"):
         if p.suffix.lower() not in IMG_EXT: continue
-        codes = {c.lower() for c in CODE_RE.findall(p.name.lower())} & set(KNOWN_UPDATES)
+        codes = {c.lower() for c in CODE_RE.findall(p.name.lower())} & event_labels.keys()
         for c in codes:
             dst = updates_dir / c / p.name
             dst.parent.mkdir(exist_ok=True)
@@ -504,7 +535,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
         for p in sorted(story_bg.iterdir()):
             if p.suffix.lower() not in IMG_EXT: continue
             if STORY_SKIP.search(p.name): continue
-            codes = {c.lower() for c in CODE_RE.findall(p.name.lower())} & set(KNOWN_UPDATES)
+            codes = {c.lower() for c in CODE_RE.findall(p.name.lower())} & event_labels.keys()
             for c in codes:
                 dst = updates_dir / c / p.name
                 dst.parent.mkdir(exist_ok=True)
@@ -698,7 +729,9 @@ def build(img: Path, raw: Path, out: Path) -> None:
         json.dumps(sorted(units.values(), key=lambda u: u["id"]),
                    indent=1, ensure_ascii=False), "utf-8")
     updates_out = {}
-    for c in KNOWN_UPDATES:
+    # Only iterate over codenames that picked up any art — keeps the JSON tight
+    # even though event_labels now has 100+ entries (most have no on-disk assets).
+    for c in sorted(set(banners_per_code) | set(story_per_code)):
         banners = sorted(set(banners_per_code[c]))
         story   = sorted(set(story_per_code[c]))
         if not banners and not story:
@@ -706,7 +739,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
         entry: dict = {"codename": c, "banners": banners}
         if story:
             entry["story"] = story
-        updates_out[KNOWN_UPDATES[c]] = entry
+        # Year-digit at position 3 for 6-char codenames (vsu5aa -> 5 -> 2025).
+        # 5-char shapes (vyunaa, vresaa, vrimaa, vreaaa, vasiaa) don't encode
+        # a year — frontend falls back to alphabetical for those.
+        if len(c) == 6 and c[3].isdigit():
+            entry["year"] = 2020 + int(c[3])
+        label = event_labels.get(c, c)   # codename itself is the last-resort heading
+        updates_out[label] = entry
     (data / "updates.json").write_text(
         json.dumps(updates_out, indent=1, ensure_ascii=False), "utf-8")
     (data / "emotes.json").write_text(
@@ -744,7 +783,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
     print(f"[wallpr]  {len(wallpapers)} wallpapers")
     print(f"[updates] {len(updates_out)} codenames with banner art "
           f"({sum(len(v['banners']) for v in updates_out.values())} banners total) "
-          f"out of {len(KNOWN_UPDATES)} known")
+          f"out of {len(event_labels)} labeled "
+          f"(KNOWN_UPDATES={len(KNOWN_UPDATES)} + DB join)")
     named_arti = sum(1 for a in artifacts_out if a.get("name"))
     print(f"[arti]    {len(artifacts_out)} artifacts ({named_arti} named "
           f"from Artifacts.json + artifacts_from_db.json, "

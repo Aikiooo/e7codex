@@ -665,8 +665,17 @@ function updates() {
     return;
   }
   labels.sort((a, b) => {
-    const yearOf = (s) => { const m = s.match(/\b(20\d{2})\b/); return m ? -parseInt(m[1]) : 0; };
-    return yearOf(a) - yearOf(b) || a.localeCompare(b);
+    // Newest first: prefer the explicit `year` field on each entry (derived
+    // from the codename's year-digit in build_index.py); fall back to a year
+    // baked into the label (legacy KNOWN_UPDATES "Summer 2025" shape) so any
+    // stale data still sorts sensibly. Equal years -> alphabetical.
+    const yearOf = (label) => {
+      const u = UPDATES[label];
+      if (u && typeof u.year === "number") return u.year;
+      const m = label.match(/\b(20\d{2})\b/);
+      return m ? parseInt(m[1]) : 0;
+    };
+    return yearOf(b) - yearOf(a) || a.localeCompare(b);
   });
 
   $("#app").innerHTML = `
@@ -677,7 +686,7 @@ function updates() {
       return `<div class="upd-row">
         <div class="upd-head">
           <h3>${escapeHtml(label)}</h3>
-          <span class="code">${u.codename}</span>
+          <span class="code">${u.codename}${u.year ? ` · ${u.year}` : ''}</span>
           <span class="code count">${u.banners.length} banner${u.banners.length>1?'s':''}${story.length ? ` · ${story.length} story` : ''}</span>
         </div>
         <div class="upd-banners">
