@@ -1,6 +1,10 @@
 {
-  "_comment": "Copy this file to tools/voice_keys.json (gitignored) and fill in values from your own game install. No keys are bundled with this repo.",
-  "dump_dir": "<path to your extracted game output dir — the parent of output/>",
+  "_comment": "Copy this file to tools/voice_keys.json (gitignored) and fill in values from your own game install. No keys are bundled with this repo. Path keys (raw_dir/img_dir/voice_dir) are optional and default under dump_dir.",
+  "dump_dir": "<path to the parent dir holding your extracted output/ and img_output/>",
+  "raw_dir": "<optional: path to your extracted output/ tree (default: <dump_dir>/output)>",
+  "img_dir": "<optional: path to your decoded img_output/ (default: <dump_dir>/img_output)>",
+  "voice_dir": "<optional: voice extraction scratch dir (default: <dump_dir>/_voice_work)>",
+  "game_sound_dir": "<optional: <game install>/data.unpacked/sound, read-only source for sync_voice_banks.py>",
   "outer_key_file": "<path to your outer-XOR key file; relative paths resolve against tools/>",
   "default_xxtea_key": ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
 }

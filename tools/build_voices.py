@@ -34,10 +34,11 @@ if not _CFG_PATH.exists():
                      'and fill in your local paths + key')
 _CFG = json.loads(_CFG_PATH.read_text(encoding='utf-8'))
 
-DUMP = Path(_CFG['dump_dir'])
-OUT_DB = DUMP / 'output' / 'db'
-TEXT_DB = DUMP / 'output' / 'text' / 'en' / 'text.db'
-PASS = DUMP / 'output' / 'pass' / 'public.pass'
+sys.path.insert(0, str(Path(__file__).parent))
+from paths import RAW_DIR  # central data-dir config
+OUT_DB = RAW_DIR / 'db'
+TEXT_DB = RAW_DIR / 'text' / 'en' / 'text.db'
+PASS = RAW_DIR / 'pass' / 'public.pass'
 OUTER_KEY = Path(_CFG['outer_key_file'])
 if not OUTER_KEY.is_absolute():
     OUTER_KEY = Path(__file__).parent / OUTER_KEY

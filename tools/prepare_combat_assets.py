@@ -27,10 +27,11 @@ from pathlib import Path
 THIS  = Path(__file__).resolve()
 REPO  = THIS.parents[1]
 ROOT  = REPO.parent
-MODEL = ROOT / "output" / "model"
 SITE  = REPO / "site" / "assets"
 
 sys.path.insert(0, str(THIS.parent))
+from paths import RAW_DIR  # central data-dir config
+MODEL = RAW_DIR / "model"
 from decode_sct import decode_one as decode_sct
 import scsp_to_json
 

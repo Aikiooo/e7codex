@@ -75,8 +75,11 @@ This is the step you do yourself. You need:
     indexer drops those — the project does not publish unannounced/datamined
     units. Both files are gitignored.
 
-Drop the raw assets where the pipeline expects them and adjust the paths at the
-top of `tools/prepare_assets.py` / `E7_Scsp2Json.py` to match.
+Tell the pipeline where your data lives in **one place**: copy
+`tools/voice_keys.example.json` to `tools/voice_keys.json` (gitignored) and set
+`raw_dir` (your extracted `output/`), `img_dir` (decoded images), and `voice_dir`
+(voice scratch). `tools/paths.py` resolves these for every tool, so there's no
+code to edit; omitted keys default under `dump_dir`.
 
 ### 3. Convert + stage
 
@@ -94,12 +97,12 @@ dispatches to the right converter.
 node tools/render_poses.js        # bakes site/assets/<slug>/pose.png
 ```
 
-Optionally, bake tighter character-only hub thumbnails and pose-crop hints
-(the site falls back to `pose.png` / no crop when these are absent):
+Optionally, bake tighter character-only hub thumbnails (the site falls back to
+`pose.png` when these are absent). Smart-crop is baked into the PNG at render
+time:
 
 ```powershell
-node tools/render_thumbs.js       # site/assets/<slug>/thumb.png (FX/backdrop stripped)
-node tools/compute_trim_data.js   # site/assets/<slug>/pose_trim.json (CSS crop hints)
+node tools/render_thumbs.js       # site/assets/<slug>/thumb.png (FX/backdrop stripped, smart-cropped)
 ```
 
 ### 5. Build the data index
@@ -135,8 +138,11 @@ You'll need:
 - **FFmpeg** — install it and make sure `ffmpeg` is on your `PATH`.
 - **Your own keys + data** — copy `tools/voice_keys.example.json` to
   `tools/voice_keys.json` (gitignored) and fill in the values from your own
-  install: your game output directory, your outer-XOR key file, and the default
-  XXTEA key. None of these are provided here.
+  install: `dump_dir` (+ optional `raw_dir` / `img_dir` / `voice_dir`), your
+  outer-XOR key file (`outer_key_file`), and the default XXTEA key
+  (`default_xxtea_key`). For `sync_voice_banks.py`, optionally set
+  `game_sound_dir` (your read-only `<game install>/data.unpacked/sound`). None of
+  these are provided here.
 - **Your own voice banks** — the FMOD `.bank` files, under
   `<sound_dir>/<lang>/*.bank`.
 
@@ -146,13 +152,18 @@ Then:
 # Credits + a fallback line catalog from your local data files → site/data/voices.json
 python tools/build_voices.py
 
+# (optional) copy banks OUT of your game install into the voice scratch tree,
+# with a download-settle wait + per-language freshness gate (never writes to the game folder)
+python tools/sync_voice_banks.py --extract       # syncs + chains extraction for changed langs
+
 # Decode the voice banks → OGG + a per-language catalog
 python tools/extract_voice_audio.py --langs en --slugs c1001     # subset / pilot
 python tools/extract_voice_audio.py --langs en ja ko --all       # full
 ```
 
-`extract_voice_audio.py` defaults its input/output to `<repo>/_voice_work/`;
-override with `--sound` / `--out` (or the `E7_VOICE_SOUND` / `E7_VOICE_OUT` env
+`extract_voice_audio.py` reads banks from / writes OGGs to your configured
+`voice_dir` (from `voice_keys.json`, default `<dump_dir>/_voice_work`); override
+per-run with `--sound` / `--out` (or the `E7_VOICE_SOUND` / `E7_VOICE_OUT` env
 vars). The generated audio and JSON stay local — they're gitignored and not part
 of this repository.
 

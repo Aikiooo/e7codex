@@ -21,11 +21,12 @@ from pathlib import Path
 THIS   = Path(__file__).resolve()
 REPO   = THIS.parents[1]                       # repo root
 ROOT   = REPO.parent                           # parent dir holding your asset dump
-PORT   = ROOT / "output" / "portrait"
 CONVERTED_DIR = ROOT / "converted_json"   # optional cache of pre-converted Spine JSONs
 SITE   = REPO / "site" / "assets"
 
 sys.path.insert(0, str(THIS.parent))
+from paths       import RAW_DIR                   # central data-dir config
+PORT   = RAW_DIR / "portrait"
 from decode_sct  import decode_one as decode_sct  # type: ignore
 import scsp_to_json                                # type: ignore
 import find_backdrops                              # type: ignore

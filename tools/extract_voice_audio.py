@@ -23,10 +23,13 @@ from collections import defaultdict
 
 REPO = Path(__file__).resolve().parents[1]
 VGM = REPO / 'tools' / 'vendor' / 'vgmstream' / 'vgmstream-cli.exe'
-# Defaults are repo-relative; override with --sound / --out (or the
-# E7_VOICE_SOUND / E7_VOICE_OUT env vars). Bring your own bank files.
-SOUND = Path(os.environ.get('E7_VOICE_SOUND', REPO / '_voice_work' / 'sound'))
-OUTROOT = Path(os.environ.get('E7_VOICE_OUT', REPO / '_voice_work' / 'out'))
+sys.path.insert(0, str(Path(__file__).parent))
+from paths import VOICE_DIR  # central data-dir config
+# Defaults resolve via voice_keys.json (voice_dir, else <dump>/_voice_work);
+# override with --sound / --out (or the E7_VOICE_SOUND / E7_VOICE_OUT env vars).
+# Bring your own bank files.
+SOUND = Path(os.environ.get('E7_VOICE_SOUND', VOICE_DIR / 'sound'))
+OUTROOT = Path(os.environ.get('E7_VOICE_OUT', VOICE_DIR / 'out'))
 
 SAMPLE_RX = re.compile(r'^voc_(c\d+(?:_s\d+)?|af\d+|npc\d+|pet_[a-z0-9]+)_(.+?)(?:_(\d+))?$')
 
