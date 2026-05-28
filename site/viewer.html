@@ -158,6 +158,7 @@
       <option value="4">4× (slow)</option>
     </select>
     <label class="stage-toggle" id="stage-label" hidden title="composite the backdrop rig behind the character"><input type="checkbox" id="stage-on"> Stage</label>
+    <label class="stage-toggle" id="scene-label" hidden title="Workaround. Some rigs ship as a single combined file with the backdrop scene baked into the character (no separate stage file to swap). For those, this toggle hides a hand-curated list of scene slot names so just the character renders. The list is per-slug — only rigs we've explicitly classified show this option."><input type="checkbox" id="scene-on"> Hide scene<sup style="color:var(--gold-dim);margin-left:2px;font-size:10px;font-family:'Spline Sans Mono',monospace">*</sup></label>
   </div>
 </main>
 <script>
@@ -231,6 +232,32 @@ const noLimitsToggle = document.getElementById("exp-no-limits");
 const zPct    = document.getElementById("zoompct");
 const stageLabel = document.getElementById("stage-label");
 const stageOnInput = document.getElementById("stage-on");
+const sceneLabel = document.getElementById("scene-label");
+const sceneOnInput = document.getElementById("scene-on");
+
+// Per-slug allowlist for the "Hide scene*" toggle. Each entry maps a slug to
+// a regex matching the slot names that compose the in-rig backdrop/scene
+// layer. Used for rigs the game ships as a SINGLE combined file (one .scsp
+// holding both character and backdrop) — the standard PRIMARY_SWAP / Stage
+// toggle path doesn't apply because there's nothing to compose, just slots
+// to hide. This is intentionally a hand-curated list, not a heuristic: a
+// broad regex is a foot-gun on rigs with overloaded prefixes, so we only
+// enable it per-rig after eyeballing the slot list.
+const SCENE_SLOTS = {
+  // Hwayoung Summertime — beach + jet ski + birds + cat plushie baked into
+  // her rig. `zgi*` is an undocumented scene element (airplane in the sky);
+  // `eff/light` is the ground glow under her feet — both look scene-y from
+  // the rendered output and don't intersect the character silhouette.
+  c5128: /^(bule_pado|pado|bpado|splashing|boltwater|bolt|bird|cat|bbag|flare|gea|low|xxx+|zgi)\d*$|^eff\/lig(Fx|ht)\d*$/i,
+  // Aram seasonal — sky (bg + cloud_*), waves (bg_wave_*), particle
+  // effects (fx_particle_*, fx_bubble_*, fx_rainbow, fx_r_*, fx_c*), and
+  // `g_1/2/3/5` (4 sparse slots, birds in the sky).
+  // DO NOT include `bb_*` OR `glass_light*` — both are clipping
+  // attachments inside her glasses that mask the coquillage reflection
+  // to the lens shape. Hiding them unmasks the reflection and it floats
+  // fully visible in front of her face/hat.
+  c5175: /^(?:bg(?:_wave_\d+)?|cloud_\d+|fx_\w+|g_\d+)$/i,
+};
 
 let player = null;
 let bgPlayer = null;
@@ -291,6 +318,52 @@ zinBtn.onclick  = () => zoomBy(1.25);
 zoutBtn.onclick = () => zoomBy(1/1.25);
 zfitBtn.onclick = resetView;
 
+// Crop a 2D canvas to its non-transparent bounds. Used by the screenshot
+// button so the saved PNG isn't ~80% empty when the character only occupies
+// a small slice of the auto-fit canvas. Four directional scans (top, bottom,
+// left, right) — each bails on the first non-transparent pixel — keep this
+// fast at 4× resolution. A few pixels of padding survive the crop to avoid
+// clipping soft edges. Returns a fresh canvas, or null if the source is
+// fully transparent or already tight.
+function trimTransparent(srcCanvas) {
+  const w = srcCanvas.width, h = srcCanvas.height;
+  let imgData;
+  try { imgData = srcCanvas.getContext("2d").getImageData(0, 0, w, h); }
+  catch (_) { return null; }                   // tainted canvas — shouldn't happen here
+  const px = new Uint32Array(imgData.data.buffer);   // alpha = px[i] >>> 24 on LE
+  let minY = -1, maxY = -1, minX = -1, maxX = -1;
+  outerTop:
+  for (let y = 0; y < h; y++) {
+    const rs = y * w;
+    for (let x = 0; x < w; x++) if (px[rs + x] >>> 24) { minY = y; break outerTop; }
+  }
+  if (minY < 0) return null;                   // fully transparent
+  outerBot:
+  for (let y = h - 1; y >= minY; y--) {
+    const rs = y * w;
+    for (let x = 0; x < w; x++) if (px[rs + x] >>> 24) { maxY = y; break outerBot; }
+  }
+  outerLeft:
+  for (let x = 0; x < w; x++) {
+    for (let y = minY; y <= maxY; y++) if (px[y * w + x] >>> 24) { minX = x; break outerLeft; }
+  }
+  outerRight:
+  for (let x = w - 1; x >= minX; x--) {
+    for (let y = minY; y <= maxY; y++) if (px[y * w + x] >>> 24) { maxX = x; break outerRight; }
+  }
+  const M = 4;                                 // tiny safety pad against clipped soft edges
+  minX = Math.max(0, minX - M);
+  minY = Math.max(0, minY - M);
+  maxX = Math.min(w - 1, maxX + M);
+  maxY = Math.min(h - 1, maxY + M);
+  const cw = maxX - minX + 1, ch = maxY - minY + 1;
+  if (cw === w && ch === h) return null;       // already tight, nothing to gain
+  const out = document.createElement("canvas");
+  out.width = cw; out.height = ch;
+  out.getContext("2d").drawImage(srcCanvas, minX, minY, cw, ch, 0, 0, cw, ch);
+  return out;
+}
+
 // Always download at Quality=4× regardless of the dropdown's current value.
 // The user shouldn't have to remember to bump quality before clicking the
 // download button. We briefly switch to 4×, wait two frames so spine-player
@@ -324,21 +397,26 @@ zshotBtn.onclick = async () => {
 
   const canvas = stage.querySelector("canvas");
   if (!canvas) { restore(); return; }
-  // With the Stage toggle on, two canvases are stacked — composite both into an
-  // offscreen 2D canvas so the saved PNG carries the backdrop + character.
-  // Without this the saved file would be character-only, defeating the point
-  // of enabling the stage.
-  const bgCanvas = (bgPlayer && stageBg) ? stageBg.querySelector("canvas") : null;
-  let outSource = canvas;
-  if (bgCanvas) {
-    const w = canvas.width, h = canvas.height;
-    const off = document.createElement("canvas");
-    off.width = w; off.height = h;
-    const ctx = off.getContext("2d");
-    ctx.drawImage(bgCanvas, 0, 0, w, h);
-    ctx.drawImage(canvas, 0, 0, w, h);
-    outSource = off;
-  }
+  // Compose to an offscreen 2D canvas unconditionally: it lets us getImageData
+  // for the trim pass below, and (when Stage is on) composites the backdrop
+  // canvas under the character so the saved PNG carries the full scene.
+  // bgCanvas is only set when the Stage toggle is on — the backdrop stays
+  // loaded behind the scenes for viewport sync even when toggled off, so the
+  // bgPlayer-truthy check alone isn't enough to gate compositing.
+  const bgCanvas = (bgPlayer && stageBg && stageOnInput.checked) ? stageBg.querySelector("canvas") : null;
+  const w = canvas.width, h = canvas.height;
+  const off = document.createElement("canvas");
+  off.width = w; off.height = h;
+  const offCtx = off.getContext("2d");
+  if (bgCanvas) offCtx.drawImage(bgCanvas, 0, 0, w, h);
+  offCtx.drawImage(canvas, 0, 0, w, h);
+
+  // Trim transparent margins. spine-player's auto-fit allocates the whole
+  // canvas to the rig's world bounds; rigs with off-screen FX/aura slots
+  // leave the character occupying only a small fraction of the frame.
+  // Trimming gives a tight crop without sacrificing the 4× pixel density —
+  // mirrors what the static pose pipeline does via sharp.trim().
+  const outSource = trimTransparent(off) || off;
   outSource.toBlob((blob) => {
     try {
       if (!blob) return;
@@ -454,7 +532,10 @@ async function exportWebm({ canvas, animName, duration }) {
   const off = document.createElement("canvas"); off.width = w; off.height = h;
   const ctx = off.getContext("2d");
   const bgColor = getComputedStyle(document.documentElement).getPropertyValue("--ink-2").trim() || "#13141d";
-  const bgCanvas = (bgPlayer && stageBg) ? stageBg.querySelector("canvas") : null;
+  // Only composite the backdrop when the user has the Stage toggle on. The
+  // backdrop now stays loaded even when the toggle is off (so the character
+  // viewport keeps its synced framing), so we can't just check bgPlayer truthy.
+  const bgCanvas = (bgPlayer && stageBg && stageOnInput.checked) ? stageBg.querySelector("canvas") : null;
   const drawFrame = () => {
     ctx.fillStyle = bgColor; ctx.fillRect(0, 0, w, h);
     if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0, w, h);
@@ -511,7 +592,10 @@ async function captureAlphaFrames(canvas, animName, duration, maxH, fps) {
   const h = Math.max(1, Math.round(canvas.height * scale));
   const off = document.createElement("canvas"); off.width = w; off.height = h;
   const ctx = off.getContext("2d");
-  const bgCanvas = (bgPlayer && stageBg) ? stageBg.querySelector("canvas") : null;
+  // Only composite the backdrop when the user has the Stage toggle on. The
+  // backdrop now stays loaded even when the toggle is off (so the character
+  // viewport keeps its synced framing), so we can't just check bgPlayer truthy.
+  const bgCanvas = (bgPlayer && stageBg && stageOnInput.checked) ? stageBg.querySelector("canvas") : null;
   const frameMs = 1000 / fps;
   const imgs = [];
   const capture = () => {
@@ -708,9 +792,21 @@ if (!slug) {
 } else {
   // Stage toggle is only meaningful when ?stage= was passed AND we're on the
   // default rig (combat rigs don't share coords with the lobby backdrop).
+  //
+  // When a paired backdrop is known we ALWAYS load it (even when the toggle is
+  // off) so the character viewport can be synced to the backdrop's projection.
+  // Rigs that pair with a backdrop often carry FX/aura slots whose world bounds
+  // extend far past the visible character — without the synced viewport their
+  // auto-fit zooms way out and the character appears tiny in the canvas.
+  // The toggle just shows/hides the backdrop canvas — no reload, no reframe.
   if (stageSlug) {
     stageLabel.hidden = false;
-    stageOnInput.onchange = () => loadScene();
+    // Toggle defaults OFF (HTML default). The backdrop still loads behind the
+    // scenes so the character viewport stays synced to its projection — only
+    // the canvas visibility flips.
+    stageOnInput.onchange = () => {
+      stageBg.style.display = stageOnInput.checked ? "" : "none";
+    };
   }
   loadScene();
 }
@@ -739,12 +835,14 @@ function disposePlayers() {
 
 function loadScene() {
   disposePlayers();
-  const wantStage = !!stageSlug && stageOnInput.checked;
-  if (wantStage) {
+  if (stageSlug) {
     // Load the backdrop first so its auto-fit viewport can be reused for the
     // character. Identical viewports → identical projection → the rigs line
     // up in shared world coordinates (they were authored together as one
     // Spine scene; PRIMARY_SWAP just split the export by visible slots).
+    // The Stage toggle hides/shows the backdrop canvas via CSS; the character
+    // viewport stays synced either way (see the toggle wiring above).
+    stageBg.style.display = stageOnInput.checked ? "" : "none";
     loadBackdrop().then((bgViewport) => loadCharacter(bgViewport));
   } else {
     loadCharacter(null);
@@ -851,7 +949,7 @@ function loadCharacter(bgViewport) {
         const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
         // Per-slug overrides for rigs whose missing-face slot does NOT match
         // the regex above.
-        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01"]);
+        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01", "c4141"]);
         // Second heuristic: rigs with no neutral face anywhere in
         // default+normal but expressions provide one.
         const FACE_PIECE_RE = /^(?:[a-z]+\/)?(face|head|eye|mouth|lip|brow|eyebrow|nose|cheek)(?:[A-Z\d]|[_/]\w+)?$/i;
@@ -895,7 +993,15 @@ function loadCharacter(bgViewport) {
           return null;
         }
         const autoNeedsExpr = needsExpressionLayer();
+        // Track the last expr passed to applyCombined so toggles that need to
+        // refresh the active skin (e.g. the "Hide scene" workaround) can reuse
+        // the same layering. The skin <select>'s value isn't sufficient here:
+        // at initial load it shows "default" while the actual rendered combo
+        // is "default+normal" — passing skinSel.value as expr would strip
+        // normal and reset the face.
+        let lastExpr = null;
         function applyCombined(expr, force) {
+          lastExpr = expr;
           // expr can be: null/"" (auto-pick), "default" (no combine),
           // "normal" (default+normal only), or any expression skin name.
           // `force` (true when the user picks from the dropdown) bypasses
@@ -950,6 +1056,58 @@ function loadCharacter(bgViewport) {
         if (pick) { p.setAnimation(pick); animSel.value = pick; }
         animSel.onchange = () => p.setAnimation(animSel.value);
         skinSel.onchange = () => applyCombined(skinSel.value, true);
+
+        // "Hide scene*" toggle — per-slug workaround for rigs the game ships
+        // as a single combined file (backdrop + character in one .scsp). When
+        // the current slug has an entry in SCENE_SLOTS, surface the toggle and
+        // wire it to null/restore the matched slot attachments across every
+        // skin in data.skins, then re-apply the combo so the active skin
+        // picks up the change. Stashing the original attachment maps lets us
+        // flip on/off without reloading the rig.
+        const sceneRe = SCENE_SLOTS[slug];
+        if (sceneRe) {
+          sceneLabel.hidden = false;
+          const sceneSlotIdx = [];
+          for (let i = 0; i < data.slots.length; i++) {
+            if (sceneRe.test(data.slots[i].name)) sceneSlotIdx.push(i);
+          }
+          // skinName → Map<slotIdx, attachmentDict>. Captures the ORIGINAL
+          // attachments once at load so restore is exact even after toggling
+          // multiple times.
+          const sceneStash = new Map();
+          for (const sk of data.skins) {
+            const m = new Map();
+            for (const idx of sceneSlotIdx) {
+              if (sk.attachments[idx]) m.set(idx, sk.attachments[idx]);
+            }
+            if (m.size) sceneStash.set(sk.name, m);
+          }
+          sceneOnInput.checked = false;
+          sceneOnInput.onchange = () => {
+            if (sceneOnInput.checked) {
+              // Empty dict instead of undefined so Skin.getAttachment's
+              // `dictionary ? dictionary[name] : null` branch returns
+              // undefined → treated as null by the runtime; the slot renders
+              // nothing for any animation-driven attachment lookup.
+              for (const sk of data.skins) {
+                for (const idx of sceneSlotIdx) sk.attachments[idx] = {};
+              }
+            } else {
+              for (const sk of data.skins) {
+                const m = sceneStash.get(sk.name);
+                if (!m) continue;
+                for (const [idx, att] of m.entries()) sk.attachments[idx] = att;
+              }
+            }
+            // Combo skin in applyCombined copies attachments from data.skins,
+            // so the runtime combo doesn't see our edits until rebuilt. Use
+            // lastExpr (not skinSel.value) so initial-load combos like
+            // "default+normal" stay intact instead of collapsing to bare
+            // default and resetting the face.
+            applyCombined(lastExpr, true);
+          };
+        }
+
         // Relocate the play/scrub bar from inside the transformed scaler to
         // its own host below the stage so it isn't clipped or moved when the
         // user pans/zooms. Spine-player still owns the element (event
