@@ -74,6 +74,9 @@ This is the step you do yourself. You need:
     `unreleased_units.json` (units the game still labels "Unknown Hero"); the
     indexer drops those — the project does not publish unannounced/datamined
     units. Both files are gitignored.
+  - *Artifacts (same setup):* `python tools/build_artifacts.py` decodes
+    `equip_item.db` into `data_external/artifacts_from_db.json`, layered ahead
+    of the community `Artifacts.json` for name/rarity/role. Gitignored.
 
 Tell the pipeline where your data lives in **one place**: copy
 `tools/voice_keys.example.json` to `tools/voice_keys.json` (gitignored) and set

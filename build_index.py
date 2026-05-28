@@ -185,19 +185,34 @@ def load_name_db(root: Path) -> tuple[dict, dict]:
 
 
 def load_artifact_db(root: Path) -> dict[str, dict]:
-    """Load ceciliabot Artifacts.json keyed by in-game id (`art####`).
+    """Load the artifact catalog keyed by in-game id (`art####`).
 
-    Source: `https://ceciliabot.github.io/data/artifacts.json` cached locally.
-    Records: {_id (kebab url slug), id (art####), name, rarity, role, ...}.
+    Two layers, applied in order; later wins on overlapping fields:
+
+    1. `data_external/Artifacts.json` — community snapshot from ceciliabot
+       (`https://ceciliabot.github.io/data/artifacts.json` cached locally).
+       Source of `_id` (kebab url slug) and `tags`; neither is in the game data.
+    2. `data_external/artifacts_from_db.json` — built by `tools/build_artifacts.py`
+       from the game's own `equip_item.db` joined through `text.db`. Source of
+       `name`, `rarity`, `role`, and `identifier`. Self-sufficient and a few
+       entries ahead of the community snapshot when new artifacts ship.
     """
-    p = root / "data_external" / "Artifacts.json"
-    if not p.exists():
-        return {}
     by_id: dict[str, dict] = {}
-    for v in json.loads(p.read_text("utf-8")).values():
-        gid = v.get("id")
-        if isinstance(gid, str) and gid.startswith("art"):
-            by_id[gid] = v
+    p = root / "data_external" / "Artifacts.json"
+    if p.exists():
+        for v in json.loads(p.read_text("utf-8")).values():
+            gid = v.get("id")
+            if isinstance(gid, str) and gid.startswith("art"):
+                by_id[gid] = dict(v)   # copy so we can mutate
+    # Layer the in-game source LAST: WINS on name/rarity/role + adds identifier.
+    p_db = root / "data_external" / "artifacts_from_db.json"
+    if p_db.exists():
+        for aid, rec in json.loads(p_db.read_text("utf-8")).items():
+            cur = by_id.setdefault(aid, {"id": aid})
+            for k in ("name", "rarity", "role", "identifier"):
+                v = rec.get(k)
+                if v not in (None, "", 0):
+                    cur[k] = v
     return by_id
 
 
@@ -732,7 +747,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
           f"out of {len(KNOWN_UPDATES)} known")
     named_arti = sum(1 for a in artifacts_out if a.get("name"))
     print(f"[arti]    {len(artifacts_out)} artifacts ({named_arti} named "
-          f"from Artifacts.json, {len(artifacts_out)-named_arti} orphan)")
+          f"from Artifacts.json + artifacts_from_db.json, "
+          f"{len(artifacts_out)-named_arti} orphan)")
     print(f"\n-> {data / 'units.json'}\n-> {data / 'updates.json'}"
           f"\n-> {data / 'emotes.json'}\n-> {data / 'wallpapers.json'}"
           f"\n-> {data / 'artifacts.json'}")
