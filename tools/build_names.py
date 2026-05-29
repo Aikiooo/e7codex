@@ -161,6 +161,7 @@ def main():
     print('  character_player.db rows:', len(rows))
 
     out = {}
+    model_map = {}
     unreleased = []
     for r in rows:
         if len(r) < 9:
@@ -182,6 +183,8 @@ def main():
         if r[8] in ROLES:
             rec['role'] = r[8]
         out[cslug] = rec
+        if len(r) > 20 and r[20]:
+            model_map[cslug] = r[20]   # col[20] = combat-rig filename
 
     DATA_EXTERNAL.mkdir(parents=True, exist_ok=True)
     out_path = DATA_EXTERNAL / 'names_from_db.json'
@@ -192,12 +195,19 @@ def main():
     json.dump({'signal': "character_player.db name == '%s'" % UNRELEASED_NAME,
                'slugs': unreleased},
               open(unrel_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
+    # c-slug -> combat-rig filename (col[20]); authoritative map consumed by
+    # prepare_combat_assets.py. Excludes unreleased units.
+    model_path = DATA_EXTERNAL / 'model_map_from_db.json'
+    json.dump(model_map, open(model_path, 'w', encoding='utf-8'),
+              ensure_ascii=False, indent=0, sort_keys=True)
     full = sum(1 for v in out.values()
                if {'rarity', 'attribute', 'role'} <= set(v))
     print('\nwrote %s' % out_path)
     print('  entries: %d  (with full name+rarity+attribute+role: %d)' % (len(out), full))
     print('wrote %s' % unrel_path)
     print('  unreleased (Unknown Hero) slugs: %d' % len(unreleased))
+    print('wrote %s' % model_path)
+    print('  c-slug -> combat model entries: %d' % len(model_map))
     for k in ('c1001', 'c1067_s01', 'c1112', 'c1137'):
         print('  %s -> %r' % (k, out.get(k)))
 

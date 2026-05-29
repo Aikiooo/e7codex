@@ -44,170 +44,21 @@ SUFFIX_PEEL = [
     "_busking", "_trans", "_evil", "_specter", "_c",
 ]
 
-# Manual overrides — combat-rig stems whose ceciliabot kebab is not the
-# obvious underscore→hyphen form. Maps stem → target c-slug directly.
+# Residual manual overrides — combat-rig stems the DB model-map AND the kebab
+# lookup both miss. Everything else (romanizations like victorica/wildred, ML &
+# seasonal forms like ras_m/iseria_a01, collab bare-names, internal codenames
+# like torami, and _m_s01 skins-of-ML) is resolved authoritatively from the DB
+# model-map — character_player.db col[20], via load_db_model_map() in map_stem().
+# The ~110 hand-curated entries this file used to carry collapsed into that one
+# lookup; only these three lack a DB col[20] row:
 STEM_OVERRIDE: dict[str, str] = {
-    "wukong": "c1161",          # kebab is 'immortal-wukong'
-    # ML / alt-form combat rigs -> their DISTINCT special-unit c-slug.
-    # ML units are separate units (different art) that only share the base
-    # character's lore name, so the <base>_m rig belongs to the c2xxx/c5xxx
-    # form, not the base. Mapped by single-candidate name-token match and
-    # Verified visually (combat render vs known pose.png).
-    "araminta_m": "c2048",   # Silver Blade Aramintha
-    "aria_m":     "c2129",   # Disciplinary Prefect Aria
-    "baal_sezan_m": "c2015", # Sage Baal & Sezan
-    "byblis_a01": "c5154",   # Perfumer Byblis
-    "cecilia_m":  "c2002",   # Fallen Cecilia
-    "celine_m":   "c2103",   # Spirit Eye Celine
-    "charles_m":  "c2027",   # Closer Charles
-    "chou_m":     "c2101",   # Urban Shadow Choux
-    "clarisa_m":  "c2028",   # Kitty Clarissa
-    "corvus_m":   "c2012",   # Dark Corvus
-    "crozet_m":   "c2036",   # Troublemaker Crozet
-    "diene_m":    "c2076_1", # Shepherd of the Dark Diene
-    "elena_m":    "c2091",   # Astromancer Elena
-    "haste_m":    "c2039",   # Blood Moon Haste
-    "ken_m":      "c2047",   # Martial Artist Ken
-    "kise_m":     "c2006",   # Judge Kise
-    "landy_m":    "c2109",   # Navy Captain Landy
-    "leo_m":      "c2029",   # Roaming Warrior Leo
-    "lots_m":     "c2031",   # Auxiliary Lots
-    "maya_m":     "c2032",   # Fighter Maya
-    "pavel_m":    "c2080",   # Commander Pavel
-    "peira_m":    "c2125",   # Lone Wolf Peira
-    "ravi_m":     "c2019",   # Apocalypse Ravi
-    "ray_m":      "c2090",   # Death Dealer Ray
-    "silk_m":     "c2004",   # Wanderer Silk
-    "tywin_m":    "c2042",   # Ambitious Tywin
-    "violetto_m": "c2074",   # Remnant Violet
-    "vivian_m":   "c2088",   # Sylvan Sage Vivian
-    "wildred_m":  "c2007",   # Arbiter Vildred
-    "yulha_m":    "c2131",   # School Nurse Yulha
-    "zerato_m":   "c2010",   # Champion Zerato
-    # Multi-form characters disambiguated by suffix->c-slug series
-    # (_m -> c2xxx ML, _a01 -> c5xxx seasonal, _m2 -> c6xxx anniversary).
-    # Verified visually (each form renders distinct + matches pose).
-    "achates_m":   "c2017",  # Shooting Star Achates
-    "achates_m2":  "c6017",  # Infinite Horizon Achates
-    "angelica_m":  "c2062",  # Sinful Angelica
-    "angelica_m2": "c6062",  # Angel of Light Angelica
-    "bellona_m":   "c2071",  # Lone Crescent Bellona
-    "charlotte_m": "c2009",  # Little Queen Charlotte
-    "dominiel_m2": "c6037",  # Moon Bunny Dominiel
-    "flan_a01":    "c5110",  # Afternoon Soak Flan
-    "iseria_a01":  "c5024",  # Summertime Iseria
-    "iseria_m":    "c2024",  # Briar Witch Iseria
-    "iseria_m2":   "c6024_1",# Monarch of the Sword Iseria
-    "karin_m":     "c2011",  # Blood Blade Karin
-    "karin_m2":    "c6011",  # Last Piece Karin
-    "krau_a01":    "c5070",  # Guard Captain Krau
-    "krau_m":      "c2070",  # Last Rider Krau
-    "lidica_a01":  "c5046",  # Blooming Lidica
-    "lidica_m":    "c2046",  # Faithless Lidica
-    "lilias_a01":  "c5089",  # Midnight Gala Lilias
-    "lilias_m":    "c2089",  # Conqueror Lilias
-    "ludwig_a01":  "c5069",  # Aubade Ludwig
-    "ludwig_m":    "c2069",  # Eternal Wanderer Ludwig
-    "mercedes_m":  "c2005",  # Celestial Mercedes
-    "ras_m":       "c2001",  # Genesis Ras
-    "rose_m":      "c2003",  # Shadow Rose
-    "rose_m2":     "c6003",  # Wretched Rose
-    "schuri_m":    "c2020",  # Watcher Schuri
-    "surin_m":     "c2065",  # Tempest Surin
-    "surin_m2":    "c6065",  # Sealed Eye Surin
-    "tenebria_a01":"c5050",  # Fairytale Tenebria
-    "tenebria_m":  "c2050",  # Specter Tenebria
-    "tenebria_m2": "c6050",  # Witch of the Mere Tenebria
-    "yupine_a01":  "c5016",  # Holiday Yufine
-    "yupine_m":    "c2016",  # Abyssal Yufine
-    # Recovered after the trailer-skip false-header fix
-    # (these previously crashed the 2.1.27 converter mid-parse). Verified.
-    "chloe_m":      "c2049", # Maid Chloe
-    "aither_m":     "c2018", # Guider Aither
-    "furious_m":    "c2087", # Peacemaker Furious
-    "kaweric_m":    "c2073", # Mediator Kawerik
-    "sharun_m":     "c2132", # Dragon King Sharun
-    "bellona_a01":  "c5071", # Seaside Bellona
-    "charlotte_a01":"c5009", # Summer Break Charlotte
-    "chermia_m":    "c2079", # Lionheart Cermia
-    "dominiel_m":   "c2037", # Challenger Dominiel
-    "flan_m":       "c2110", # Pirate Captain Flan
-    "schuri_m2":    "c6020", # (Schuri c6xxx form)
-    "senya_m":      "c2106", # (Senya ML form)
-    # Collab units whose rig drops the HeroDatabase 'ae-' prefix (aespa collab).
-    # Rig 'winter' = aewinter = c1139, etc.
-    "winter":       "c1139", # ae-WINTER
-    "giselle":      "c1138", # ae-GISELLE
-    "ningning":     "c1140", # ae-NINGNING
-    "karina":       "c1137", # ae-KARINA (NB: regular Karin is 'karin*'->c1011;
-                             #  c1112 is Politis, not Karina)
-    # Other collab / bare-name rigs (kebab carries collab full-name; rig uses
-    # the bare character name). Found via recoverable_sweep.py, verified.
-    "ainz":         "c1155", # Ainz Ooal Gown (Overlord collab)
-    "edward":       "c1134", # Edward Elric (Fullmetal Alchemist collab)
-    "roy":          "c1135", # Roy Mustang (FMA collab)
-    "riza":         "c1136", # Riza Hawkeye (FMA collab)
-    "kanna":        "c1097", # Bomb Model Kanna
-    "laika":        "c1099", # Command Model Laika
-    "brinus":       "c1098", # Support Model Brinus (no HeroDatabase kebab;
-                             #  same Model-series bare-name pattern as kanna/laika)
-    "torami":       "c1171", # Tori — internal model name 'torami' (character_player.db
-                             #  col[20]); kebab is 'tori', so the lookup missed it
-    # AMBIG resolved by suffix->series rule + name match.
-    # (luluka/politis AMBIG had both c2xxx and c5xxx candidates; _m->c2xxx,
-    # _a01->c5xxx disambiguates. hwayoung_a01 -> c5128 Argent Waves was missed
-    # by the name-token matcher which only surfaced c2128.)
-    "luluka_m":     "c2082",  # Top Model Luluca
-    "luluka_a01":   "c5082",  # Ocean Breeze Luluca
-    "politis_m":    "c2112",  # Sea Phantom Politis
-    "eda_a01":      "c5111",  # Festive Eda
-    "hwayoung_m":   "c2128",  # Bystander Hwayoung
-    "hwayoung_a01": "c5128",  # Argent Waves Hwayoung
-    # _m_s01 = skin of an ML form. Target is the _m form's c-slug + _s01 (all
-    # staged portraits). The longest-first suffix peel mis-resolves these to
-    # <base>_m_s01 (e.g. c1079_m_s01, unstaged) so they need explicit entries.
-    # politis_m_s01 -> c2112_s01 routes through _resolve to its _1 swap sibling.
-    "politis_m_s01":   "c2112_s01",  # skin of Sea Phantom Politis
-    "angelica_m_s01":  "c2062_s01",  # skin of Sinful Angelica
-    "cecilia_m_s01":   "c2002_s01",  # skin of Fallen Cecilia
-    "celine_m_s01":    "c2103_s01",  # skin of Spirit Eye Celine
-    "charlotte_m_s01": "c2009_s01",  # skin of Little Queen Charlotte
-    "chermia_m_s01":   "c2079_s01",  # skin of Lionheart Cermia
-    "chloe_m_s01":     "c2049_s01",  # skin of Maid Chloe
-    "flan_m_s01":      "c2110_s01",  # skin of Pirate Captain Flan
-    "iseria_m_s01":    "c2024_s01",  # skin of Briar Witch Iseria
-    "kaweric_m_s01":   "c2073_s01",  # skin of Mediator Kawerik
-    "kise_m_s01":      "c2006_s01",  # skin of Judge Kise
-    "krau_m_s01":      "c2070_s01",  # skin of Last Rider Krau
-    "lidica_m_s01":    "c2046_s01",  # skin of Faithless Lidica
-    "ravi_m_s01":      "c2019_s01",  # skin of Apocalypse Ravi
-    "surin_m_s01":     "c2065_s01",  # skin of Tempest Surin
-    "tenebria_m_s01":  "c2050_s01",  # skin of Specter Tenebria
-    "vivian_m_s01":    "c2088_s01",  # skin of Sylvan Sage Vivian
-    "wildred_m_s01":   "c2007_s01",  # skin of Arbiter Vildred
+    "flan_m":     "c2110",      # Pirate Captain Flan  — no DB col[20] row
+    "flan_m_s01": "c2110_s01",  # skin of Pirate Captain Flan — no DB col[20] row
+    "ludwig_a01": "c5069",      # Aubade Ludwig — no DB col[20] row
 }
-
-# Romanization aliases — the dump's combat-rig filenames use a different
-# transliteration than the ceciliabot kebab for these base heroes, so the
-# normal kebab lookup misses them even though the rig is present and
-# converts cleanly. Maps dump spelling → ceciliabot kebab. Applied to both
-# the bare-stem and suffix-peeled-base lookups in map_stem(). All 11
-# convert via convert_2_1 and resolve to a staged unit.
-SPELLING_ALIAS: dict[str, str] = {
-    "alensia":  "alencia",
-    "araminta": "aramintha",
-    "ceris":    "cerise",
-    "chermia":  "cermia",
-    "chou":     "choux",
-    "violetto": "violet",
-    "yupine":   "yufine",
-    "kaweric":  "kawerik",
-    "clarisa":  "clarissa",
-    "serilla":  "serila",
-    "wildred":  "vildred",
-    "luluka":   "luluca",   # recovered after trailer-skip false-header fix
-    "victorica": "victorika",  # dump spells c1166 Victorika as 'victorica'
-}
+# (SPELLING_ALIAS removed.) The dump's romanizations were a "fix the kebab"
+# workaround; col[20] IS the real filename, so the DB layer resolves them
+# directly with nothing to correct.
 
 # PRIMARY_SWAP entries — keep in sync with build_index.py:PRIMARY_SWAP.
 # For these slugs the bare c#### directory holds the backdrop rig and the
@@ -243,6 +94,27 @@ def load_kebab_to_cslug() -> dict[str, str]:
     return {k: v["id"] for k, v in hdb.items()}
 
 
+
+_DB_MODEL_MAP: dict[str, list[str]] | None = None
+
+
+def load_db_model_map() -> dict[str, list[str]]:
+    """Inverse of character_player.db col[20]: combat-rig stem -> [c-slugs that
+    use it]. Built by tools/build_names.py into data_external/model_map_from_db.json
+    (which excludes unreleased units). Authoritative for hero rig names — handles
+    romanizations, ML/seasonal forms, and internal codenames the ceciliabot kebab
+    can't. Cached; returns {} if the file isn't present (then map_stem falls back
+    to kebab + suffix-peel)."""
+    global _DB_MODEL_MAP
+    if _DB_MODEL_MAP is None:
+        p = REPO / "data_external" / "model_map_from_db.json"
+        inv: dict[str, list[str]] = {}
+        if p.exists():
+            for cslug, model in json.loads(p.read_text(encoding="utf-8")).items():
+                inv.setdefault(model, []).append(cslug)
+        _DB_MODEL_MAP = inv
+    return _DB_MODEL_MAP
+
 def _resolve(cslug: str, staged: set[str]) -> str | None:
     """If cslug is a PRIMARY_SWAP backdrop, redirect to its _1 sibling.
     Returns the staged slug or None."""
@@ -252,9 +124,19 @@ def _resolve(cslug: str, staged: set[str]) -> str | None:
     return cslug if cslug in staged else None
 
 
-def map_stem(stem: str, kebab_map: dict[str, str], staged: set[str]) -> str | None:
+def map_stem(stem: str, kebab_map: dict[str, str], staged: set[str],
+             db_map: dict[str, list[str]] | None = None) -> str | None:
     """Map a combat-rig stem to a staged c-slug. Returns None if unmappable
-    or the target slug isn't in site/assets/."""
+    or the target slug isn't in site/assets/.
+
+    Resolution order: explicit override -> npc/m9/pet/af prefix -> ceciliabot
+    kebab -> autoslayer c-token -> DB model-map (col[20]) -> suffix-peel guess.
+    The kebab lookup stays AHEAD of the DB map on purpose: a few item/scroll
+    entities share a hero's rig under a `d####` c-slug (e.g. the DB ties `adin`
+    to d3143 "Adin's Secret Scroll"), and kebab gets the real hero card first."""
+    if db_map is None:
+        db_map = load_db_model_map()
+
     if stem in STEM_OVERRIDE:
         return _resolve(STEM_OVERRIDE[stem], staged)
 
@@ -262,9 +144,8 @@ def map_stem(stem: str, kebab_map: dict[str, str], staged: set[str]) -> str | No
     if stem in staged and re.match(r"^(npc|m9|pet_|af)\d", stem):
         return stem
 
-    # Direct kebab lookup (with romanization alias)
+    # Direct kebab lookup
     kebab = stem.replace("_", "-")
-    kebab = SPELLING_ALIAS.get(kebab, kebab)
     if kebab in kebab_map:
         return _resolve(kebab_map[kebab], staged)
 
@@ -275,18 +156,25 @@ def map_stem(stem: str, kebab_map: dict[str, str], staged: set[str]) -> str | No
             if r:
                 return r
 
-    # Peel suffix, lookup base kebab, append suffix to base c-slug
+    # DB model-map — authoritative for hero rigs the kebab missed
+    # (romanizations / ML / seasonal / internal codenames). Heroes/skins only
+    # (c-prefix); the d-prefix item entities sharing a rig are skipped.
+    for cslug in db_map.get(stem, ()):
+        if re.match(r"^c\d", cslug):
+            r = _resolve(cslug, staged)
+            if r:
+                return r
+
+    # Peel suffix, lookup base kebab, append suffix to base c-slug (last resort)
     for suf in SUFFIX_PEEL:
         if stem.endswith(suf):
             base = stem[: -len(suf)]
             base_kebab = base.replace("_", "-")
-            base_kebab = SPELLING_ALIAS.get(base_kebab, base_kebab)
             if base_kebab in kebab_map:
                 return _resolve(kebab_map[base_kebab] + suf, staged)
             if base in STEM_OVERRIDE:
                 return _resolve(STEM_OVERRIDE[base] + suf, staged)
     return None
-
 
 def stage_atlas(src_atlas: Path, dst_atlas: Path, png_name: str) -> None:
     out, swapped = [], False
@@ -522,21 +410,43 @@ def main() -> None:
     a = ap.parse_args()
 
     kebab_map = load_kebab_to_cslug()
+    db_map = load_db_model_map()                       # rig stem -> [c-slugs]
     staged = {p.name for p in SITE.iterdir()
               if p.is_dir() and not p.name.startswith("_")}
 
     all_stems = sorted(p.stem for p in MODEL.glob("*.scsp"))
 
     if a.stems:
-        candidates = a.stems
+        # Explicit subset: model-file-driven over exactly the given stems.
+        rows = [(s, scsp_to_json.detect_version(MODEL / f"{s}.scsp"),
+                 map_stem(s, kebab_map, staged, db_map)) for s in a.stems]
     else:
-        candidates = all_stems
-
-    rows = []
-    for stem in candidates:
-        v = scsp_to_json.detect_version(MODEL / f"{stem}.scsp")
-        c = map_stem(stem, kebab_map, staged)
-        rows.append((stem, v, c))
+        # Destination-keyed jobs (one rig per c-slug), from two sources:
+        #  Pass A — DB cslug-driven map (authoritative; also recovers SHARED
+        #    rigs like c1078<-ras that the model-file sweep assigns to the base
+        #    c-slug). Heroes/skins only (c-prefix); d-prefix item entities that
+        #    reuse a hero rig are skipped.
+        #  Pass B — model-file sweep via map_stem, covering everything NOT in
+        #    the DB: collabs, npc/monster/pet, autoslayer stubs.
+        # Pass A wins on conflict (populated first; Pass B only fills gaps).
+        job: dict[str, str] = {}                       # dest c-slug -> rig stem
+        cslug_model_path = REPO / "data_external" / "model_map_from_db.json"
+        if cslug_model_path.exists():
+            for cslug, model in json.loads(
+                    cslug_model_path.read_text(encoding="utf-8")).items():
+                if not re.match(r"^c\d", cslug):
+                    continue
+                if not (MODEL / f"{model}.scsp").exists():
+                    continue
+                t = _resolve(cslug, staged)
+                if t:
+                    job.setdefault(t, model)
+        for stem in all_stems:
+            c = map_stem(stem, kebab_map, staged, db_map)
+            if c and c not in job:
+                job[c] = stem
+        rows = [(stem, scsp_to_json.detect_version(MODEL / f"{stem}.scsp"), c)
+                for c, stem in sorted(job.items())]
 
     # autoslayer_c#### rigs are 1-2 anim training-dummy stubs. When a real
     # hero rig (aram->c5175, hwayoung_a01->c5128) maps to the same c-slug, the
