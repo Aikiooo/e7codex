@@ -58,99 +58,74 @@
   const baseDir = `../site/assets/${slug}/`;
   window.__renderState = { slug, ready: false, error: null, anims: [], skins: [] };
 
-  // Slot-name patterns the thumb pass strips. Anchored at the start of the
-  // slot name (HIDE_PREFIX) plus a suffix rule for `<word>fx<digits>` style
-  // (HIDE_FX_SUFFIX) catches FX names regardless of their prefix.
-  // Audit results (slot-name hit rates across the rig set):
-  //   - 510/827 rigs have zero hits (thumb is identical to pose — skipped).
-  //   - normal heroes hit 0–8% (only stray ef*/flare slots), so the
-  //     character itself is never clipped.
-  //   - FX-heavy rigs (c5070, c1141, c1155, c2076_1, c6005) hit 30–70%
-  //     and end up with auras/smoke/backdrops fully removed.
-  // Extend per-slug overrides in tools/render_thumbs.js if a specific rig
-  // needs additional hides or false-positive rescues.
-  // `b_\d` removed: it was hiding c4004's body slots (b_1..b_29 are
-  // the character's torso/legs there, not backdrops). The original intent was
-  // backdrop slabs named b_1, b_2 — those rigs either don't exist or use the
-  // `bground` prefix instead.
-  // Added to catch FX leaks:
-  //   stone(...)      — c2019 rocks at feet (stone27, stone129y*, stone fx2)
-  //   maple_?\d       — c5110 maple leaves (maple_11..21)
-  //   star[_\d]       — c2091 comet trail (star_01..60, star_1..8)
-  //   fl_\d           — c1129 petals (fl_01..10, fl_1..8)
-  //   fly\d           — c5110 flies
-  //   ss_\d{4,}       — c1148 high-numbered ss_2841/2833333/28777 FX dupes
-  //                     (character ss_* slots only go up to ~ss_50)
-  //   \d+$            — c4042 numeric-only slot names "2", "45", "46" used as
-  //                     geometric backdrops
-  //   eff\d           — c2019 'eff3' (existing ef\d only catches the 2-char
-  //                     prefix, but several rigs use the 3-char 'eff' form)
-  const HIDE_PREFIX = /^(bground|bgshadow|bg(?![a-z])|back(?![a-z])|cloud|sky|stage|background|effect|eff(?:[/_]|$)|eff\d|ef[/_]|ef\d|efef|d_|\d+_chick|ttt\d|sdss|bbfire|bfire|pfire|lfire|dfire|afire|panicfx|wingsFx|flare\d?|spark|particle|smoke|dust|aura|glow|halo|light[_]?\d|fx|stone(?:[\d _]|fx|bb|y\d)|maple_?\d|star[_\d]|fl_\d|fly\d|ss_\d{4,}|\d+$|\d+(?:particle|eff|fx|spark|smoke|flame|aura))/i;
-  // Space-tolerant `fx` separator catches `head eff`/`stone fx2`
-  // style names; added `eff\d*$` alternative for *eff suffixes: arm_eff,
-  // neck_eff (c3084), eyeeff/eyeeff2 (c2019), normal3eff/neck1eff (c2048).
-  const HIDE_FX_SUFFIX = /[a-z_ ]fx[a-z\d]*$|_particle\d*\b|[a-z_ \d\/]eff\d*$/i;
-  // FX-keyword tokens that show up mid-name on rigs where the FX
-  // slot has a single-letter prefix (`ch_aura`, `sword_glow*`,
-  // `door_flare_3`, `images/Particle*`, `Nfx/smoke*`, ...). Matches the
-  // FX keyword after a path separator OR an underscore, OR the eff/fx
-  // path tokens anywhere in the name.
-  const HIDE_FX_TOKEN = /(?:[\/_](?:particle|spark|smoke|flame|aura|glow|halo|flare|effect)(?:[\d_\/]|$))|(?:(?:^|[\s\/_])(?:eff|fx)[\/_])/i;
-  // Per-slug extra hide patterns for rigs whose backdrop slot names don't
-  // match the generic HIDE_PREFIX rules. Each entry is an array of narrow
-  // regexes specific to that slug — we don't want these in the global
-  // HIDE_PREFIX where they'd risk false positives on other rigs.
-  //
-  // When a slug appears in this map, the strip pass runs even WITHOUT
-  // `?thumb=1`, so pose.png is also character-only. Detail pages lose the
-  // baked-in backdrop for these slugs, but the live viewer still shows
-  // the full rig (it doesn't honor SLUG_EXTRA_HIDE).
-  //
-  //   c1067_s02 (Tamarinne Sunday Service): the rig bundles the entire
-  //   stage backdrop with the character. Without stripping the stage,
-  //   the auto-fit camera frames everything and the character renders
-  //   at ~530 px tall (the rest of the 4800×6240 canvas is stage). After
-  //   stripping `glo_*` / `spt_*` / `balloon_*` / `b_star_*` / `rrione_*`
-  //   / bare `ttt` / `bone88dg`, the character takes the full framebuffer.
-  const SLUG_EXTRA_HIDE = {
-    "c1067_s02": [
-      /^glo_\d+$/i,
-      /^spt(?:_\d+(?:_\d+)?)?$/i,
-      /^balloon(?:_\d+)?$/i,
-      /^b_star_\d+$/i,
-      /^rrione_\d+$/i,
-      /^ttt$/i,
-      /^bone88dg$/i,
-      /^white$/i,                  // EXACT `white` only — keeps white_skirt_*
-                                   // and white_skirt_tt_* (character clothing).
-                                   // The bare `white` slot is a large stage
-                                   // plane at world (-4751, 3862) that drags
-                                   // the auto-fit camera ~5500 units left.
-    ],
-  };
-  const extraHideList = SLUG_EXTRA_HIDE[slug] || null;
+  // Strip patterns (FX / aura / backdrop slot names) now live in the single
+  // shared source site/data/strip_patterns.json — fetched below and shared
+  // with site/viewer.html ("Hide FX" toggle) and tools/render_thumbs.js
+  // (the pre-filter). `global` = generic FX rules applied to every rig's
+  // thumbnail; `per_slug` = extra patterns for rigs whose backdrop names the
+  // global rules miss (c1067_s02 stage, c5128 beach, c5175 sky), which apply
+  // to pose too. Compiled in loadStripPatterns() before the player starts.
+  let HIDE_PREFIX = null, HIDE_FX_SUFFIX = null, HIDE_FX_TOKEN = null;
+
+  // Additional per-call hide patterns via `?ehide=<regex>,<regex>,...` (each
+  // entry URL-encoded). render_poses.js / render_thumbs.js inject
+  // slot_excludes.json through this.
+  const ehideArg = params.get("ehide");
+  const ehideExtra = [];
+  if (ehideArg) {
+    for (const raw of ehideArg.split(",")) {
+      if (!raw) continue;
+      try { ehideExtra.push(new RegExp(decodeURIComponent(raw), "i")); }
+      catch { /* malformed regex — skip so a bad URL doesn't kill the render */ }
+    }
+  }
+  // per-slug strip patterns (from strip_patterns.json) + the ehide extras.
+  // Filled in loadStripPatterns(); starts as just the ehide extras so a failed
+  // fetch still honours an explicit ?ehide=.
+  let extraHideList = ehideExtra.slice();
   function extraHide(name) {
-    if (!extraHideList) return false;
     for (const re of extraHideList) if (re.test(name)) return true;
     return false;
   }
   // Rigs whose `default` skin is mostly numerically-named slots (>30%) treat
-  // those numerics as character body parts (npc1157 type — minimalist face
-  // rigs with body slot literally named `4`, or large rigs like c1172 / c5033
-  // / c6050 / c2112_s01_1 whose entire chassis uses numeric slot names). For
-  // those, suppress the `^\d+$` rule so the body isn't stripped in thumb mode.
-  // c4042 stays correct because only 3/89 (~3%) of its default slots are
-  // numeric — well below the threshold.
+  // those numerics as character body parts (npc1157 / c1172 / c5033 / c6050 /
+  // c2112_s01_1). For those, suppress the `^\d+$` rule so the body isn't
+  // stripped in thumb mode. c4042 stays correct (only ~3% numeric).
   let protectNumericSlots = false;
   function shouldHide(name) {
     if (extraHide(name)) return true;
     if (protectNumericSlots && /^\d+$/.test(name)) return false;
+    if (!HIDE_PREFIX) return false;   // patterns not loaded (fetch failed)
     return HIDE_PREFIX.test(name) || HIDE_FX_SUFFIX.test(name) || HIDE_FX_TOKEN.test(name);
   }
 
-  if (!slug) {
-    window.__renderState.error = "missing ?slug=";
-  } else {
+  // render.html is always served at /tools/render.html, so the shared JSON is
+  // at ../site/data/. Compile global + this slug's per-slug patterns.
+  //   per_slug             → applied in BOTH pose and thumb (framing-critical
+  //                          backdrop, e.g. c1067_s02 stage).
+  //   per_slug_thumb_only  → applied to the THUMBNAIL ONLY, so the detail-page
+  //                          pose.png keeps its full scene (c5128 beach, c5175
+  //                          sky). Folded into extraHideList only when thumbMode.
+  function loadStripPatterns() {
+    return fetch("../site/data/strip_patterns.json")
+      .then(r => r.json())
+      .then(d => {
+        if (d.global) {
+          HIDE_PREFIX    = new RegExp(d.global.hide_prefix, "i");
+          HIDE_FX_SUFFIX = new RegExp(d.global.hide_fx_suffix, "i");
+          HIDE_FX_TOKEN  = new RegExp(d.global.hide_fx_token, "i");
+        }
+        const both = ((d.per_slug && d.per_slug[slug]) || []).map(s => new RegExp(s, "i"));
+        const thumbOnly = thumbMode
+          ? ((d.per_slug_thumb_only && d.per_slug_thumb_only[slug]) || []).map(s => new RegExp(s, "i"))
+          : [];
+        extraHideList = [...both, ...thumbOnly, ...ehideExtra];
+      })
+      .catch(() => { /* keep ehide-only extraHideList; shouldHide guards nulls */ });
+  }
+
+  function startPlayer() {
+    if (!slug) { window.__renderState.error = "missing ?slug="; return; }
     new spine.SpinePlayer("stage", {
       jsonUrl:  baseDir + slug + ".json",
       atlasUrl: baseDir + slug + ".atlas",
@@ -186,8 +161,8 @@
         const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;
         const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
         // Per-slug overrides for rigs whose missing-face slot does NOT match
-        // the regex above.
-        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01", "c4141"]);
+        // the regex above (the EXPRESSION_FORCE allowlist).
+        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01", "c4141", "c1117", "c1138"]);
         // Second heuristic: rigs that have NO neutral face anywhere in
         // default+normal but expressions provide one. Broader face-piece
         // regex (allows suffixes like `_ag`/`_sm`, path prefixes like
@@ -279,7 +254,7 @@
         // Also fires when SLUG_EXTRA_HIDE has an entry for this slug — those
         // rigs need the strip regardless of thumb=1, so the baked pose.png is
         // character-only too (see comment block at SLUG_EXTRA_HIDE).
-        if (thumbMode || extraHideList) {
+        if (thumbMode || extraHideList.length) {
           // Decide numeric-slot protection from the default skin composition.
           const defaultSkin = data.defaultSkin;
           if (defaultSkin) {
@@ -377,6 +352,10 @@
       error: (_p, msg) => { window.__renderState.error = String(msg); },
     });
   }
+
+  // Load the shared strip patterns first, then start the player (always — the
+  // fetch has a .catch, so a missing JSON just means no FX strip, not a hang).
+  loadStripPatterns().finally(startPlayer);
 </script>
 </body>
 </html>

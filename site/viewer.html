@@ -82,6 +82,62 @@
   .stage-toggle:hover{border-color:var(--gold-dim)}
   .stage-toggle input{accent-color:var(--gold);cursor:pointer;margin:0}
   .stage-toggle[hidden]{display:none}
+  /* Slot picker panel — slides in from the right edge of the viewport.
+     Pinned outside the transformed stage so pan/zoom doesn't move it. */
+  #slot-picker-btn{background:var(--ink-2);border:1px solid var(--line);color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:6px 10px;border-radius:2px;cursor:pointer;transition:border-color .15s;text-transform:uppercase}
+  #slot-picker-btn:hover{border-color:var(--gold-dim);color:var(--gold)}
+  #slot-picker-btn .pcount{color:var(--gold);margin-left:6px}
+  #slot-picker{position:fixed;top:0;right:0;bottom:0;width:320px;background:var(--ink-2);border-left:1px solid var(--line);z-index:30;display:flex;flex-direction:column;box-shadow:-12px 0 30px rgba(0,0,0,.5);transform:translateX(100%);transition:transform .22s ease-out;font-family:'Outfit',sans-serif}
+  #slot-picker.open{transform:translateX(0)}
+  .sp-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .sp-head .sp-title{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold);flex:1}
+  .sp-head .sp-close{background:transparent;border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:14px;cursor:pointer;width:28px;height:28px;border-radius:2px;line-height:1}
+  .sp-head .sp-close:hover:not(:disabled){color:var(--gold);border-color:var(--gold-dim)}
+  .sp-head .sp-close:disabled{opacity:.35;cursor:default}
+  .sp-controls{padding:10px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+  .sp-controls input[type="search"]{background:var(--ink);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:2px;font-family:'Spline Sans Mono',monospace;font-size:12px;outline:none}
+  .sp-controls input[type="search"]:focus{border-color:var(--gold-dim)}
+  .sp-bulk{display:flex;gap:6px;flex-wrap:wrap}
+  .sp-bulk button{background:var(--ink);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.05em;padding:5px 9px;border-radius:2px;cursor:pointer;text-transform:uppercase;flex:1;min-width:0}
+  .sp-bulk button:hover{color:var(--gold);border-color:var(--gold-dim)}
+  .sp-list{flex:1;overflow-y:auto;padding:6px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px}
+  .sp-list::-webkit-scrollbar{width:8px}
+  .sp-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  .sp-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:2px;cursor:pointer;line-height:1.3}
+  .sp-row:hover{background:var(--ink)}
+  .sp-row.hidden-slot .sp-name{color:var(--mut);text-decoration:line-through}
+  .sp-row input[type="checkbox"]{accent-color:var(--gold);cursor:pointer;flex:0 0 auto;margin:0}
+  .sp-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sp-meta{color:var(--mut);font-size:9px;letter-spacing:0;flex:0 0 auto}
+  .sp-foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+  .sp-foot button{background:var(--ink);border:1px solid var(--line);color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:8px 10px;border-radius:2px;cursor:pointer;text-transform:uppercase}
+  .sp-foot button:hover{color:var(--gold);border-color:var(--gold-dim)}
+  .sp-foot .sp-hint{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.02em;line-height:1.5}
+  .sp-excluded{border-top:1px solid var(--line);flex:0 0 auto;max-height:38%;display:flex;flex-direction:column}
+  .sp-excluded[hidden]{display:none}
+  .sp-excluded-head{background:transparent;border:none;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .sp-excluded-head:hover{color:var(--gold)}
+  .sp-ex-caret{display:inline-block;transition:transform .15s;font-size:9px}
+  .sp-excluded-head[aria-expanded="true"] .sp-ex-caret{transform:rotate(90deg)}
+  .sp-ex-count{color:var(--gold-dim)}
+  .sp-excluded-list{overflow-y:auto;padding:2px 8px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px}
+  .sp-excluded-list[hidden]{display:none}
+  .sp-pick{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;padding:8px 10px;border:1px solid var(--line);border-radius:2px;background:var(--ink);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--text);text-transform:uppercase}
+  .sp-pick:hover{border-color:var(--gold-dim)}
+  .sp-pick input{accent-color:var(--gold);cursor:pointer;margin:0;flex:0 0 auto}
+  .sp-pick.active{border-color:var(--gold);background:rgba(216,176,106,.08);color:var(--gold)}
+  body.pick-mode #stage,body.pick-mode #stage canvas{cursor:crosshair !important}
+  #pick-overlay{position:absolute;inset:0;z-index:5;pointer-events:none;display:none}
+  body.pick-mode #pick-overlay{display:block}
+  .sp-pick-banner{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:50;background:rgba(216,176,106,.16);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em;padding:8px 16px;border-radius:3px;backdrop-filter:blur(4px);pointer-events:none}
+  .sp-pick-banner[hidden]{display:none}
+  /* First-visit discovery tip pointing at the Assets button. */
+  #discover-tip{position:fixed;z-index:60;max-width:230px;background:rgba(216,176,106,.18);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:11px;line-height:1.5;letter-spacing:.03em;padding:9px 12px;border-radius:5px;backdrop-filter:blur(6px);box-shadow:0 6px 22px rgba(0,0,0,.5);opacity:0;transition:opacity .35s ease;pointer-events:none}
+  #discover-tip[hidden]{display:none}
+  #discover-tip.show{opacity:1}
+  #discover-tip b{color:var(--text);font-weight:500}
+  #discover-tip::after{content:"";position:absolute;width:9px;height:9px;background:rgba(216,176,106,.18);border-right:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);bottom:-5px;left:var(--arrow,50%);transform:translateX(-50%) rotate(45deg)}
+  @media (max-width:640px){ #slot-picker{width:88vw} }
   .err{color:#d98a8a;font-family:'Spline Sans Mono',monospace;font-size:12px;padding:18px}
   .hint{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.06em;text-align:center;margin-top:-4px}
   @media (max-width:640px){
@@ -102,6 +158,7 @@
     <div id="stage-scaler">
       <div id="stage-bg"></div>
       <div id="stage"></div>
+      <canvas id="pick-overlay"></canvas>
     </div>
     <div class="zoom-controls">
       <button id="zin" title="zoom in">+</button>
@@ -158,15 +215,48 @@
       <option value="4">4× (slow)</option>
     </select>
     <label class="stage-toggle" id="stage-label" hidden title="composite the backdrop rig behind the character"><input type="checkbox" id="stage-on"> Stage</label>
-    <label class="stage-toggle" id="scene-label" hidden title="Workaround. Some rigs ship as a single combined file with the backdrop scene baked into the character (no separate stage file to swap). For those, this toggle hides a hand-curated list of scene slot names so just the character renders. The list is per-slug — only rigs we've explicitly classified show this option."><input type="checkbox" id="scene-on"> Hide scene<sup style="color:var(--gold-dim);margin-left:2px;font-size:10px;font-family:'Spline Sans Mono',monospace">*</sup></label>
+    <label class="stage-toggle" id="scene-label" hidden title="Reproduce the hub thumbnail: hides the FX / aura / backdrop / scene slots that the thumbnail bake strips (plus the curated scene slots for combined-file rigs like Hwayoung Summertime / Aram). Shown for any rig that has such slots. Use the Assets panel for finer control."><input type="checkbox" id="scene-on"> Hide FX/BG<sup style="color:var(--gold-dim);margin-left:2px;font-size:10px;font-family:'Spline Sans Mono',monospace">*</sup></label>
+    <button id="slot-picker-btn" type="button" title="Open the per-asset toggle panel — hide any asset on this rig (backdrop pieces, FX, accessories) with live preview.">Assets<span class="pcount" id="slot-picker-count"></span></button>
   </div>
 </main>
+
+<aside id="slot-picker" aria-hidden="true">
+  <div class="sp-head">
+    <span class="sp-title">Assets</span>
+    <button type="button" class="sp-close" id="sp-undo" title="undo last action (Ctrl+Z)" disabled style="margin-right:4px">↶</button>
+    <button type="button" class="sp-close" id="sp-close" title="close">×</button>
+  </div>
+  <div class="sp-controls">
+    <input type="search" id="sp-search" placeholder="filter by name…" autocomplete="off" spellcheck="false">
+    <div class="sp-bulk">
+      <button type="button" id="sp-hide-filtered" title="hide every slot currently shown by the filter">hide filtered</button>
+      <button type="button" id="sp-show-filtered" title="show every slot currently shown by the filter">show filtered</button>
+      <button type="button" id="sp-reset" title="restore every slot to its original visibility">reset</button>
+    </div>
+  </div>
+  <div class="sp-list" id="sp-list"></div>
+  <div class="sp-excluded" id="sp-excluded" hidden>
+    <button type="button" class="sp-excluded-head" id="sp-excluded-head" aria-expanded="false" title="Permanently-excluded assets (broken / junk). Hidden by default and kept out of the list above and the bulk tools. Tick one to bring it back for this session.">
+      <span class="sp-ex-caret">▸</span> Excluded <span class="sp-ex-count" id="sp-excluded-count"></span>
+    </button>
+    <div class="sp-excluded-list" id="sp-excluded-list" hidden></div>
+  </div>
+  <div class="sp-foot">
+    <label class="sp-pick" id="sp-pick-label" title="click an asset on the stage to hide it — bypasses scrolling 300+ slot names. Esc to exit.">
+      <input type="checkbox" id="sp-pick-mode"> Click-to-pick
+    </label>
+    <button type="button" id="sp-copy-regex" title="copy a regex matching the currently-hidden slot names — paste into site/data/strip_patterns.json (per_slug_thumb_only) to bake the strip into the thumbnail">copy hidden as regex</button>
+    <div class="sp-hint">Click-to-pick: click any asset on the canvas to hide its slot. Esc exits.</div>
+  </div>
+</aside>
+<div class="sp-pick-banner" id="sp-pick-banner" hidden>Click an asset to hide  ·  Esc to exit</div>
+<div id="discover-tip" hidden>Tip: open <b>Assets</b> to hide backdrop / FX — or pick assets right on the canvas.</div>
 <script>
 const params = new URLSearchParams(location.search);
 const slug   = params.get("slug") || "";
 // ?rig=combat loads the skill-animation rig staged under <slug>/combat/.
 // Combat rigs carry skill1/skill2/skill3/run/knock_down/rise the lobby rig
-// lacks (staged by tools/prepare_combat_assets.py).
+// lacks. v1: only the 3.8.99 subset is staged (see tools/prepare_combat_assets.py).
 const rig    = params.get("rig") || "";
 const isCombat = rig === "combat";
 // ?stage=<backdrop_slug> composites the backdrop rig (PRIMARY_SWAP bare slug,
@@ -211,6 +301,16 @@ if (slug) {
   }).catch(() => {});
 }
 
+// Permanently-excluded slot names per slug (broken/junk assets). Loaded once;
+// the rig success handler reads __slotExcludeNames for the current slug to
+// hide them on load and route them into the picker's "Excluded" section.
+// Same JSON the bake pipeline honours (tools/slot_excludes.js → render.html).
+window.__slotExcludeNames = [];
+const _excludesReady = fetch("data/slot_excludes.json")
+  .then(r => r.ok ? r.json() : {})
+  .then(d => { window.__slotExcludeNames = (d && Array.isArray(d[slug])) ? d[slug] : []; })
+  .catch(() => { window.__slotExcludeNames = []; });
+
 const wrap    = document.getElementById("stage-wrap");
 const scaler  = document.getElementById("stage-scaler");
 const stage   = document.getElementById("stage");
@@ -234,30 +334,76 @@ const stageLabel = document.getElementById("stage-label");
 const stageOnInput = document.getElementById("stage-on");
 const sceneLabel = document.getElementById("scene-label");
 const sceneOnInput = document.getElementById("scene-on");
+const slotPickerBtn = document.getElementById("slot-picker-btn");
+const slotPickerCount = document.getElementById("slot-picker-count");
+const slotPicker = document.getElementById("slot-picker");
+const spClose = document.getElementById("sp-close");
+const spSearch = document.getElementById("sp-search");
+const spList = document.getElementById("sp-list");
+const spHideFiltered = document.getElementById("sp-hide-filtered");
+const spShowFiltered = document.getElementById("sp-show-filtered");
+const spReset = document.getElementById("sp-reset");
+const spCopyRegex = document.getElementById("sp-copy-regex");
+const spUndoBtn = document.getElementById("sp-undo");
+const spPickLabel = document.getElementById("sp-pick-label");
+const spPickMode = document.getElementById("sp-pick-mode");
+const spPickBanner = document.getElementById("sp-pick-banner");
+const spExcluded = document.getElementById("sp-excluded");
+const spExcludedHead = document.getElementById("sp-excluded-head");
+const spExcludedList = document.getElementById("sp-excluded-list");
+const spExcludedCount = document.getElementById("sp-excluded-count");
 
-// Per-slug allowlist for the "Hide scene*" toggle. Each entry maps a slug to
-// a regex matching the slot names that compose the in-rig backdrop/scene
-// layer. Used for rigs the game ships as a SINGLE combined file (one .scsp
-// holding both character and backdrop) — the standard PRIMARY_SWAP / Stage
-// toggle path doesn't apply because there's nothing to compose, just slots
-// to hide. This is intentionally a hand-curated list, not a heuristic: a
-// broad regex is a foot-gun on rigs with overloaded prefixes, so we only
-// enable it per-rig after eyeballing the slot list.
-const SCENE_SLOTS = {
-  // Hwayoung Summertime — beach + jet ski + birds + cat plushie baked into
-  // her rig. `zgi*` is an undocumented scene element (airplane in the sky);
-  // `eff/light` is the ground glow under her feet — both look scene-y from
-  // the rendered output and don't intersect the character silhouette.
-  c5128: /^(bule_pado|pado|bpado|splashing|boltwater|bolt|bird|cat|bbag|flare|gea|low|xxx+|zgi)\d*$|^eff\/lig(Fx|ht)\d*$/i,
-  // Aram seasonal — sky (bg + cloud_*), waves (bg_wave_*), particle
-  // effects (fx_particle_*, fx_bubble_*, fx_rainbow, fx_r_*, fx_c*), and
-  // `g_1/2/3/5` (4 sparse slots, birds in the sky).
-  // DO NOT include `bb_*` OR `glass_light*` — both are clipping
-  // attachments inside her glasses that mask the coquillage reflection
-  // to the lens shape. Hiding them unmasks the reflection and it floats
-  // fully visible in front of her face/hat.
-  c5175: /^(?:bg(?:_wave_\d+)?|cloud_\d+|fx_\w+|g_\d+)$/i,
-};
+// ── Thumbnail strip patterns, from the shared site/data/strip_patterns.json ──
+// The "Hide FX" toggle applies the exact set the hub thumbnail bake uses, so
+// "show me what the thumbnail shows" works for every rig. Single source of
+// truth — also read by tools/render.html and tools/render_thumbs.js. Fetched
+// into these holders at startup (_stripReady gates the first render).
+// `per_slug` carries the rigs whose backdrop names the global rules miss,
+// including the two combined-file scene rigs c5128 (Hwayoung beach) and c5175
+// (Aram sky) — their patterns deliberately exclude the lens-clip slots
+// (bb_*/glass_light*) so the glasses reflection stays masked.
+let _stripPrefix = null, _stripSuffix = null, _stripToken = null;
+let _stripPerSlug = {};
+const _stripReady = fetch("data/strip_patterns.json")
+  .then(r => r.ok ? r.json() : {})
+  .then(d => {
+    if (d.global) {
+      _stripPrefix = new RegExp(d.global.hide_prefix, "i");
+      _stripSuffix = new RegExp(d.global.hide_fx_suffix, "i");
+      _stripToken  = new RegExp(d.global.hide_fx_token, "i");
+    }
+    // The toggle reproduces the THUMBNAIL, so union both per-slug buckets
+    // (pose+thumb AND thumb-only — the latter is what the detail-page pose
+    // keeps but the thumb drops, e.g. c5128 beach / c5175 sky).
+    for (const tbl of ["per_slug", "per_slug_thumb_only"]) {
+      for (const k of Object.keys(d[tbl] || {})) {
+        _stripPerSlug[k] = (_stripPerSlug[k] || []).concat(d[tbl][k].map(s => new RegExp(s, "i")));
+      }
+    }
+  })
+  .catch(() => { /* no patterns → toggle just won't show */ });
+
+// Rigs whose `default` skin is >30% numerically-named slots use those numerics
+// as body parts (c1172 / c5033 / c6050 / npc1157 …), so the `^\d+$` arm of the
+// global prefix must be suppressed for them — mirrors render.html.
+function _computeProtectNumeric(data) {
+  const def = data.findSkin && data.findSkin("default");
+  if (!def || !def.attachments) return false;
+  let total = 0, numeric = 0;
+  for (let i = 0; i < def.attachments.length; i++) {
+    if (!def.attachments[i]) continue;
+    total++;
+    if (/^\d+$/.test(data.slots[i].name)) numeric++;
+  }
+  return total > 0 && numeric / total > 0.30;
+}
+function _thumbShouldHide(name, protectNumeric, slug) {
+  const extras = _stripPerSlug[slug];
+  if (extras) for (const re of extras) if (re.test(name)) return true;
+  if (protectNumeric && /^\d+$/.test(name)) return false;
+  if (!_stripPrefix) return false;   // patterns not loaded
+  return _stripPrefix.test(name) || _stripSuffix.test(name) || _stripToken.test(name);
+}
 
 let player = null;
 let bgPlayer = null;
@@ -316,7 +462,10 @@ function resetView() { zoom = 1; panX = 0; panY = 0; apply(); }
 
 zinBtn.onclick  = () => zoomBy(1.25);
 zoutBtn.onclick = () => zoomBy(1/1.25);
-zfitBtn.onclick = resetView;
+// Fit/reset recomputes spine-player's auto-fit from the CURRENTLY-VISIBLE
+// assets (hidden FX/backdrop slots drop out of the bounds), then resets the
+// CSS pan/zoom. Lets the user hide the oversized halo/scene and reframe tight.
+zfitBtn.onclick = () => { if (window.__reframeOnVisible) window.__reframeOnVisible(); resetView(); };
 
 // Crop a 2D canvas to its non-transparent bounds. Used by the screenshot
 // button so the saved PNG isn't ~80% empty when the character only occupies
@@ -413,9 +562,11 @@ zshotBtn.onclick = async () => {
 
   // Trim transparent margins. spine-player's auto-fit allocates the whole
   // canvas to the rig's world bounds; rigs with off-screen FX/aura slots
-  // leave the character occupying only a small fraction of the frame.
-  // Trimming gives a tight crop without sacrificing the 4× pixel density —
-  // mirrors what the static pose pipeline does via sharp.trim().
+  // (a lot of E7 — c2185_1 has 82 of 224 slots as off-screen bg/fx) leave
+  // the character occupying only a small fraction of the frame. Trimming
+  // gives a tight crop without sacrificing the 4× pixel density. The pose
+  // pipeline does the same via sharp.trim() — this is the live-viewer
+  // equivalent.
   const outSource = trimTransparent(off) || off;
   outSource.toBlob((blob) => {
     try {
@@ -706,6 +857,7 @@ async function exportApng({ canvas, animName, duration }) {
 
 // Mouse wheel zoom centred on cursor.
 wrap.addEventListener("wheel", (e) => {
+  if (window.__pickModeActive) return;        // pick mode owns the canvas
   e.preventDefault();
   const factor = e.deltaY < 0 ? 1.12 : 1/1.12;
   zoomBy(factor, e.clientX, e.clientY);
@@ -715,6 +867,7 @@ wrap.addEventListener("wheel", (e) => {
 let dragging = false, lastX = 0, lastY = 0;
 wrap.addEventListener("pointerdown", (e) => {
   if (e.pointerType === "touch") return; // touch handled separately
+  if (window.__pickModeActive) return;        // pick mode handles clicks itself
   // Don't hijack pointer events that originated on the zoom-controls buttons.
   // Without this, wrap.setPointerCapture redirects the subsequent pointerup
   // away from the button and the synthetic click event never fires — which
@@ -769,15 +922,12 @@ wrap.addEventListener("touchend", (e) => {
   if (touches.size < 2) { pinchDist = 0; pinchMid = null; }
 });
 
-// Where the viewer loads Spine bulk (<slug>.json/.atlas/.png) from.
-//
-// Local dev serves them with relative `assets/` (python -m http.server from
-// site/, or file://). In production the assets are typically offloaded to
-// object storage on a separate host — set PROD_ASSET_BASE to that host's URL
-// (and configure CORS on it to allow your site's origin). Leave it as 'assets'
-// to serve everything from the same origin as the page.
-const PROD_ASSET_BASE = 'assets';  // e.g. 'https://assets.example.com'
-
+// Local-dev hostnames use relative `assets/` (served by python -m http.server
+// from site/, or file://). Everything else — production e7codex.com, Pages
+// preview URLs, anything we haven't enumerated — uses the R2-backed CDN.
+// LAN IPs (192.168.*/10.*/172.16-31.*) are included so the viewer works
+// when accessed across a local network without trying the CDN (which would
+// fail CORS for non-e7codex.com origins).
 const host = location.hostname;
 const isLocal = host === 'localhost'
   || host === '127.0.0.1'
@@ -785,7 +935,7 @@ const isLocal = host === 'localhost'
   || /^192\.168\./.test(host)
   || /^10\./.test(host)
   || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
-const spineBase = isLocal ? 'assets' : PROD_ASSET_BASE;
+const spineBase = isLocal ? 'assets' : 'https://assets.e7codex.com';
 
 if (!slug) {
   stage.innerHTML = '<div class="err">missing ?slug= in URL.</div>';
@@ -793,11 +943,11 @@ if (!slug) {
   // Stage toggle is only meaningful when ?stage= was passed AND we're on the
   // default rig (combat rigs don't share coords with the lobby backdrop).
   //
-  // When a paired backdrop is known we ALWAYS load it (even when the toggle is
+  // When a paired backdrop is known, we ALWAYS load it (even when the toggle is
   // off) so the character viewport can be synced to the backdrop's projection.
-  // Rigs that pair with a backdrop often carry FX/aura slots whose world bounds
-  // extend far past the visible character — without the synced viewport their
-  // auto-fit zooms way out and the character appears tiny in the canvas.
+  // PRIMARY_SWAP rigs with FX/aura slots that extend their world bounds (e.g.
+  // c2185_1 has 82 of 224 slots as off-screen bg/fx particles) otherwise
+  // auto-fit far too zoomed-out and the character appears tiny in the canvas.
   // The toggle just shows/hides the backdrop canvas — no reload, no reframe.
   if (stageSlug) {
     stageLabel.hidden = false;
@@ -940,16 +1090,16 @@ function loadCharacter(bgViewport) {
         // normal (neutral eyes/lip/brow), and an expression (smile/angry/etc
         // that fills the face silhouette or the lit-face overlay). Most rigs
         // look correct with just default+normal; only "broken-by-design" rigs
-        // (where face features live only in expression skins) need the third
-        // layer. The
+        // (where face features live only in expression skins) need the
+        // third layer. The
         // skin dropdown lets the user override the expression layer.
         const data = p.skeleton.data;
         const EXPR_ORDER = ["smile", "angry", "panic", "sad", "special"];
         const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;
         const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
         // Per-slug overrides for rigs whose missing-face slot does NOT match
-        // the regex above.
-        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01", "c4141"]);
+        // the regex above (the EXPRESSION_FORCE allowlist).
+        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01", "c4141", "c1117", "c1138"]);
         // Second heuristic: rigs with no neutral face anywhere in
         // default+normal but expressions provide one.
         const FACE_PIECE_RE = /^(?:[a-z]+\/)?(face|head|eye|mouth|lip|brow|eyebrow|nose|cheek)(?:[A-Z\d]|[_/]\w+)?$/i;
@@ -1054,59 +1204,129 @@ function loadCharacter(bgViewport) {
         }
         const pick = anims.find(n => /idle|wait|stand/i.test(n)) || anims[0];
         if (pick) { p.setAnimation(pick); animSel.value = pick; }
+        else if (allAnims.length) {
+          // Rig whose ONLY animation is 0-duration (e.g. npc1444's empty idle)
+          // gets filtered out of the dropdown, leaving nothing to play. We must
+          // still set SOME animation so spine-player runs calculateAnimation-
+          // Viewport and the auto-fit frames the rig — without it the camera
+          // never fits and the character is clipped (head cut off at the top).
+          p.setAnimation(allAnims[0].name);
+        }
         animSel.onchange = () => p.setAnimation(animSel.value);
+        // Reframe hook for the fit/reset button: re-running setAnimation makes
+        // spine-player recompute its auto-fit viewport from the live skeleton,
+        // so slots hidden via the Assets picker / Hide FX·BG toggle drop out of
+        // getBounds() and the character frames tight instead of being shrunk by
+        // an off-screen halo/backdrop.
+        window.__reframeOnVisible = function () {
+          const a = animSel.value || (allAnims[0] && allAnims[0].name);
+          if (a) p.setAnimation(a);
+        };
         skinSel.onchange = () => applyCombined(skinSel.value, true);
 
-        // "Hide scene*" toggle — per-slug workaround for rigs the game ships
-        // as a single combined file (backdrop + character in one .scsp). When
-        // the current slug has an entry in SCENE_SLOTS, surface the toggle and
-        // wire it to null/restore the matched slot attachments across every
-        // skin in data.skins, then re-apply the combo so the active skin
-        // picks up the change. Stashing the original attachment maps lets us
-        // flip on/off without reloading the rig.
-        const sceneRe = SCENE_SLOTS[slug];
-        if (sceneRe) {
-          sceneLabel.hidden = false;
-          const sceneSlotIdx = [];
-          for (let i = 0; i < data.slots.length; i++) {
-            if (sceneRe.test(data.slots[i].name)) sceneSlotIdx.push(i);
+        // Slot-hiding infrastructure shared between the "Hide FX*" toggle
+        // (strip_patterns.json — global + per-slug) and the interactive Slots
+        // picker panel (per-slot checkboxes). Both feed into ONE hideSet so
+        // they compose: turning on Hide FX* hides its slots in the picker
+        // too, and the user can extend or override those hides via the
+        // picker without breaking the toggle.
+        const hideSet = new Set();
+        // Stash every slot's ORIGINAL attachment dict per skin so we can
+        // restore exactly even after the picker toggles a slot multiple
+        // times. Keying by (skin index, slot index) avoids the
+        // mutate-then-mistake pattern where {} replaces the original and
+        // we lose the reference.
+        const slotStash = new Map();   // skinIdx → Map<slotIdx, originalDict>
+        for (let si = 0; si < data.skins.length; si++) {
+          const sk = data.skins[si];
+          const m = new Map();
+          for (let ix = 0; ix < sk.attachments.length; ix++) {
+            if (sk.attachments[ix]) m.set(ix, sk.attachments[ix]);
           }
-          // skinName → Map<slotIdx, attachmentDict>. Captures the ORIGINAL
-          // attachments once at load so restore is exact even after toggling
-          // multiple times.
-          const sceneStash = new Map();
+          slotStash.set(si, m);
+        }
+        function syncHidden() {
+          // Restore everything, then re-wipe whatever's currently in hideSet.
+          // Two passes is simpler than tracking deltas and tolerant of
+          // skins that don't carry a given slot.
+          for (let si = 0; si < data.skins.length; si++) {
+            const sk = data.skins[si];
+            const m = slotStash.get(si);
+            if (!m) continue;
+            for (const [idx, att] of m.entries()) sk.attachments[idx] = att;
+          }
           for (const sk of data.skins) {
-            const m = new Map();
-            for (const idx of sceneSlotIdx) {
-              if (sk.attachments[idx]) m.set(idx, sk.attachments[idx]);
-            }
-            if (m.size) sceneStash.set(sk.name, m);
+            for (const idx of hideSet) sk.attachments[idx] = {};
           }
+          // Combo skin in applyCombined copies attachments from data.skins,
+          // so the runtime combo doesn't see our edits until rebuilt. Use
+          // lastExpr (not skinSel.value) so initial-load combos like
+          // "default+normal" stay intact instead of collapsing to bare
+          // default and resetting the face.
+          applyCombined(lastExpr, true);
+        }
+        // Expose for the picker UI below (initialised in success()).
+        window.__slotPickerSync = syncHidden;
+        window.__slotPickerHideSet = hideSet;
+        window.__slotPickerData = data;
+
+        // Permanently-excluded slots for this rig (site/data/slot_excludes.json,
+        // fetched into __slotExcludeNames at startup). These are broken/junk
+        // assets — hidden on load and routed to the picker's "Excluded"
+        // section. They join hideSet (so syncHidden nulls them) AND a separate
+        // excludeSet so the picker keeps them out of the main list and the
+        // bulk show/hide tools, while still letting the user re-enable one.
+        const excludeSet = new Set();
+        const exNames = new Set(window.__slotExcludeNames || []);
+        if (exNames.size) {
+          for (let i = 0; i < data.slots.length; i++) {
+            if (exNames.has(data.slots[i].name)) { excludeSet.add(i); hideSet.add(i); }
+          }
+        }
+        window.__slotPickerExcludeSet = excludeSet;
+        // Apply the on-load excludes immediately so the junk asset never shows,
+        // then re-run setAnimation so the auto-fit viewport is recomputed
+        // WITHOUT the excluded slot's (often far-off) bounds — otherwise the
+        // character would frame tiny in a corner. calculateAnimationViewport
+        // samples the live skeleton, and setToSetupPose honours the now-wiped
+        // attachment dicts, so the excluded slot drops out of getBounds().
+        if (excludeSet.size) {
+          syncHidden();
+          if (pick) { p.setAnimation(pick); animSel.value = pick; }
+        }
+
+        // "Hide FX*" toggle — reproduces the hub thumbnail. Hides every slot
+        // the thumb-bake strips, sourced from strip_patterns.json: the global
+        // FX rules + this slug's per-slug patterns (which include the two
+        // combined-file scene rigs c5128 / c5175) + the numeric-slot guard.
+        // Shown whenever that matches at least one slot, so it works for every
+        // FX/backdrop rig, not just the hand-curated scene rigs. Composes with
+        // the picker + excludes through the shared hideSet; toggling OFF never
+        // re-shows an excluded (permanently-hidden) slot.
+        const protectNumeric = _computeProtectNumeric(data);
+        const thumbHideIdx = [];
+        for (let i = 0; i < data.slots.length; i++) {
+          if (_thumbShouldHide(data.slots[i].name, protectNumeric, slug)) thumbHideIdx.push(i);
+        }
+        if (thumbHideIdx.length) {
+          sceneLabel.hidden = false;
           sceneOnInput.checked = false;
           sceneOnInput.onchange = () => {
+            if (window.__slotPickerSnapshot) window.__slotPickerSnapshot();
             if (sceneOnInput.checked) {
-              // Empty dict instead of undefined so Skin.getAttachment's
-              // `dictionary ? dictionary[name] : null` branch returns
-              // undefined → treated as null by the runtime; the slot renders
-              // nothing for any animation-driven attachment lookup.
-              for (const sk of data.skins) {
-                for (const idx of sceneSlotIdx) sk.attachments[idx] = {};
-              }
+              for (const i of thumbHideIdx) hideSet.add(i);
             } else {
-              for (const sk of data.skins) {
-                const m = sceneStash.get(sk.name);
-                if (!m) continue;
-                for (const [idx, att] of m.entries()) sk.attachments[idx] = att;
-              }
+              for (const i of thumbHideIdx) if (!excludeSet.has(i)) hideSet.delete(i);
             }
-            // Combo skin in applyCombined copies attachments from data.skins,
-            // so the runtime combo doesn't see our edits until rebuilt. Use
-            // lastExpr (not skinSel.value) so initial-load combos like
-            // "default+normal" stay intact instead of collapsing to bare
-            // default and resetting the face.
-            applyCombined(lastExpr, true);
+            syncHidden();
+            if (window.__slotPickerRefresh) window.__slotPickerRefresh();
           };
         }
+
+        // Populate the slot picker for this rig. Always visible — every rig
+        // has slots, so the button is always useful (unlike Stage / Hide
+        // scene which are conditional).
+        if (window.__slotPickerInit) window.__slotPickerInit();
 
         // Relocate the play/scrub bar from inside the transformed scaler to
         // its own host below the stage so it isn't clipped or moved when the
@@ -1121,7 +1341,829 @@ function loadCharacter(bgViewport) {
     stage.innerHTML = `<div class="err">${e.message}</div>`;
   }
 }
-apply();
+// ---------------------------------------------------------------------------
+// Slot picker UI. Always-on panel that lists every slot in the loaded rig
+// and lets the user toggle each one independently. Composes with the
+// "Hide scene*" toggle through the shared hideSet (see syncHidden in
+// success() above).
+//
+// Build/teardown is keyed off __slotPickerInit which fires when a rig
+// finishes loading. Reset on each apply() so swapping rigs (in dev: changing
+// ?slug=) doesn't leave stale checkboxes.
+// ---------------------------------------------------------------------------
+let _slotPickerRows = [];        // main-list rows [{li, cb, name, idx}]
+let _slotPickerExcludeRows = []; // "Excluded" section rows (same shape)
+function _excludeSet() { return window.__slotPickerExcludeSet || new Set(); }
+function updateSlotPickerCount() {
+  // Badge shows USER-hidden count only (hideSet minus the permanent excludes),
+  // so excluded junk slots don't make the button perpetually read "· 1".
+  const hs = window.__slotPickerHideSet;
+  if (!hs) { slotPickerCount.textContent = ""; return; }
+  const ex = _excludeSet();
+  let n = 0;
+  for (const i of hs) if (!ex.has(i)) n++;
+  slotPickerCount.textContent = n ? `· ${n}` : "";
+}
+
+// Undo stack — each user action snapshots hideSet first, Ctrl+Z / the
+// header ↶ button restore the previous state. Capped at 100 snapshots so
+// a long picking session doesn't grow unbounded.
+const _undoStack = [];
+const _undoCap = 100;
+function _undoSnapshot() {
+  const hs = window.__slotPickerHideSet;
+  if (!hs) return;
+  _undoStack.push(new Set(hs));
+  if (_undoStack.length > _undoCap) _undoStack.shift();
+  spUndoBtn.disabled = false;
+}
+function _undoApply() {
+  const hs = window.__slotPickerHideSet;
+  if (!hs || !_undoStack.length) return;
+  const prev = _undoStack.pop();
+  hs.clear();
+  for (const i of prev) hs.add(i);
+  // The scene-toggle checkbox claims its slots are hidden; reconciling it
+  // exactly is fragile (we'd need to know the scene slot indices here).
+  // Untick it on undo — its slots are still in the snapshot if they were
+  // hidden, so the visual state stays correct.
+  if (sceneOnInput.checked) sceneOnInput.checked = false;
+  spUndoBtn.disabled = _undoStack.length === 0;
+  if (window.__slotPickerSync) window.__slotPickerSync();
+  if (window.__slotPickerRefresh) window.__slotPickerRefresh();
+}
+spUndoBtn.addEventListener("click", _undoApply);
+// Expose for the scene toggle (which is wired inside the rig success() callback
+// before this slot-picker init code runs).
+window.__slotPickerSnapshot = _undoSnapshot;
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    // Ignore when an input is focused so users editing the search box can
+    // still backspace etc. (Ctrl+Z in an input edits the input.)
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+    e.preventDefault();
+    _undoApply();
+  }
+});
+function spFilterRows() {
+  const q = spSearch.value.trim().toLowerCase();
+  for (const r of _slotPickerRows) {
+    r.li.style.display = (!q || r.name.toLowerCase().includes(q)) ? "" : "none";
+  }
+}
+function spVisibleRows() {
+  return _slotPickerRows.filter(r => r.li.style.display !== "none");
+}
+function spMarkRow(r, hidden) {
+  r.cb.checked = !hidden;
+  r.li.classList.toggle("hidden-slot", hidden);
+}
+function spApplyAndRefresh() {
+  if (window.__slotPickerSync) window.__slotPickerSync();
+  updateSlotPickerCount();
+}
+function spOpen()  { slotPicker.classList.add("open");  slotPicker.setAttribute("aria-hidden", "false"); }
+function spClosePanel() { slotPicker.classList.remove("open"); slotPicker.setAttribute("aria-hidden", "true"); }
+
+slotPickerBtn.addEventListener("click", () => {
+  slotPicker.classList.contains("open") ? spClosePanel() : spOpen();
+});
+spClose.addEventListener("click", spClosePanel);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && slotPicker.classList.contains("open")) spClosePanel();
+});
+spSearch.addEventListener("input", spFilterRows);
+
+spHideFiltered.addEventListener("click", () => {
+  const hs = window.__slotPickerHideSet; if (!hs) return;
+  _undoSnapshot();
+  for (const r of spVisibleRows()) { hs.add(r.idx); spMarkRow(r, true); }
+  spApplyAndRefresh();
+});
+spShowFiltered.addEventListener("click", () => {
+  const hs = window.__slotPickerHideSet; if (!hs) return;
+  _undoSnapshot();
+  for (const r of spVisibleRows()) { hs.delete(r.idx); spMarkRow(r, false); }
+  // Hide-scene toggle pushes into hideSet too — un-tick it when the user
+  // explicitly shows the same slots, otherwise the toggle's UI claim
+  // ("scene is hidden") contradicts the actual stage.
+  if (sceneOnInput.checked) sceneOnInput.checked = false;
+  spApplyAndRefresh();
+});
+spReset.addEventListener("click", () => {
+  const hs = window.__slotPickerHideSet; if (!hs) return;
+  _undoSnapshot();
+  // Reset to the BASELINE = the permanent excludes (not empty), so junk
+  // assets stay hidden after a reset just like on a fresh load.
+  const ex = _excludeSet();
+  hs.clear();
+  for (const i of ex) hs.add(i);
+  for (const r of _slotPickerRows) spMarkRow(r, false);
+  for (const r of _slotPickerExcludeRows) spMarkRow(r, true);
+  if (sceneOnInput.checked) sceneOnInput.checked = false;
+  spApplyAndRefresh();
+});
+
+// Escape every character that has a special meaning in a JS RegExp literal,
+// then collapse digit suffixes (`bg_tree1`, `bg_tree25`) into `\d+` groups
+// so the emitted pattern matches family-wide rather than enumerating every
+// numbered sibling. Conservative: only the *trailing* digit run on each
+// name is collapsed; mid-name numerics stay literal to avoid over-matching.
+// EXCEPTION — pure-numeric slot names (`145`, `166`) have an empty stem, so
+// collapsing them would emit the catch-all `^\d+$`. Some rigs (c1172, c1178)
+// name their BODY parts numerically in the same namespace as their backdrop/
+// FX, so `^\d+$` would strip the character. For those we keep the EXACT name
+// as a literal (`^145$`) — the family-collapse only applies when a non-empty
+// non-digit stem exists.
+function spBuildRegex(names) {
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
+  const stems = new Map();
+  for (const n of names) {
+    const m = n.match(/^(.*?)(\d+)$/);
+    if (m && m[1] !== "") {
+      const key = m[1];
+      if (!stems.has(key)) stems.set(key, { hasDigit: true, lits: new Set() });
+      stems.get(key).hasDigit = true;
+    } else {
+      if (!stems.has(n)) stems.set(n, { hasDigit: false, lits: new Set([n]) });
+    }
+  }
+  const parts = [];
+  for (const [stem, info] of stems.entries()) {
+    if (info.hasDigit) parts.push("^" + esc(stem) + "\\d+$");
+    else                parts.push("^" + esc(stem) + "$");
+  }
+  return parts.join("|");
+}
+
+spCopyRegex.addEventListener("click", async () => {
+  const hs = window.__slotPickerHideSet;
+  const ex = _excludeSet();
+  const data = window.__slotPickerData;
+  // Copy only USER-hidden slots — the permanent excludes already live in
+  // site/data/slot_excludes.json, so re-emitting them in a regex is noise.
+  const names = [];
+  if (hs) for (const idx of hs) {
+    if (ex.has(idx)) continue;
+    const s = data && data.slots && data.slots[idx];
+    if (s && s.name) names.push(s.name);
+  }
+  if (!names.length) { spCopyRegex.textContent = "nothing hidden"; setTimeout(() => spCopyRegex.textContent = "copy hidden as regex", 1200); return; }
+  const re = spBuildRegex(names);
+  try {
+    await navigator.clipboard.writeText(re);
+    spCopyRegex.textContent = "copied ✓";
+  } catch {
+    // Fallback for non-secure contexts (file://).
+    const ta = document.createElement("textarea");
+    ta.value = re; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); spCopyRegex.textContent = "copied ✓"; }
+    catch { spCopyRegex.textContent = "copy failed"; }
+    document.body.removeChild(ta);
+  }
+  setTimeout(() => spCopyRegex.textContent = "copy hidden as regex", 1500);
+});
+
+// Build one checkbox row. `hs` is the live hideSet. Returns {li, cb, name, idx}.
+function _buildSlotRow(e, hs) {
+  const li = document.createElement("label");
+  li.className = "sp-row";
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = !hs.has(e.idx);
+  const name = document.createElement("span");
+  name.className = "sp-name";
+  name.textContent = e.name;
+  const meta = document.createElement("span");
+  meta.className = "sp-meta";
+  meta.textContent = e.bone || "";
+  li.appendChild(cb); li.appendChild(name); li.appendChild(meta);
+  if (hs.has(e.idx)) li.classList.add("hidden-slot");
+  cb.addEventListener("change", () => {
+    _undoSnapshot();
+    if (cb.checked) hs.delete(e.idx);
+    else            hs.add(e.idx);
+    li.classList.toggle("hidden-slot", !cb.checked);
+    spApplyAndRefresh();
+  });
+  return { li, cb, name: e.name, idx: e.idx };
+}
+
+window.__slotPickerInit = function () {
+  const data = window.__slotPickerData;
+  const hs = window.__slotPickerHideSet;
+  if (!data || !hs) return;
+  const ex = _excludeSet();
+  spList.innerHTML = "";
+  spExcludedList.innerHTML = "";
+  _slotPickerRows = [];
+  _slotPickerExcludeRows = [];
+  // Sort by slot name so families group up — easier for the user to scan.
+  const entries = data.slots.map((s, i) => ({ idx: i, name: s.name || "", bone: s.bone || "" }));
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  const mainFrag = document.createDocumentFragment();
+  const exFrag = document.createDocumentFragment();
+  for (const e of entries) {
+    const row = _buildSlotRow(e, hs);
+    if (ex.has(e.idx)) { exFrag.appendChild(row.li); _slotPickerExcludeRows.push(row); }
+    else               { mainFrag.appendChild(row.li); _slotPickerRows.push(row); }
+  }
+  spList.appendChild(mainFrag);
+  spExcludedList.appendChild(exFrag);
+  // Show the "Excluded" section only when this rig actually has excludes.
+  const exN = _slotPickerExcludeRows.length;
+  spExcluded.hidden = exN === 0;
+  spExcludedCount.textContent = exN ? `(${exN})` : "";
+  spSearch.value = "";
+  spFilterRows();
+  updateSlotPickerCount();
+};
+// Collapsible "Excluded" section.
+spExcludedHead.addEventListener("click", () => {
+  const open = spExcludedList.hidden;
+  spExcludedList.hidden = !open;
+  spExcludedHead.setAttribute("aria-expanded", open ? "true" : "false");
+});
+// Called by the scene toggle so the picker checkboxes reflect changes
+// pushed in from outside the panel.
+window.__slotPickerRefresh = function () {
+  const hs = window.__slotPickerHideSet;
+  if (!hs) return;
+  for (const r of _slotPickerRows) spMarkRow(r, hs.has(r.idx));
+  for (const r of _slotPickerExcludeRows) spMarkRow(r, hs.has(r.idx));
+  updateSlotPickerCount();
+};
+
+// ---------------------------------------------------------------------------
+// Click-to-pick. Hover the cursor over a slot on the rendered character;
+// the topmost visible attachment under the cursor is outlined live on a
+// gold overlay so you can see exactly what will be hidden before you click.
+// Triangle-precision hit-test on the actual mesh/quad geometry (not the
+// axis-aligned bbox) so rotated/skewed or sparse meshes don't pick up empty
+// corner space.
+//
+// Geometry chain (left-to-right):
+//   client pixel  →  canvas rect  →  normalised  →  world coord
+// `getBoundingClientRect()` returns the rect AFTER the #stage-scaler CSS
+// transform (pan/zoom), so normalised-within-rect coords map straight onto
+// the spine viewport without re-deriving the transform. The overlay canvas
+// is a sibling of #stage inside #stage-scaler, so the same CSS transform
+// applies to both and we can draw in world-mapped coords directly.
+// ---------------------------------------------------------------------------
+const pickOverlay = document.getElementById("pick-overlay");
+const pickCtx = pickOverlay.getContext("2d");
+let _lastHoverIdx = -1;
+let _pickRaf = 0;
+const _isCoarsePointer = (window.matchMedia && matchMedia("(hover: none), (pointer: coarse)").matches) || ("ontouchstart" in window);
+const PICK_BANNER_IDLE = _isCoarsePointer
+  ? "Hold an asset  ·  tap a 2nd finger to cycle  ·  release to hide"
+  : "Click an asset to hide  ·  Esc to exit";
+
+function _sizePickOverlay() {
+  // Match the spine canvas DRAWING BUFFER (not the post-CSS-transform
+  // bounding rect). The two diverge whenever the user zooms / changes
+  // quality, and that was the source of the "highlight floats away from
+  // the cursor when zoomed" bug. Overlay buffer = canvas buffer means
+  // identical world→pixel mapping between the two.
+  const canvas = stage.querySelector("canvas");
+  if (!canvas || !canvas.width || !canvas.height) return null;
+  const w = canvas.width, h = canvas.height;
+  if (pickOverlay.width !== w)  pickOverlay.width  = w;
+  if (pickOverlay.height !== h) pickOverlay.height = h;
+  return { W: w, H: h };
+}
+
+// World → canvas-pixel mapping using spine-player's actual camera, NOT
+// `currentViewport`. The two differ by sub-pixel amounts at non-1× zoom
+// and a few pixels when the viewport-padding aspect doesn't match the
+// canvas aspect (spine-player's auto-fit letterboxes the viewport, but
+// `currentViewport` returns the configured rect, not the post-letterbox
+// rect that's actually drawn). Camera is set every frame in ResizeMode.
+// Expand so camera.viewportWidth === canvas.width, which simplifies the
+// projection to `(world - position) / zoom + canvas/2`.
+// Project a world point (z=0) through a spine Matrix4 (.values, column-major)
+// to NDC [-1,1]. Mirrors spine.webgl.Vector3.project: index map is
+// M00=0 M01=4 M02=8 M03=12 / M10=1 M11=5 M12=9 M13=13 / M30=3 M31=7 M32=11 M33=15.
+function _projectNDC(m, wx, wy) {
+  const cw = wx * m[3] + wy * m[7] + m[15];
+  if (cw === 0) return null;
+  return {
+    x: (wx * m[0] + wy * m[4] + m[12]) / cw,
+    y: (wx * m[1] + wy * m[5] + m[13]) / cw,
+  };
+}
+
+function _getCamera() {
+  return player && player.sceneRenderer && player.sceneRenderer.camera || null;
+}
+
+// World → canvas-internal pixel using the camera's ACTUAL projectionView
+// matrix — exactly the matrix the GPU draws with, so the overlay aligns
+// pixel-for-pixel with the rendered rig regardless of zoom / padding /
+// aspect letterboxing. Falls back to currentViewport only if the camera
+// matrix isn't available yet.
+function _worldToCanvasPixel(wx, wy, W, H) {
+  const cam = _getCamera();
+  if (cam && cam.projectionView && cam.projectionView.values) {
+    const ndc = _projectNDC(cam.projectionView.values, wx, wy);
+    if (ndc) {
+      return {
+        x: (ndc.x + 1) * W / 2,
+        y: H - (ndc.y + 1) * H / 2 - 1,   // NDC y-up → canvas y-down (matches screenToWorld)
+      };
+    }
+  }
+  const v = player && player.currentViewport;
+  if (!v || !v.width || !v.height) return null;
+  return { x: (wx - v.x) / v.width * W, y: (1 - (wy - v.y) / v.height) * H };
+}
+
+function _drawSlotShape(slot, att) {
+  const dims = _sizePickOverlay();
+  if (!dims) return;
+  const W = dims.W, H = dims.H;
+  pickCtx.clearRect(0, 0, W, H);
+  if (!slot || !att || !player) return;
+  // Project each vertex as a full (x,y) point — robust even if the camera
+  // matrix ever carries cross terms (rotation). For the axis-aligned ortho
+  // camera the cross terms are 0, but projecting the whole point is correct
+  // either way.
+  const P = (wx, wy) => _worldToCanvasPixel(wx, wy, W, H) || { x: 0, y: 0 };
+  pickCtx.fillStyle = "rgba(216,176,106,0.28)";
+  pickCtx.strokeStyle = "#d8b06a";
+  pickCtx.lineWidth = 2;
+  pickCtx.lineJoin = "round";
+  try {
+    if (att.triangles) {
+      // Mesh — draw every triangle so the user sees the actual covered area.
+      const len = att.worldVerticesLength;
+      const verts = new Float32Array(len);
+      att.computeWorldVertices(slot, 0, len, verts, 0, 2);
+      const tris = att.triangles;
+      pickCtx.beginPath();
+      for (let i = 0; i < tris.length; i += 3) {
+        const a = tris[i] * 2, b = tris[i + 1] * 2, c = tris[i + 2] * 2;
+        const pa = P(verts[a], verts[a + 1]);
+        const pb = P(verts[b], verts[b + 1]);
+        const pc = P(verts[c], verts[c + 1]);
+        pickCtx.moveTo(pa.x, pa.y);
+        pickCtx.lineTo(pb.x, pb.y);
+        pickCtx.lineTo(pc.x, pc.y);
+        pickCtx.closePath();
+      }
+      pickCtx.fill();
+      pickCtx.stroke();
+    } else if (att.offset !== undefined || att.rendererObject !== undefined) {
+      // Region — 4-corner quad.
+      const verts = new Float32Array(8);
+      att.computeWorldVertices(slot.bone, verts, 0, 2);
+      const p0 = P(verts[0], verts[1]);
+      const p1 = P(verts[2], verts[3]);
+      const p2 = P(verts[4], verts[5]);
+      const p3 = P(verts[6], verts[7]);
+      pickCtx.beginPath();
+      pickCtx.moveTo(p0.x, p0.y);
+      pickCtx.lineTo(p1.x, p1.y);
+      pickCtx.lineTo(p2.x, p2.y);
+      pickCtx.lineTo(p3.x, p3.y);
+      pickCtx.closePath();
+      pickCtx.fill();
+      pickCtx.stroke();
+    }
+  } catch (_) { /* attachment without world-vertex support — silently skip */ }
+}
+
+function _clearOverlay() {
+  pickCtx.clearRect(0, 0, pickOverlay.width, pickOverlay.height);
+  spPickBanner.textContent = PICK_BANNER_IDLE;
+  _lastHoverIdx = -1;
+}
+
+// rAF loop while pick mode is active so the highlighted polygon tracks
+// animated bones — otherwise the gold outline drifts behind the visible
+// asset by a few frames whenever the rig is mid-animation.
+function _pickFrame() {
+  if (!window.__pickModeActive) { _pickRaf = 0; return; }
+  if (_lastHoverIdx >= 0 && player && player.skeleton) {
+    const slot = player.skeleton.drawOrder.find(s => s.data.index === _lastHoverIdx);
+    if (slot) {
+      const att = slot.getAttachment();
+      if (att) _drawSlotShape(slot, att);
+      else     _clearOverlay();
+    }
+  }
+  _pickRaf = requestAnimationFrame(_pickFrame);
+}
+
+window.__pickModeActive = false;
+function setPickMode(on) {
+  window.__pickModeActive = !!on;
+  spPickLabel.classList.toggle("active", !!on);
+  spPickMode.checked = !!on;
+  document.body.classList.toggle("pick-mode", !!on);
+  spPickBanner.hidden = !on;
+  if (on) {
+    _sizePickOverlay();
+    spPickBanner.textContent = PICK_BANNER_IDLE;
+    if (!_pickRaf) _pickRaf = requestAnimationFrame(_pickFrame);
+  } else {
+    _clearOverlay();
+  }
+}
+spPickMode.addEventListener("change", () => setPickMode(spPickMode.checked));
+// Also bind the label tap directly — on some mobile browsers a <label>-wrapped
+// checkbox inside a transformed/fixed panel doesn't reliably emit `change` on
+// touch; this guarantees the toggle flips state.
+spPickLabel.addEventListener("click", (e) => {
+  if (e.target === spPickMode) return;          // the checkbox's own change handles it
+  setTimeout(() => setPickMode(spPickMode.checked), 0);
+});
+// Mobile/desktop browsers restore the checkbox's checked state across reloads
+// (bfcache / form restoration), but window.__pickModeActive resets to false on
+// every load — leaving the toggle LOOKING on while the handlers are off, so the
+// user had to tick it off+on to "wake" it. Force both into a known synced
+// (off) state at startup.
+setPickMode(false);
+window.addEventListener("resize", () => { if (window.__pickModeActive) _sizePickOverlay(); });
+
+// Hover handler — updates the highlighted slot. Uses the same coord chain
+// as doPick so what's outlined is exactly what would be hidden on click.
+// Records every slot that contains the cursor so Tab can cycle through
+// overlapping picks (small assets hiding behind larger meshes).
+let _hoverSlots = [];   // topmost-first list of slots at current cursor
+let _hoverIdx = 0;      // current selection within _hoverSlots
+function _updateHoverBanner() {
+  if (!_hoverSlots.length) {
+    spPickBanner.textContent = PICK_BANNER_IDLE;
+    return;
+  }
+  const slot = _hoverSlots[_hoverIdx];
+  const name = slot && slot.data.name || "?";
+  const cycleHint = _isCoarsePointer ? "tap 2nd finger" : "Tab";
+  const tail = _hoverSlots.length > 1
+    ? `  (${_hoverIdx + 1}/${_hoverSlots.length} · ${cycleHint} for next)`
+    : "";
+  const verb = _isCoarsePointer ? "Release to hide: " : "Click to hide: ";
+  spPickBanner.textContent = verb + name + tail;
+}
+function _hoverPick(ev) {
+  // Mouse-hover only. On mobile `pointermove` ALSO fires for touch (pointerType
+  // "touch"), and this handler would clear the highlight the moment the finger
+  // grazed a transparent gap — wiping the touch gesture's _hoverSlots/_lastHover
+  // mid-hold so release found nothing to hide. Touch is handled exclusively by
+  // the touch-gesture handlers; bail on any touch/pen pointer here.
+  if (ev.pointerType && ev.pointerType !== "mouse") return;
+  if (window.__pickModeActive && _pickPrimaryId !== null) return;  // touch gesture owns it
+  if (!window.__pickModeActive || !player) return;
+  const w = _eventToWorld(ev);
+  if (!w) return;
+  const list = findAllSlotsAt(w.wx, w.wy);
+  if (!list.length) {
+    if (_hoverSlots.length || _lastHoverIdx !== -1) _clearOverlay();
+    _hoverSlots = [];
+    _hoverIdx = 0;
+    return;
+  }
+  // Same-list shortcut: if mouse moves within the same overlap set, keep
+  // the user's current cycle position. Otherwise reset to topmost.
+  const sameAsBefore =
+    _hoverSlots.length === list.length &&
+    _hoverSlots.every((s, i) => s.data.index === list[i].data.index);
+  if (!sameAsBefore) {
+    _hoverSlots = list;
+    _hoverIdx = 0;
+  }
+  const slot = _hoverSlots[_hoverIdx];
+  if (slot.data.index !== _lastHoverIdx) {
+    _lastHoverIdx = slot.data.index;
+  }
+  _updateHoverBanner();
+  _drawSlotShape(slot, slot.getAttachment());
+}
+wrap.addEventListener("pointermove", _hoverPick);
+wrap.addEventListener("pointerleave", (ev) => {
+  // Mouse only — a touch lift fires pointerleave too and would wipe the touch
+  // gesture's highlight before pickTouchEnd reads it (target=NULL on release).
+  if (ev.pointerType && ev.pointerType !== "mouse") return;
+  if (window.__pickModeActive && _pickPrimaryId !== null) return;
+  _hoverSlots = [];
+  _hoverIdx = 0;
+  _clearOverlay();
+});
+
+// Barycentric point-in-triangle test. Inclusive on edges so verts shared
+// between triangles in a mesh don't fall through the cracks.
+function pointInTriangle(px, py, ax, ay, bx, by, cx, cy) {
+  const v0x = cx - ax, v0y = cy - ay;
+  const v1x = bx - ax, v1y = by - ay;
+  const v2x = px - ax, v2y = py - ay;
+  const dot00 = v0x * v0x + v0y * v0y;
+  const dot01 = v0x * v1x + v0y * v1y;
+  const dot02 = v0x * v2x + v0y * v2y;
+  const dot11 = v1x * v1x + v1y * v1y;
+  const dot12 = v1x * v2x + v1y * v2y;
+  const denom = dot00 * dot11 - dot01 * dot01;
+  if (denom === 0) return false;
+  const inv = 1 / denom;
+  const u = (dot11 * dot02 - dot01 * dot12) * inv;
+  const v = (dot00 * dot12 - dot01 * dot02) * inv;
+  return u >= 0 && v >= 0 && u + v <= 1;
+}
+
+// Point-in-polygon test for the actual attachment geometry. Far tighter
+// than the previous axis-aligned bbox check — a rotated/skewed region or
+// a sparse mesh no longer claims its empty corners.
+function attachmentContains(slot, att, wx, wy) {
+  try {
+    // MeshAttachment: walk every triangle.
+    if (att.triangles) {
+      const len = att.worldVerticesLength;
+      const v = new Float32Array(len);
+      att.computeWorldVertices(slot, 0, len, v, 0, 2);
+      const tris = att.triangles;
+      for (let i = 0; i < tris.length; i += 3) {
+        const a = tris[i]     * 2;
+        const b = tris[i + 1] * 2;
+        const c = tris[i + 2] * 2;
+        if (pointInTriangle(wx, wy, v[a], v[a + 1], v[b], v[b + 1], v[c], v[c + 1])) return true;
+      }
+      return false;
+    }
+    // RegionAttachment: 4 corners in CCW order — split into 2 triangles.
+    if (att.offset !== undefined || att.rendererObject !== undefined) {
+      const v = new Float32Array(8);
+      att.computeWorldVertices(slot.bone, v, 0, 2);
+      // Quad vertices: A(0,1) B(2,3) C(4,5) D(6,7) → triangles ABC and ACD.
+      if (pointInTriangle(wx, wy, v[0], v[1], v[2], v[3], v[4], v[5])) return true;
+      if (pointInTriangle(wx, wy, v[0], v[1], v[4], v[5], v[6], v[7])) return true;
+      return false;
+    }
+  } catch (e) { /* ignore — fall through */ }
+  return false;
+}
+
+function findTopmostSlotAt(wx, wy) {
+  const all = findAllSlotsAt(wx, wy);
+  return all.length ? all[0] : null;
+}
+
+// Topmost-first list of slots whose attachment polygon contains the point.
+// Used by the cycle-through-overlapping mechanism: when a slot you want is
+// behind one or more larger meshes, hover at that point and Tab cycles
+// through every slot at the cursor in front-to-back draw order.
+function findAllSlotsAt(wx, wy) {
+  const out = [];
+  if (!player || !player.skeleton) return out;
+  const drawOrder = player.skeleton.drawOrder;
+  const hs = window.__slotPickerHideSet;
+  for (let i = drawOrder.length - 1; i >= 0; i--) {
+    const slot = drawOrder[i];
+    if (hs && hs.has(slot.data.index)) continue;
+    const att = slot.getAttachment();
+    if (!att) continue;
+    if (attachmentContains(slot, att, wx, wy)) out.push(slot);
+  }
+  return out;
+}
+
+// Click position → world coord using the camera (same inverse as
+// _worldToCanvasPixel). The canvas's CSS rect already accounts for the
+// #stage-scaler pan/zoom CSS transform, so we just normalise inside the
+// rect, scale to canvas-internal pixels, and run the inverse projection.
+// Canvas event → world coord using the camera's inverseProjectionView —
+// the exact inverse of the projection above, so click position maps to
+// world space identically to how the rig was drawn. currentViewport is
+// the fallback. Mirrors spine.webgl.OrthoCamera.screenToWorld: the screen
+// y is flipped to bottom-origin before normalising.
+function _eventToWorld(ev) {
+  if (!player) return null;
+  const canvas = stage.querySelector("canvas");
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return null;
+  const sx = (ev.clientX - rect.left) / rect.width  * canvas.width;
+  const sy = (ev.clientY - rect.top)  / rect.height * canvas.height;
+  const cam = _getCamera();
+  if (cam && cam.inverseProjectionView && cam.inverseProjectionView.values) {
+    const ndcx = (2 * sx) / canvas.width - 1;
+    const ndcy = (2 * (canvas.height - sy - 1)) / canvas.height - 1;
+    const m = cam.inverseProjectionView.values;
+    const cw = ndcx * m[3] + ndcy * m[7] + m[15];
+    if (cw !== 0) {
+      return {
+        wx: (ndcx * m[0] + ndcy * m[4] + m[12]) / cw,
+        wy: (ndcx * m[1] + ndcy * m[5] + m[13]) / cw,
+      };
+    }
+  }
+  const v = player.currentViewport;
+  if (!v || !v.width || !v.height) return null;
+  const nx = (ev.clientX - rect.left) / rect.width;
+  const ny = (ev.clientY - rect.top)  / rect.height;
+  return { wx: v.x + nx * v.width, wy: v.y + (1 - ny) * v.height };
+}
+
+// Hide a specific slot (shared by the desktop click path and the mobile
+// touch-gesture path). Snapshots for undo, syncs the picker, and flashes
+// the matching row to confirm.
+function hidePickedSlot(slot) {
+  if (!slot) return;
+  const hs = window.__slotPickerHideSet;
+  _undoSnapshot();
+  hs.add(slot.data.index);
+  if (window.__slotPickerSync) window.__slotPickerSync();
+  if (window.__slotPickerRefresh) window.__slotPickerRefresh();
+  // The cycle list still references the now-hidden slot; clear so the
+  // next mousemove / touch rebuilds it from the new visible-only draw order.
+  _hoverSlots = [];
+  _hoverIdx = 0;
+  const row = _slotPickerRows.find(r => r.idx === slot.data.index);
+  if (row) {
+    row.li.style.background = "rgba(216,176,106,.25)";
+    setTimeout(() => row.li.style.background = "", 450);
+    row.li.scrollIntoView({ block: "nearest" });
+  }
+}
+
+function doPick(ev) {
+  const w = _eventToWorld(ev);
+  if (!w) return;
+  // Use the cycled hover state if the user is mid-Tab; otherwise the
+  // topmost slot at the click point.
+  const slot = (_hoverSlots.length && _hoverSlots[_hoverIdx])
+    ? _hoverSlots[_hoverIdx]
+    : findTopmostSlotAt(w.wx, w.wy);
+  hidePickedSlot(slot);
+}
+
+// Spine-player attaches its own click handler to the canvas which toggles
+// play/pause. To stop it firing while pick mode is active we intercept the
+// raw input events in the CAPTURE phase on the wrap (an ancestor of the
+// canvas), call stopImmediatePropagation BEFORE spine-player's bubble-phase
+// handler runs, and route the click to our picker. pointerdown / pointerup
+// are also swallowed so any drag-detection inside spine-player can't trip.
+let _lastTouchPickTime = 0;   // suppress the synthetic click that follows a touch
+function pickGuard(ev) {
+  if (!window.__pickModeActive) return;
+  if (ev.target.closest(".zoom-controls") || ev.target.closest("#export-menu") || ev.target.closest("#slot-picker")) return;
+  ev.stopImmediatePropagation();
+  ev.preventDefault();
+  // A touch already handled the pick via the gesture below; the synthetic
+  // click that fires ~300ms later must not hide a second slot.
+  if (ev.type === "click" && Date.now() - _lastTouchPickTime > 700) doPick(ev);
+}
+for (const evt of ["pointerdown", "pointerup", "click"]) {
+  wrap.addEventListener(evt, pickGuard, { capture: true });
+}
+
+// ── Mobile touch picking ──────────────────────────────────────────────────
+// On a phone, spine-player's play/pause AND the pan/zoom rig both react to raw
+// touch events, so a tap fell through to play/pause and the picker never
+// fired. In pick mode we capture touch on `wrap` (an ancestor of the canvas)
+// BEFORE those handlers and run this gesture instead:
+//   • press & hold one finger → highlight the asset under it (the "primary"
+//     finger; LOCKED once down so a 2nd finger can't grab a different asset).
+//   • tap a second finger      → cycle to the next overlapping asset.
+//   • lift the primary finger  → hide the highlighted asset.
+// Only the primary finger's release commits a hide.
+let _pickPrimaryId = null;     // locked holding finger; only its release hides
+function _touchById(list, id) { for (const t of list) if (t.identifier === id) return t; return null; }
+function _pickTargetSlot() {
+  // The slot to hide on release = what's actually drawn highlighted. Prefer the
+  // live hover list, else the slot the rAF loop is outlining (_lastHoverIdx).
+  if (_hoverSlots.length && _hoverSlots[_hoverIdx]) return _hoverSlots[_hoverIdx];
+  if (_lastHoverIdx >= 0 && player && player.skeleton) {
+    return player.skeleton.drawOrder.find(s => s.data.index === _lastHoverIdx) || null;
+  }
+  return null;
+}
+function _highlightAtTouch(t) {
+  const w = _eventToWorld({ clientX: t.clientX, clientY: t.clientY });
+  if (!w) return;                           // conversion failed → keep last highlight
+  const list = findAllSlotsAt(w.wx, w.wy);
+  if (!list.length) return;                 // finger jittered into a gap → keep last
+  // Same overlap set as before → keep the user's cycle position; new set → reset.
+  const same = _hoverSlots.length === list.length &&
+               _hoverSlots.every((s, i) => s.data.index === list[i].data.index);
+  _hoverSlots = list;
+  if (!same) _hoverIdx = 0;
+  const slot = _hoverSlots[Math.min(_hoverIdx, _hoverSlots.length - 1)];
+  _lastHoverIdx = slot.data.index;
+  _drawSlotShape(slot, slot.getAttachment());
+  _updateHoverBanner();
+}
+function pickTouchStart(ev) {
+  if (!window.__pickModeActive) return;
+  if (ev.target.closest(".zoom-controls") || ev.target.closest("#export-menu") || ev.target.closest("#slot-picker")) return;
+  ev.stopImmediatePropagation();
+  ev.preventDefault();
+  _lastTouchPickTime = Date.now();   // suppress the synthetic click that follows
+  const t = ev.changedTouches[0];
+  if (_pickPrimaryId === null) {
+    _pickPrimaryId = t.identifier;   // lock the selector finger + highlight under it
+    _highlightAtTouch(t);
+  } else if (_hoverSlots.length > 1) {
+    _hoverIdx = (_hoverIdx + 1) % _hoverSlots.length;   // 2nd-finger tap → next asset
+    const slot = _hoverSlots[_hoverIdx];
+    _lastHoverIdx = slot.data.index;
+    _drawSlotShape(slot, slot.getAttachment());
+    _updateHoverBanner();
+  }
+}
+function pickTouchMove(ev) {
+  if (!window.__pickModeActive || _pickPrimaryId === null) return;
+  ev.stopImmediatePropagation();
+  ev.preventDefault();
+  const pt = _touchById(ev.changedTouches, _pickPrimaryId);
+  if (pt) _highlightAtTouch(pt);   // primary re-aims (cycle position preserved if same set)
+}
+function pickTouchEnd(ev) {
+  if (!window.__pickModeActive) return;
+  ev.stopImmediatePropagation();
+  ev.preventDefault();
+  _lastTouchPickTime = Date.now();
+  // Commit only when the locked primary finger lifts. Fall back to "no fingers
+  // left" so an identifier mismatch can't strand the hide. A 2nd (cycle) finger
+  // lifting while the primary is still down does nothing.
+  const primaryEnded = !!_touchById(ev.changedTouches, _pickPrimaryId) || ev.touches.length === 0;
+  if (primaryEnded) {
+    const slot = _pickTargetSlot();
+    if (slot) hidePickedSlot(slot);
+    _pickPrimaryId = null;
+    _clearOverlay();
+  }
+}
+function pickTouchCancel(ev) {
+  if (!window.__pickModeActive) return;
+  ev.stopImmediatePropagation();
+  ev.preventDefault();
+  _pickPrimaryId = null;
+  _hoverSlots = []; _hoverIdx = 0; _clearOverlay();
+}
+for (const [evt, fn] of [["touchstart", pickTouchStart], ["touchmove", pickTouchMove],
+                         ["touchend", pickTouchEnd], ["touchcancel", pickTouchCancel]]) {
+  wrap.addEventListener(evt, fn, { capture: true, passive: false });
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && window.__pickModeActive) setPickMode(false);
+  // Tab cycles through overlapping slots when the cursor sits on top of
+  // multiple meshes. Shift+Tab reverses. Suppress Tab's default focus
+  // traversal while pick mode is active; otherwise the user loses the
+  // crosshair to a header button.
+  if (window.__pickModeActive && e.key === "Tab" && _hoverSlots.length > 1) {
+    e.preventDefault();
+    const n = _hoverSlots.length;
+    _hoverIdx = e.shiftKey ? (_hoverIdx - 1 + n) % n : (_hoverIdx + 1) % n;
+    const slot = _hoverSlots[_hoverIdx];
+    _lastHoverIdx = slot.data.index;
+    _updateHoverBanner();
+    _drawSlotShape(slot, slot.getAttachment());
+  }
+});
+
+// Gate the FIRST render on the startup fetches (excludes + strip patterns) so
+// a fast-loading rig can't race ahead before __slotExcludeNames / the strip
+// regexes are populated. Both promises always resolve (each has a .catch), so
+// apply() runs even on fetch failure. Later apply() calls (zoom/quality) don't wait.
+Promise.all([_excludesReady, _stripReady]).then(apply);
+
+// First-visit discovery tip: points at the Assets button, fades in, and
+// auto-dismisses after a few seconds (or on the first interaction). Shown once
+// ever (localStorage), so returning visitors never see it again.
+function maybeShowDiscoverTip() {
+  const btn = document.getElementById("slot-picker-btn");
+  const tip = document.getElementById("discover-tip");
+  if (!btn || !tip) return;
+  let seen; try { seen = localStorage.getItem("e7_viewer_tip_v1"); } catch (_) {}
+  if (seen) return;
+  try { localStorage.setItem("e7_viewer_tip_v1", "1"); } catch (_) {}
+  tip.hidden = false;
+  const r = btn.getBoundingClientRect();
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = Math.max(8, Math.min(window.innerWidth - tw - 8, r.left + r.width / 2 - tw / 2));
+  let top = r.top - th - 12;
+  if (top < 8) top = r.bottom + 12;   // no room above → drop below the button
+  top = Math.max(8, Math.min(window.innerHeight - th - 8, top));   // never overflow
+  tip.style.left = left + "px";
+  tip.style.top = top + "px";
+  tip.style.setProperty("--arrow", (r.left + r.width / 2 - left) + "px");
+  requestAnimationFrame(() => tip.classList.add("show"));
+  let done = false;
+  const dismiss = () => {
+    if (done) return; done = true;
+    tip.classList.remove("show");
+    setTimeout(() => { tip.hidden = true; }, 400);
+    window.removeEventListener("click", dismiss, true);
+  };
+  setTimeout(dismiss, 14000);
+  // Dismiss on a real tap/click only — NOT pointerdown, so scrolling (which
+  // begins with a pointerdown but produces no click) leaves the tip up.
+  window.addEventListener("click", dismiss, { capture: true });
+}
+setTimeout(maybeShowDiscoverTip, 1600);
 </script>
 </body>
 </html>

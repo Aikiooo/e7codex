@@ -1,0 +1,5 @@
+{
+  "_doc": "Per-slug EXACT slot names that are permanently excluded: broken / junk assets that serve no purpose and/or sit far off in world space and blow up the canvas bounds. Behaviour: (1) hidden by default when the live viewer loads the rig, kept out of the main slot list and the bulk show/hide tools, but still re-enableable from the picker's collapsed 'Excluded' section; (2) stripped from pose.png + thumb.png at bake time (render_poses.js / render_thumbs.js feed these into render.html via ?ehide=), so the offline auto-fit frames the character instead of the junk asset. Values are matched as EXACT slot names (not regex).",
+  "c6050": ["155"],
+  "c1148": ["hair_11"]
+}

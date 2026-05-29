@@ -3,7 +3,12 @@
 # Bring your own extracted assets; the pipeline populates these directories.
 # ─────────────────────────────────────────────────────────────────────────
 site/assets/
-site/data/
+# Ignore generated game data, EXCEPT the two hand-authored tooling config files
+# (slot-name strip/exclude patterns — not game content; the bake + viewer need
+# them). `site/data/*` (not `site/data/`) so the `!` re-includes can take effect.
+site/data/*
+!site/data/strip_patterns.json
+!site/data/slot_excludes.json
 site/og-card.png
 *.scsp
 *.sct

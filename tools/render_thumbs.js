@@ -28,6 +28,7 @@ const fsp  = require("fs/promises");
 const path = require("path");
 const puppeteer = require("puppeteer");
 const sharp = require("sharp");
+const { ehideParamFor, excludesFor } = require("./slot_excludes");
 
 const ROOT  = path.resolve(__dirname, "..");
 const TOOLS = __dirname;
@@ -67,7 +68,9 @@ const SLUG_THRESHOLDS = {
   "c6005":     75,                                              // light rays
   "c5070":     75,                                              // smoke
   "c1148":     { threshold: 20, alphaOnly: true },              // icy blue aura
-  "c6050":     { threshold: 10, alphaOnly: true, percentile: 0.999, pad: 0.015 },  // blood drop
+  // c6050: the far-off blood-drop slot ("155") is now excluded via
+  // site/data/slot_excludes.json, so the canvas no longer spans to it and
+  // the old percentile/pad crop hack is unnecessary — default trim works.
 };
 
 function resolveTrim(slug) {
@@ -151,34 +154,40 @@ async function smartCrop(buf, opts) {
   return sharp(buf).trim({ threshold }).png().toBuffer();
 }
 
-// Mirror the slot-name regex in tools/render.html exactly. The pre-filter
-// uses this to skip slugs with zero FX hits so we don't pay the spine-player
-// init cost for a no-op render. If you tweak one, tweak the other.
-// Kept in lockstep with tools/render.html — see comments there for the why
-// behind each pattern. If you tweak one, tweak the other.
-const HIDE_PREFIX = /^(bground|bgshadow|bg(?![a-z])|back(?![a-z])|cloud|sky|stage|background|effect|eff(?:[/_]|$)|eff\d|ef[/_]|ef\d|efef|d_|\d+_chick|ttt\d|sdss|bbfire|bfire|pfire|lfire|dfire|afire|panicfx|wingsFx|flare\d?|spark|particle|smoke|dust|aura|glow|halo|light[_]?\d|fx|stone(?:[\d _]|fx|bb|y\d)|maple_?\d|star[_\d]|fl_\d|fly\d|ss_\d{4,}|\d+$|\d+(?:particle|eff|fx|spark|smoke|flame|aura))/i;
-const HIDE_FX_SUFFIX = /[a-z_ ]fx[a-z\d]*$|_particle\d*\b|[a-z_ \d\/]eff\d*$/i;
-const HIDE_FX_TOKEN  = /(?:[\/_](?:particle|spark|smoke|flame|aura|glow|halo|flare|effect)(?:[\d_\/]|$))|(?:(?:^|[\s\/_])(?:eff|fx)[\/_])/i;
-// Mirror SLUG_EXTRA_HIDE in tools/render.html. The browser uses the full
-// table to decide what to strip; this Node-side copy is purely for the
-// pre-filter (countHits) so opt-in slugs aren't skipped over.
-const SLUG_EXTRA_HIDE = {
-  "c1067_s02": [
-    /^glo_\d+$/i,
-    /^spt(?:_\d+(?:_\d+)?)?$/i,
-    /^balloon(?:_\d+)?$/i,
-    /^b_star_\d+$/i,
-    /^rrione_\d+$/i,
-    /^ttt$/i,
-    /^bone88dg$/i,
-    /^white$/i,
-  ],
-};
+// Strip patterns now come from the single shared source
+// site/data/strip_patterns.json (also read by tools/render.html and
+// site/viewer.html). This Node-side copy is purely for the pre-filter
+// (countHits) so opt-in slugs aren't skipped over — render.html does the
+// real strip. No more hand-mirrored regexes to keep in lockstep.
+let _STRIP = null;
+function stripPatterns() {
+  if (_STRIP) return _STRIP;
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(SITE, "data", "strip_patterns.json"), "utf-8"));
+    _STRIP = {
+      prefix: new RegExp(j.global.hide_prefix, "i"),
+      suffix: new RegExp(j.global.hide_fx_suffix, "i"),
+      token:  new RegExp(j.global.hide_fx_token, "i"),
+      perSlug: {},
+    };
+    // countHits is a THUMB pre-filter, so union both per-slug buckets
+    // (pose+thumb AND thumb-only).
+    for (const tbl of ["per_slug", "per_slug_thumb_only"]) {
+      for (const k of Object.keys(j[tbl] || {})) {
+        _STRIP.perSlug[k] = (_STRIP.perSlug[k] || []).concat(j[tbl][k].map(s => new RegExp(s, "i")));
+      }
+    }
+  } catch {
+    _STRIP = { prefix: /$^/, suffix: /$^/, token: /$^/, perSlug: {} };
+  }
+  return _STRIP;
+}
 function shouldHide(name, protectNumeric, slug) {
-  const extras = SLUG_EXTRA_HIDE[slug];
+  const S = stripPatterns();
+  const extras = S.perSlug[slug];
   if (extras) for (const re of extras) if (re.test(name)) return true;
   if (protectNumeric && /^\d+$/.test(name)) return false;
-  return HIDE_PREFIX.test(name) || HIDE_FX_SUFFIX.test(name) || HIDE_FX_TOKEN.test(name);
+  return S.prefix.test(name) || S.suffix.test(name) || S.token.test(name);
 }
 
 // Mirror of tools/render.html runtime check. Rigs whose `default` skin is
@@ -233,7 +242,13 @@ function countHits(slug) {
     const j = JSON.parse(fs.readFileSync(f, "utf-8"));
     const protectNumeric = computeProtectNumeric(j);
     const slots = (j.slots || []).map(s => s.name);
-    return slots.filter(n => shouldHide(n, protectNumeric, slug)).length;
+    let n = slots.filter(n => shouldHide(n, protectNumeric, slug)).length;
+    // An exclude (slot_excludes.json) is also a reason to bake a thumb — a
+    // slug whose only strip is an excluded junk slot still needs the
+    // tightened crop. Count exact-name matches present in this rig.
+    const ex = new Set(excludesFor(slug));
+    if (ex.size) n += slots.filter(name => ex.has(name)).length;
+    return n;
   } catch {
     return 0;
   }
@@ -255,8 +270,12 @@ async function trimAndResize(raw, slug) {
 
 async function captureAt(page, slug) {
   await page.setViewport({ width: 4900, height: 6340, deviceScaleFactor: RENDER_DSR });
-  await page.goto(`http://localhost:${PORT}/tools/render.html?slug=${encodeURIComponent(slug)}&thumb=1`,
-                  { waitUntil: "domcontentloaded" });
+  // Permanently-excluded slots (site/data/slot_excludes.json) are appended to
+  // the ?ehide= param so they're stripped alongside the FX/backdrop slots.
+  const ehide = ehideParamFor(slug);
+  const url = `http://localhost:${PORT}/tools/render.html?slug=${encodeURIComponent(slug)}&thumb=1`
+            + (ehide ? `&ehide=${ehide}` : "");
+  await page.goto(url, { waitUntil: "domcontentloaded" });
   // 60s is generous — most rigs settle in under 5s, but a handful of heavy
   // 2.1.27 rigs (c1153_s01, c1169, c2079_s01, c1180_1, c2113, …) cross the
   // 30s ceiling render_poses.js uses, and a few cross 45s during batch

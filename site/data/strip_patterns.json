@@ -1,0 +1,149 @@
+{
+  "_doc": "Single source of truth for the FX/backdrop strip. `global` = generic FX rules applied to EVERY rig's THUMBNAIL only. `per_slug` = extra patterns applied to BOTH pose and thumb (use only when the backdrop is so large it wrecks the pose auto-fit framing — currently c1067_s02 Tamarinne stage). `per_slug_thumb_only` = extra patterns applied to the THUMBNAIL ONLY, leaving the detail-page pose.png with its full scene intact (c5128 Hwayoung beach, c5175 Aram sky). Read by tools/render.html (fetch), tools/render_thumbs.js (pre-filter), site/viewer.html ('Hide FX' toggle = global ∪ per_slug ∪ per_slug_thumb_only). All patterns compile case-insensitive. Scene patterns deliberately EXCLUDE lens-clip slots (bb_*/glass_light*). NOT the same as slot_excludes.json (permanent always-hidden junk).",
+  "global": {
+    "hide_prefix": "^(bground|bgshadow|bg(?![a-z])|back(?![a-z])|cloud|sky|stage|background|effect|eff(?:[/_]|$)|eff\\d|ef[/_]|ef\\d|efef|d_|\\d+_chick|ttt\\d|sdss|bbfire|bfire|pfire|lfire|dfire|afire|panicfx|wingsFx|flare\\d?|spark|particle|smoke|dust|aura|glow|halo|light[_]?\\d|fx|stone(?:[\\d _]|fx|bb|y\\d)|maple_?\\d|star[_\\d]|fl_\\d|fly\\d|ss_\\d{4,}|\\d+$|\\d+(?:particle|eff|fx|spark|smoke|flame|aura))",
+    "hide_fx_suffix": "[a-z_ ]fx[a-z\\d]*$|_particle\\d*\\b|[a-z_ \\d\\/]eff\\d*$",
+    "hide_fx_token": "(?:[\\/_](?:particle|spark|smoke|flame|aura|glow|halo|flare|effect)(?:[\\d_\\/]|$))|(?:(?:^|[\\s\\/_])(?:eff|fx)[\\/_])"
+  },
+  "per_slug": {
+    "c1067_s02": [
+      "^glo_\\d+$",
+      "^spt(?:_\\d+(?:_\\d+)?)?$",
+      "^balloon(?:_\\d+)?$",
+      "^b_star_\\d+$",
+      "^rrione_\\d+$",
+      "^ttt$",
+      "^bone88dg$",
+      "^white$"
+    ]
+  },
+  "per_slug_thumb_only": {
+    "c5128": [
+      "^(bule_pado|pado|bpado|splashing|boltwater|bolt|bird|cat|bbag|flare|gea|low|xxx+|zgi)\\d*$|^eff\\/lig(Fx|ht)\\d*$"
+    ],
+    "c5175": [
+      "^(?:bg(?:_wave_\\d+)?|cloud_\\d+|fx_\\w+|g_\\d+)$"
+    ],
+    "c5110": [
+      "^bg_water$|^bg_fog\\d+$|^bg_bridge$|^bg_tree\\d+$|^bg_tree17_\\d+$|^maple_\\d+$|^bg_rock\\d+$|^light\\d+$|^bg_rock1_\\d+$|^fx_maple\\d+$|^fx_butterfly\\d+$|^back_light\\d+$|^fx\\/light\\d+$|^fly\\d+$|^fx_light$|^fx_leg\\d+$|^fx_water\\d+$|^fx_fish_shadow\\d+$|^fx_fish_m4_\\d+$|^fx_fish_m\\d+$|^fx_fish\\d+$|^fx_fog\\d+$|^\\d+$|^fx_particle$|^fx_r_\\d+$|^fX_bubble_\\d+$|^fx_particle_\\d+$|^fx_bubble_\\d+$|^bg_water_fog\\d+$|^under_maple$|^Layer \\d+$|^bb_\\d+$"
+    ],
+    "c1137": [
+      "^sprite_eff\\/pos_neuron\\d+$|^sprite_eff\\/b_wave_1_\\d+$|^sprite_eff\\/pos_ptc_\\d+$|^light_\\d+$|^ef_\\d+$|^body_silhouette\\d*$|^pos_ptc_1c\\d+$|^z\\d+$|^gl_\\d+$|^tw_\\d+$|^pos_body_6aa\\d+$|^flash$|^pos_tunnel_\\d+$|^pos_body_5aa\\d+$|^pos_body_4aa\\d+$|^pos_body_4c\\d+$|^pos_body_3c\\d+$|^pos_body_2c\\d+$|^pos_body_1c\\d+$|^flash_multi_\\d+$|^pos_body_5c\\d+$|^pos_body_\\d+$"
+    ],
+    "c1138": [
+      "^sprite_eff\\/pos_neuron\\d+$|^sprite_eff\\/b_wave_1_\\d+$|^sprite_eff\\/pos_ptc_\\d+$|^fx\\/light\\d+$|^lowFx\\d+$|^DbaFx\\d+$|^DbaFxz1y$|^DbaFxz\\d+$|^dxFx\\d+$|^backFx\\d+$|^buttonFx\\d+$|^body_silhouette\\d*$|^pos_ptc_1c\\d+$|^pos_tunnel_\\d+$|^4G\\d+$|^flash$|^pos_body_6aa\\d+$|^pos_body_5aa\\d+$|^pos_body_4aa\\d+$|^pos_body_5c\\d+$|^pos_body_\\d+$|^pos_body_2c\\d+$|^pos_body_3c\\d+$|^pos_body_4c\\d+$|^pos_body_1c\\d+$|^flash_multi_\\d+$"
+    ],
+    "c1139": [
+      "^sprite_eff\\/pos_neuron\\d+$|^sprite_eff\\/b_wave_1_\\d+$|^sprite_eff\\/pos_ptc_\\d+$|^e3_\\d+$|^body_silhouette\\d*$|^flash$|^pos_ptc_1c\\d+$|^flash_multi_\\d+$|^pos_body_1c\\d+$|^pos_body_\\d+$|^pos_body_2c\\d+$|^pos_body_3c\\d+$|^pos_body_4aa\\d+$|^pos_body_4c\\d+$|^pos_body_5aa\\d+$|^pos_body_5c\\d+$|^pos_body_6aa\\d+$|^pos_tunnel_\\d+$|^ee_\\d+$|^e2_\\d+$|^S_\\d+$|^e1_\\d+$"
+    ],
+    "c1140": [
+      "^sprite_eff\\/pos_neuron\\d+$|^sprite_eff\\/b_wave_1_\\d+$|^sprite_eff\\/pos_ptc_\\d+$|^fx\\/fx_b23_multi$|^fx\\/fx_b13_multi\\d+$|^fx\\/fx_b15_multi$|^fx\\/fx_b17_multi$|^fx\\/fx_b21_multi$|^fx\\/fx_b22_multi$|^fx\\/fx_b20_multi$|^fx\\/fx_d\\d+$|^sprite_eff\\/graph_block_1_\\d+$|^fx\\/fx_a\\d+$|^fx1\\/flare\\d+$|^fx2\\/Particle\\d+$|^fx2\\/wings\\d+$|^fx\\/fx_b\\d+$|^fx1\\/fistFx\\d+$|^d_eye\\d+$|^sprite_eff\\/graph_cercle_1_\\d+$|^sprite_eff\\/graph_cercle_1_2c\\d+$|^fx\\/fx_c\\d+$|^sprite_eff\\/flash_b\\d+$|^sprite_eff\\/flash_f\\d+$|^FX_c\\d+$|^pos_body_\\d+$|^pos_body_1c\\d+$|^pos_body_2c\\d+$|^pos_body_3c\\d+$|^pos_body_4aa\\d+$|^pos_body_4c\\d+$|^pos_body_5aa\\d+$|^pos_body_5c\\d+$|^pos_body_6aa\\d+$|^pos_ptc_1c\\d+$|^pos_tunnel_\\d+$|^flash$|^body_silhouette\\d*$|^flash_multi_\\d+$"
+    ],
+    "c1017_s01": [
+      "^tubefxxx\\d+$|^tubefx\\d+$|^lowx\\d+$|^ball\\d+$|^tube\\d+$|^tuberr$|^bord\\d+$|^Gss1fx\\d+$"
+    ],
+    "c2024": [
+      "^Bground\\d+$|^Bground1Star\\d+$|^LighFx\\d+$|^CircleFfx\\d+$|^flowef\\d+$|^flowerF\\d+$|^lowleaf\\d+$|^fleaf\\d+$"
+    ],
+    "c1146": [
+      "^E1_\\d+$|^EE_\\d+$"
+    ],
+    "c2039": [
+      "^blood fx\\d+$|^eff\\/flare\\d+$|^eff\\/background\\d*$|^blood fx13z\\d+$|^eff\\/ring_wave$|^eff\\/ring_wave_g$|^leafBack\\d+$|^Redleaf\\d+$|^badyleaf\\d+$"
+    ],
+    "c1103_s01": [
+      "^Ob_\\d+$|^sweat_\\d+$"
+    ],
+    "c2124": [
+      "^down_twinkle$|^sakura_\\d+$|^down_wave\\d+$|^down_clo$|^twinkle\\d+$|^wave_\\d+$|^zz\\d+$|^ee\\d+$|^down_bike$|^down_bike_\\d+$|^bike_e_\\d+$"
+    ],
+    "c1062_s01": [
+      "^efef\\d*$|^ef_\\d+$|^pen_\\d+$|^pen_!\\d+$|^criss_ef\\d*$"
+    ],
+    "c2024_s01": [
+      "^background\\d*$|^back_flo_\\d+$|^1_light_\\d+$|^clo_\\d+$|^Big_flo_\\d+$|^brbr_\\d+$|^carpet$|^f_flo_\\d+$"
+    ],
+    "c1100_s01": [
+      "^star_\\d+$|^snow_1_\\d+$|^snow_\\d+$|^e_\\d+$|^starE_\\d+$"
+    ],
+    "c1101": [
+      "^flare\\d+$|^light$|^snowB\\d+$|^Sleg\\d+$|^SmokeM\\d+$"
+    ],
+    "c1101_s01": [
+      "^fx\\/ligFx\\d*$|^star\\d+$|^normalFx$|^angryFx$|^smileFx$|^specialFx$"
+    ],
+    "c6062": [
+      "^ef_\\d+$|^flw_\\d+$|^leaf_\\d+$|^feather_\\d+$|^ring_ef_\\d+$|^flare04_\\d+$"
+    ],
+    "c1156": [
+      "^ww_\\d+$|^ee_13_\\d+$|^ee_\\d+$|^fireB\\d+$|^bbb$|^light\\d*$"
+    ],
+    "c1179": [
+      "^eff\\/light\\d+$|^eff\\/smoke\\d+$|^fx_fireb\\d*$|^eff\\/sal_fx\\d*$|^fx_lowa\\d*$|^fx_low\\d*$|^fx_firehand$|^fx_firec\\d*$|^fx_fired\\d+$|^fx_fire\\d*$|^rarm3_fx$|^b_bg$|^b_bg_a$"
+    ],
+    "c1144": [
+      "^el_\\d+$|^E_\\d+$|^eJ_\\d+$"
+    ],
+    "c1083": [
+      "^arm1eff\\d+$|^eff\\d+$|^eff\\/light\\d*$|^eff\\/eff\\d+$|^eff\\/flare\\d+$|^dol\\d+$"
+    ],
+    "c6003": [
+      "^rock_\\d+$|^nail_\\d+$|^br_\\d+$|^br_\\d+_b\\d*$|^g_\\d+$"
+    ],
+    "c2065": [
+      "^full\\d+$|^low\\d+$|^leaf\\d+$|^bird\\d+$"
+    ],
+    "c2065_s01": [
+      "^fx\\/flare(?!10$)\\d+$|^BaFx\\d+$|^fx\\/bbfx\\d+$|^backFx\\d*$|^leafx\\d+$|^leaf\\d+$|^tree\\d+$|^leafbb\\d+$|^leafbbb\\d+$"
+    ],
+    "c2088": [
+      "^ef_\\d+$|^light\\d+$|^efef\\d+$|^bling_\\d+$|^pond$|^weeds_\\d+$|^weeds\\d+$|^branch_\\d+$|^vine_\\d+$|^leaf_\\d+$"
+    ],
+    "c5072": [
+      "^b_bg_b$|^b_bg$|^bg_fxb$|^light\\d+$|^bg_fxa$|^b_bg_light\\d+$|^b_bg_c\\d*$|^f_fx\\d*$|^b_cloud\\d*$|^bg_fxc$|^bg_fx\\d+$|^bg_fx2a\\d*$"
+    ],
+    "c2062": [
+      "^firefx\\d+$|^\\d+$|^fireeffect\\/light\\d*$|^fireeffect\\/leaf\\d*$|^fireeffect\\/\\d+$|^downBack\\d+$"
+    ],
+    "c5071": [
+      "^wt_\\d+$|^leaf_\\d+$|^leaf_sdw_\\d+$|^wt_lgt_ef_\\d+$|^sea_ef$|^rock_\\d+$|^wt_ef_\\d+$|^rock_ef$"
+    ],
+    "c1177": [
+      "^stage_tt_8_\\d+$|^ef_\\d+$|^tree_\\d+$|^eef_\\d+$|^wand$|^bird_\\d+$"
+    ],
+    "c1169": [
+      "^mm\\d+$|^b_\\d+$|^ef\\d+$|^bag_p_\\d+$|^dust_\\d+$|^light_\\d+$"
+    ],
+    "c2110": [
+      "^BackFx$|^\\d+$|^lightrFx\\d+$|^waterFx\\d*$|^lightrFx10zzz$|^backShip3ppp\\d*$|^backShip5z$|^backShip\\d*$"
+    ],
+    "c5050": [
+      "^\\d+$|^fly\\d+$|^fx\\/light\\d*$|^bone\\d+$|^lowBack\\d+$"
+    ],
+    "c1178": [
+      "^1$|^2$|^3$|^4$|^light\\d+$|^bbfx$|^bbfxNew$|^124$|^131$|^120$|^133$|^166_\\d+$|^125$|^132$|^134$|^127$|^129$|^145_\\d+$|^163$|^140$|^164$|^144$|^166$|^143$|^142$|^139$|^137$|^136$|^165$|^138$|^122$|^123$|^118$|^130$|^152$|^119$|^121$|^126$|^135$|^117$|^146$|^116$|^128$|^153$|^151$|^149$|^150$|^148$|^162$|^155$|^160$|^157$|^159$|^158$|^156$|^154$|^161$|^141$"
+    ],
+    "c1172": [
+      "^stage_tt_8_\\d+$|^17$|^88$|^91$|^19$|^18$|^87$|^87_\\d+$|^30$|^86$|^23$|^21$|^90$|^20$|^22$|^24$|^27$|^26$|^99$|^28$|^29$|^101$|^100$|^82$|^25$|^81$|^83$|^84$|^85$|^89$|^16$|^15$|^11$|^97$|^13$|^12$|^92$|^80$|^14$|^96$|^79$|^93_\\d+$|^2$|^6$|^4$|^3$|^5$|^94$|^77$|^78$|^10$|^105$|^8$|^102$|^7$|^98$|^106$|^104$|^55$|^103$|^9$|^1$"
+    ],
+    "c1148": [
+      "^ss_\\d+$|^wingsFx\\d+$|^light_\\d+$|^ss_15_\\d+$|^ss_16_\\d+$"
+    ],
+    "c6050": [
+      "^light\\d+$|^43$|^191$|^33$|^34$|^34_\\d+$|^35$|^152$|^269$|^261$|^265$|^268$|^32$|^190$|^192$|^193$|^67$|^29$|^263$|^262$|^4$|^163$|^168$|^12$|^156$|^173$|^1$|^295$|^11$|^172$|^175$|^279$|^157$|^165$|^6$|^3$|^167$|^10$|^159$|^293$|^151$|^2$|^171$|^13$|^179$|^177$|^178$|^14$|^22$|^23$|^166$|^169$|^164$|^160$|^162$|^181$|^174$|^27$|^26$|^25$|^24$|^294$|^161$|^20$|^21$|^170$|^176$|^296$|^158$|^31$|^186$|^188$|^259$|^260$|^258$|^257$|^256$|^255$|^253$|^252$|^251$|^250$|^254$|^249$|^247$|^248$|^246$|^245$|^244$|^243$|^242$|^241$|^240$|^239$|^238$|^237$|^236$|^235$|^234$|^233$|^232$|^231$|^230$|^229$|^228$|^227$|^226$|^225$|^224$|^223$|^222$|^221$|^220$|^219$|^218$|^216$|^217$|^215$|^214$|^213$|^212$|^211$|^210$|^209$|^208$|^207$|^206$|^205$|^204$|^203$|^202$|^201$|^200$|^199$|^198$|^196$|^197$|^195$|^194$|^mou_\\d+$"
+    ],
+    "c6005": [
+      "^stage_tt_8_\\d+$|^ef\\d+$|^efef\\d+$|^sdss\\d+$|^ttt\\d+$|^flare\\d+$|^b_\\d+$|^ff_\\d+$|^spt_\\d+$|^20$|^45$|^21$|^95$|^z\\d+$|^91$|^e\\d+$|^87$|^88$|^25$|^24$"
+    ],
+    "c2001": [
+      "^original_\\d+$|^prism\\d+$|^light\\d+$|^fx_line_\\d+$|^arm_fx_\\d+$|^arm_fx_7_3_\\d+$|^o_arm_\\d+$|^impact_arm_r$|^impact_arm_r_\\d+$|^arm_fx_3_\\d+$|^arm_fx_3_2b\\d+$|^arm_fx_7_\\d+$|^bg_rock_\\d+$|^impact_arm_l_\\d+$|^arm_fx_8_\\d+$|^impact_arm_l$|^bg_back_light_\\d+$|^bg_m_rock_\\d+$|^bg_ring_\\d+$|^o_rock_\\d+$"
+    ],
+    "c2106": [
+      "^FX_water\\d+$|^FX_bubble_\\d+$|^FX_particle_\\d+$|^FX_light_\\d+$|^FX_spear$|^back_ribbon_\\d+$|^light\\d+$|^Fx_water\\d+$|^fx_eye$|^FX_light_particle\\d*$|^bb_\\d+$|^light_main\\d*$|^jelly_body\\d*$|^jelly_\\d+$|^jelly_control_\\d+$|^bottom$|^F_coral_\\d+$"
+    ]
+  },
+  "_alt_thumb_variants": {
+    "_doc": "Alternate per_slug_thumb_only regexes kept for reference / quick swap; NOT read by the pipeline.",
+    "c6050_with_reflection": "^light\\d+$|^43$|^191$|^33$|^34$|^34_\\d+$|^35$|^152$|^269$|^261$|^265$|^268$|^32$|^190$|^192$|^193$|^67$|^29$|^263$|^262$|^4$|^163$|^168$|^12$|^156$|^173$|^1$|^295$|^11$|^172$|^175$|^279$|^157$|^165$|^6$|^3$|^167$|^10$|^159$|^293$|^151$|^2$|^171$|^13$|^179$|^177$|^178$|^14$|^22$|^23$|^166$|^169$|^164$|^160$|^162$|^181$|^174$|^27$|^26$|^25$|^24$|^294$|^161$|^20$|^21$|^170$|^176$|^296$|^158$|^31$"
+  }
+}

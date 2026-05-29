@@ -16,6 +16,7 @@ const fsp  = require("fs/promises");
 const path = require("path");
 const puppeteer = require("puppeteer");
 const sharp = require("sharp");
+const { ehideParamFor } = require("./slot_excludes");
 
 const ROOT  = path.resolve(__dirname, "..");        // E7 Codex
 const TOOLS = __dirname;
@@ -98,8 +99,14 @@ async function captureAt(page, slug, _dsrIgnored) {
   // canvas isn't constrained by the viewport. The stage in tools/render.html
   // is 4800×6240; we give the viewport a little headroom for body padding.
   await page.setViewport({ width: 4900, height: 6340, deviceScaleFactor: RENDER_DSR });
-  await page.goto(`http://localhost:${PORT}/tools/render.html?slug=${encodeURIComponent(slug)}`,
-                  { waitUntil: "domcontentloaded" });
+  // Permanently-excluded slots (site/data/slot_excludes.json) ride the
+  // render.html ?ehide= param so they're stripped before the auto-fit
+  // viewport is computed — keeps a far-off junk slot from blowing up the
+  // pose bounds (e.g. c6050's blood-drop slot "155").
+  const ehide = ehideParamFor(slug);
+  const url = `http://localhost:${PORT}/tools/render.html?slug=${encodeURIComponent(slug)}`
+            + (ehide ? `&ehide=${ehide}` : "");
+  await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(
     () => window.__renderState && (window.__renderState.ready || window.__renderState.error),
     { timeout: 30000 }
