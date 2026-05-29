@@ -149,6 +149,10 @@ STEM_OVERRIDE: dict[str, str] = {
     "riza":         "c1136", # Riza Hawkeye (FMA collab)
     "kanna":        "c1097", # Bomb Model Kanna
     "laika":        "c1099", # Command Model Laika
+    "brinus":       "c1098", # Support Model Brinus (no HeroDatabase kebab;
+                             #  same Model-series bare-name pattern as kanna/laika)
+    "torami":       "c1171", # Tori — internal model name 'torami' (character_player.db
+                             #  col[20]); kebab is 'tori', so the lookup missed it
     # AMBIG resolved by suffix->series rule + name match.
     # (luluka/politis AMBIG had both c2xxx and c5xxx candidates; _m->c2xxx,
     # _a01->c5xxx disambiguates. hwayoung_a01 -> c5128 Argent Waves was missed
@@ -202,6 +206,7 @@ SPELLING_ALIAS: dict[str, str] = {
     "serilla":  "serila",
     "wildred":  "vildred",
     "luluka":   "luluca",   # recovered after trailer-skip false-header fix
+    "victorica": "victorika",  # dump spells c1166 Victorika as 'victorica'
 }
 
 # PRIMARY_SWAP entries — keep in sync with build_index.py:PRIMARY_SWAP.

@@ -15,6 +15,9 @@
       "^ttt$",
       "^bone88dg$",
       "^white$"
+    ],
+    "c1171": [
+      "^lit_back_\\d+$|^light\\d+$|^efff_\\d+$|^back_\\d+$|^back_34rrreee$|^back_91ww\\d+$|^back_69ddd$|^back_114w\\d+$|^ligFx\\d+$|^111$|^113$|^115$|^116$|^114$|^112$|^117$|^118$|^light$|^ligFx$|^back_91ww$"
     ]
   },
   "per_slug_thumb_only": {
