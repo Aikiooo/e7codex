@@ -52,19 +52,13 @@ SUFFIX_PEEL = [
 # The ~110 hand-curated entries this file used to carry collapsed into that one
 # lookup; only these three lack a DB col[20] row:
 STEM_OVERRIDE: dict[str, str] = {
-    "flan_m":     "c2110",      # Pirate Captain Flan  — no DB col[20] row
-    "flan_m_s01": "c2110_s01",  # skin of Pirate Captain Flan — no DB col[20] row
-    "ludwig_a01": "c5069",      # Aubade Ludwig — no DB col[20] row
-    # Elemental Adin specialty changes (c414x) + Inheritor Amiki are absent from
-    # character_player.db (it carries only the modern roster + the dark Adin
-    # c2165->adin_dark), so col[20] never reaches them even though the rigs ship
-    # in the dump with no other owner. Element match is unambiguous.
-    "adin_fire":  "c4141",      # Holy Flame Adin   (fire)
-    "adin_ice":   "c4142",      # Serene Purity Adin (ice)
-    "adin_wind":  "c4143",      # Verdant Adin      (wind)
-    "adin_light": "c4144",      # Savior Adin       (light)
-    "amiki_c":    "c4158",      # Inheritor Amiki — base Amiki c3158 owns `amiki`
+    "flan_m":     "c2110",      # Pirate Captain Flan  — in no player DB
+    "flan_m_s01": "c2110_s01",  # skin of Pirate Captain Flan — in no player DB
+    "ludwig_a01": "c5069",      # Aubade Ludwig — in no player DB
 }
+# (The elemental Adin / Inheritor Amiki overrides briefly here were dropped once
+# build_names.py started reading the grade3 player table: its col[20] maps
+# c4141-4144 -> adin_<element> and c4158 -> amiki_c directly.)
 # (SPELLING_ALIAS removed.) The dump's romanizations were a "fix the kebab"
 # workaround; col[20] IS the real filename, so the DB layer resolves them
 # directly with nothing to correct.
@@ -124,6 +118,74 @@ def load_db_model_map() -> dict[str, list[str]]:
                 inv.setdefault(model, []).append(cslug)
         _DB_MODEL_MAP = inv
     return _DB_MODEL_MAP
+
+
+_ATTR_MAP: dict[str, str] | None = None
+ELEMENTS = {"fire", "ice", "wind", "light", "dark"}
+
+
+def load_attributes() -> dict[str, str]:
+    """c-slug -> attribute (fire/ice/wind/light/dark), from names_from_db.json.
+    Used to pick the right element skin on the shared soldier/monster combat
+    rigs (see merge_element_skin)."""
+    global _ATTR_MAP
+    if _ATTR_MAP is None:
+        p = REPO / "data_external" / "names_from_db.json"
+        m: dict[str, str] = {}
+        if p.exists():
+            for cslug, rec in json.loads(p.read_text(encoding="utf-8")).items():
+                a = rec.get("attribute")
+                if a in ELEMENTS:
+                    m[cslug] = a
+        _ATTR_MAP = m
+    return _ATTR_MAP
+
+
+def merge_element_skin(json_path: Path, attribute: str | None) -> int:
+    """Several old 3-star/4-star units share generic class/element soldier rigs
+    (`onehanded_wind`, `axe_fire`, `meca_golem`, ...) whose body lives in an
+    element-NAMED skin (`fire`/`ice`/`wind`/`light`/`dark`), not in `default`
+    (which is just a sparse base: shadow + a couple of shared pieces). The live
+    viewer renders the `default` skin, so without this the rig shows shadow-only.
+
+    Fix: merge the appropriate element skin's attachments into `default` so the
+    combat JSON is self-contained (no viewer/skin-picker change needed). Target
+    element = the unit's `attribute` when an element skin of that name exists,
+    else the sole element skin if there's exactly one. Idempotent. Returns the
+    number of attachments merged; single-skin rigs and rigs with no element-named
+    skin are untouched."""
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+    skins = data.get("skins")
+    if not skins:
+        return 0
+    if isinstance(skins, dict):
+        names = list(skins.keys())
+        get_att = lambda n: skins.get(n) or {}
+    else:
+        byname = {s["name"]: s for s in skins}
+        names = list(byname.keys())
+        get_att = lambda n: byname[n].get("attachments", {})
+    if "default" not in names:
+        return 0
+    elem = [n for n in names if n in ELEMENTS]
+    if not elem:
+        return 0
+    if attribute in elem:
+        tgt = attribute
+    elif len(elem) == 1:
+        tgt = elem[0]
+    else:
+        return 0
+    dft, src = get_att("default"), get_att(tgt)
+    added = 0
+    for slot, atts in src.items():
+        d = dft.setdefault(slot, {})
+        for an, av in atts.items():
+            d[an] = av
+            added += 1
+    if added:
+        json_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    return added
 
 def _resolve(cslug: str, staged: set[str]) -> str | None:
     """If cslug is a PRIMARY_SWAP backdrop, redirect to its _1 sibling.
@@ -402,9 +464,12 @@ def stage_combat(stem: str, cslug: str, version: str | None, force: bool = False
 
     # Orphan attachment fixup — runs after both JSON and atlas exist.
     linked, dropped = patch_orphan_attachments(dst_json, dst_atlas)
+    # Element-skin merge for shared soldier/monster rigs (idempotent).
+    merged = merge_element_skin(dst_json, load_attributes().get(cslug))
     bits = []
     if linked:  bits.append(f"patched {linked} linkedmesh")
     if dropped: bits.append(f"dropped {dropped} orphan region/mesh")
+    if merged:  bits.append(f"merged {merged} element-skin atts")
     return True, ", ".join(bits)
 
 

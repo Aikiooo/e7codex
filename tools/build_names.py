@@ -139,8 +139,21 @@ def decode_text(keymap):
             out[parts[0].decode('utf-8', 'replace')] = parts[1].decode('utf-8', 'replace')
     return out
 
-def decode_player_rows(keymap):
-    plain = outer_decrypt_db((OUT_DB / 'character_player.db').read_bytes())
+# The playable roster is split across THREE tables, all sharing the same
+# positional schema ([0]=c-slug, [3]=chrn_ name key, [4]=rarity, [7]=attribute,
+# [8]=role, [20]=combat-rig name). `character_player.db` is the modern roster;
+# `grade2` carries awakened/promoted forms; `grade3` carries the OLD 3-star/4-star
+# units that aren't in the base table — they map to their (often generic
+# class/element) battle rig via col[20]. Reading only the base table left the old
+# units unmapped. Base is listed FIRST so it wins on any duplicate c-slug.
+PLAYER_DBS = (
+    'character_player.db',
+    'character_player_grade2.db',
+    'character_player_grade3.db',
+)
+
+def _decode_one_player_db(keymap, dbname):
+    plain = outer_decrypt_db((OUT_DB / dbname).read_bytes())
     rows = []
     for key, val in cdbm_rows(plain):
         if len(key) != 8 or key[0] == 9: continue
@@ -150,15 +163,32 @@ def decode_player_rows(keymap):
         rows.append([c.decode('utf-8', 'replace') for c in pt.split(b'\x00')])
     return rows
 
+def decode_player_rows(keymap):
+    """Rows from all three player tables, base first. A c-slug seen in an earlier
+    table is not overwritten by a later one (base wins)."""
+    rows, seen = [], set()
+    for dbname in PLAYER_DBS:
+        try:
+            db_rows = _decode_one_player_db(keymap, dbname)
+        except FileNotFoundError:
+            print('  (skip missing %s)' % dbname); continue
+        kept = 0
+        for r in db_rows:
+            if not r or not r[0] or r[0] in seen:
+                continue
+            seen.add(r[0]); rows.append(r); kept += 1
+        print('  %s rows: %d (%d new)' % (dbname, len(db_rows), kept))
+    return rows
+
 def main():
     keymap = load_keymap()
     print('decoding text.db ...'); sys.stdout.flush()
     text = decode_text(keymap)
     print('  text.db entries:', len(text))
 
-    print('decoding character_player.db ...'); sys.stdout.flush()
+    print('decoding player tables (base + grade2 + grade3) ...'); sys.stdout.flush()
     rows = decode_player_rows(keymap)
-    print('  character_player.db rows:', len(rows))
+    print('  total player rows (deduped, base wins):', len(rows))
 
     out = {}
     model_map = {}
