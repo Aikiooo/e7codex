@@ -55,6 +55,15 @@ STEM_OVERRIDE: dict[str, str] = {
     "flan_m":     "c2110",      # Pirate Captain Flan  — no DB col[20] row
     "flan_m_s01": "c2110_s01",  # skin of Pirate Captain Flan — no DB col[20] row
     "ludwig_a01": "c5069",      # Aubade Ludwig — no DB col[20] row
+    # Elemental Adin specialty changes (c414x) + Inheritor Amiki are absent from
+    # character_player.db (it carries only the modern roster + the dark Adin
+    # c2165->adin_dark), so col[20] never reaches them even though the rigs ship
+    # in the dump with no other owner. Element match is unambiguous.
+    "adin_fire":  "c4141",      # Holy Flame Adin   (fire)
+    "adin_ice":   "c4142",      # Serene Purity Adin (ice)
+    "adin_wind":  "c4143",      # Verdant Adin      (wind)
+    "adin_light": "c4144",      # Savior Adin       (light)
+    "amiki_c":    "c4158",      # Inheritor Amiki — base Amiki c3158 owns `amiki`
 }
 # (SPELLING_ALIAS removed.) The dump's romanizations were a "fix the kebab"
 # workaround; col[20] IS the real filename, so the DB layer resolves them
@@ -81,10 +90,11 @@ PRIMARY_SWAP_BARE = {
 # slots are blank and animations are missing limb/clothing swaps.
 # Better to skip than ship a broken viewer.
 INCOMPATIBLE_STEMS = {
-    # c1169 Robin combat: 26 region attachments missing from atlas
-    # (hand_6a/6b/8/10/11/12/14, mouth_2, suit_side_a/b, coat_*, sweat,
-    # face_all_3c, case_opened_*). Even idle shows visible gaps.
-    "robin",
+    # (empty) — robin was removed: its dumped atlas was STALE (declared a smaller
+    # page than the actual texture, missing ~26 regions), not a real source gap.
+    # Re-extracting the matching atlas from the current pack made the rig render
+    # cleanly. Add a stem here only if a rig's atlas truly lacks the regions its
+    # skeleton references.
 }
 
 
