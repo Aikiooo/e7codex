@@ -473,7 +473,19 @@ def _scsp_readSkins(input, refStrings_raw, bones, slots, count_skins):
         skin_scaleY   = _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 5))
         skin_rotation = _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4))
 
-        _scsp_funcs._scsp_skipUnknowns(input, 8)
+        # Region width/height: the SKELETON-SPACE size (e.g. 47.0, 59.0) is the
+        # two FLOATS here. The original converter SKIPPED them and read w/h from
+        # the INT fields below — which hold the PACKED TEXTURE size. In old-
+        # container rigs the texture was packed 1:1 so the ints equalled these
+        # floats (correct by accident). In new-container ("scsp"-magic) combat
+        # rigs the texture is packed at ~2/3, so the ints gave 2/3-size region
+        # art on a full-size skeleton: small head/arms/hands + joint gaps
+        # (c1017 Achates etc.). Read the floats — correct for BOTH container
+        # formats; a no-op for old-format/portrait rigs where float==int.
+        # (Mesh attachments are unaffected: they read vertices as floats and
+        # were always full-size.)
+        skin_width      = _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 3))
+        skin_height     = _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 3))
         
         skin_color = _scsp_funcs._scsp_4fuckingfloats2rgba(_scsp_funcs._scsp_readFloat(input),
                                                            _scsp_funcs._scsp_readFloat(input),
@@ -482,8 +494,8 @@ def _scsp_readSkins(input, refStrings_raw, bones, slots, count_skins):
         
         _scsp_funcs._scsp_skipUnknowns(input, 8)
     
-        skin_width      = _scsp_funcs._scsp_readInt(input)
-        skin_height     = _scsp_funcs._scsp_readInt(input)
+        _tex_w          = _scsp_funcs._scsp_readInt(input)  # packed texture size (unused; atlas handles UVs)
+        _tex_h          = _scsp_funcs._scsp_readInt(input)
 
         _scsp_funcs._scsp_skipUnknowns(input, 72)
       
