@@ -56,6 +56,57 @@ the viewer's screenshot button works:
 // change:  var webglConfig = { alpha: config.alpha, preserveDrawingBuffer: true };
 ```
 
+**Optional — Spine-2.1.x shear-free scale inheritance.** Spine 2.1.x tracked
+world scale as scalars and rebuilt a clean rotation×scale matrix per bone, so a
+non-uniform-scaled rotated parent never sheared its children. spine-player 3.8
+composes full 2×2 matrices, which *do* accumulate shear there — exploding
+long-aspect weapon meshes on some 2.1.27 combat rigs into needles. The converter
+tags affected rigs with `"e7v21x": true`; a stock player ignores the flag (the
+needle bug remains). To honor it, in `site/spine-player.js` find the start of
+`Bone.prototype.updateWorldTransformWith` — just after `var parent = this.parent;`
+(stock 3.8 follows it with `if (parent == null) {`) — and insert this gated
+branch *before* that `if`:
+
+```js
+if (this.skeleton.data.e7v21x) {
+    var sk = this.skeleton;
+    var cosD = spine.MathUtils.cosDeg, sinD = spine.MathUtils.sinDeg;
+    if (parent == null) {
+        var wr = rotation, wsx = scaleX * sk.scaleX, wsy = scaleY * sk.scaleY;
+        this._e7wr = wr; this._e7wsx = wsx; this._e7wsy = wsy;
+        this.a = cosD(wr) * wsx; this.b = -sinD(wr) * wsy;
+        this.c = sinD(wr) * wsx; this.d = cosD(wr) * wsy;
+        this.worldX = x * sk.scaleX + sk.x;
+        this.worldY = y * sk.scaleY + sk.y;
+        return;
+    }
+    var pa = parent.a, pb = parent.b, pc = parent.c, pd = parent.d;
+    this.worldX = pa * x + pb * y + parent.worldX;
+    this.worldY = pc * x + pd * y + parent.worldY;
+    var pwr = parent._e7wr || 0;
+    var pwsx = parent._e7wsx != null ? parent._e7wsx : 1;
+    var pwsy = parent._e7wsy != null ? parent._e7wsy : 1;
+    var tm = this.data.transformMode;
+    // Normal(0)/NoScale(3)/NoScaleOrReflection(4) inherit rotation;
+    // Normal(0)/NoRotationOrReflection(2) inherit scale.
+    var inhRot = (tm == 0 || tm == 3 || tm == 4);
+    var inhScale = (tm == 0 || tm == 2);
+    var wr = inhRot ? pwr + rotation : rotation;
+    var wsx = inhScale ? pwsx * scaleX : scaleX;
+    var wsy = inhScale ? pwsy * scaleY : scaleY;
+    this._e7wr = wr; this._e7wsx = wsx; this._e7wsy = wsy;
+    this.a = cosD(wr) * wsx; this.b = -sinD(wr) * wsy;
+    this.c = sinD(wr) * wsx; this.d = cosD(wr) * wsy;
+    return;
+}
+```
+
+You also need the loader to carry the flag through: find
+`skeletonData.imagesPath = skeletonMap.images;` and add
+`skeletonData.e7v21x = skeletonMap.e7v21x;` after it. The branch is gated on the
+flag, so 3.8.99 rigs and any bone without non-uniform scale under rotation are
+untouched.
+
 ### 2. Bring your own data
 
 This is the step you do yourself. You need:

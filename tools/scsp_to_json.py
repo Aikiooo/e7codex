@@ -99,6 +99,15 @@ def post_process_2_1_27(out_json: Path) -> None:
     skel = data.get("skeleton", {})
     if skel.get("spine") == "2.1.27.scsp":
         skel["spine"] = "3.8.99"
+    # Flag this rig for the patched spine-player's Spine-2.1.x scalar (shear-free)
+    # scale-inheritance path. 2.1.x tracked worldScaleX/Y as SCALARS and rebuilt a
+    # clean rotation*scale matrix, so non-uniform parent scale never produced shear.
+    # spine-player 3.8 composes full matrices, which accumulate shear from a
+    # counter-scaled rotated parent and explode long-aspect weapon meshes into
+    # needles. A no-op for any bone without non-uniform scale under rotation, and
+    # inert unless the spine-player carries the matching e7v21x patch (see README).
+    skel["e7v21x"] = True
+    data["skeleton"] = skel
 
     skins = data.get("skins")
     if isinstance(skins, dict):
