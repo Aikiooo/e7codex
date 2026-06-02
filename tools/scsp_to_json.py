@@ -431,8 +431,17 @@ def post_process_2_1_27(out_json: Path) -> None:
                 continue
             slot_idx = new_order[new_pos]
             delta = new_pos - slot_idx
-            if delta == 0:
-                continue
+            # Emit an offset for EVERY non-LIS slot — including delta==0. A slot
+            # whose target position equals its setup index but which is NOT part
+            # of the longest increasing subsequence must still be pinned with an
+            # explicit (offset 0) entry: otherwise spine-player treats it as
+            # "unchanged" and its `unchanged`-fill places it at the wrong spot,
+            # cascading every slot after it. That cascade is what pushed Ravi's
+            # (c1019) back skirt panel behind her rear-skin slots at t≈0.4-0.5
+            # (the reported skill1 clip). Skipping delta==0 is only safe for LIS
+            # slots, which are already `continue`d above. With this, the emitted
+            # offsets resolve byte-for-byte back to the source permutation on
+            # every frame. (2026-06-02 drawOrder roundtrip fix.)
             movers.append((slot_idx, delta))
         movers.sort(key=lambda x: x[0])
         return [{"slot": setup_slot_names[s], "offset": d} for s, d in movers]
