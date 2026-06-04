@@ -73,6 +73,12 @@ UNRELEASED_ARTIFACTS: set[str] = set()
 # list) for this many days after it first appears released. See apply_new_flags.
 NEW_WINDOW_DAYS = 21
 
+# A unit carries a "MODIFIED" badge (and floats to the top of the hub, below NEW)
+# for this many days after a curated change to an EXISTING unit — e.g. a new
+# intimacy illustration added to an old hero. Declared, not auto-detected; see
+# apply_modified_flags + data_external/modified.json.
+MOD_WINDOW_DAYS = 14
+
 IMG_EXT = {".png", ".webp", ".jpg", ".jpeg"}
 # Suffixes that mark a variant of the same character (skin/ML/alt-form).
 # Order matters: longest first so '_m_s01' wins over '_m'. The trailing '_1'
@@ -317,6 +323,39 @@ def apply_new_flags(units: dict, artifacts: list, emotes: list, wallpapers: list
     for w in wallpapers: flag(w, f"wp:{w['file']}")
     path.write_text(json.dumps(ledger, ensure_ascii=False, indent=0, sort_keys=True),
                     encoding="utf-8")
+    return n
+
+
+def apply_modified_flags(units: dict) -> int:
+    """Flag EXISTING units changed recently (curated, not auto-detected) with
+    `modified` / `modified_since` / `modified_parts`, for MOD_WINDOW_DAYS. Source
+    is the hand-maintained ledger data_external/modified.json:
+
+        { "<unit_id>": {"since": "YYYY-MM-DD", "parts": ["intimacy", ...]}, ... }
+
+    Unlike first_seen.json (auto-derived), this is declared: when you add a
+    feature to an old unit (e.g. an animated intimacy illustration), add/refresh
+    its entry here. The frontend shows a MODIFIED badge on the hub card (floats it
+    up, below NEW) and on each named part of the detail page (`modified_parts`).
+    Entries older than the window simply stop flagging. Returns the count flagged."""
+    import datetime
+    path = Path(__file__).resolve().parent / "data_external" / "modified.json"
+    if not path.exists():
+        return 0
+    try: ledger = json.loads(path.read_text(encoding="utf-8"))
+    except Exception: return 0
+    cutoff = (datetime.date.today() - datetime.timedelta(days=MOD_WINDOW_DAYS)).isoformat()
+    n = 0
+    for uid, info in ledger.items():
+        u = units.get(uid)
+        if not u or not isinstance(info, dict):
+            continue
+        since = info.get("since", "")
+        if since >= cutoff:
+            u["modified"] = True
+            u["modified_since"] = since
+            u["modified_parts"] = info.get("parts", [])
+            n += 1
     return n
 
 
@@ -603,6 +642,16 @@ def build(img: Path, raw: Path, out: Path) -> None:
                 except OSError: continue
             units[primary]["intimacy"] = f"assets/{primary}/intimacy.webp"
 
+    # Step 3b-2: animated intimacy illustrations (preferred). A few units ship the
+    # intimacy art as a multi-layer Spine effect rig (output/effect/uieff_illust_*),
+    # not a static webp — baked offline (composited + cropped to the picture
+    # rectangle) into assets/<slug>/intimacy.webm. When that file is present it WINS
+    # over the static webp; the frontend renders a looping <video> instead of an <img>.
+    for uid, u in units.items():
+        webm = site_assets / uid / "intimacy.webm"
+        if webm.exists():
+            u["intimacy"] = f"assets/{uid}/intimacy.webm"
+
     # Step 4: update gallery — copy banner art + story images per KNOWN_UPDATE codename.
     updates_dir = site_assets / "_updates"
     updates_dir.mkdir(exist_ok=True)
@@ -839,6 +888,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
     # Flag newly-seen units/artifacts/emotes/wallpapers (first_seen ledger) +
     # float artifacts up (units/emotes/wallpapers float up in the frontend).
     n_new = apply_new_flags(units, artifacts_out, emotes_list, wallpapers)
+    n_mod = apply_modified_flags(units)
     artifacts_out.sort(key=lambda a: (not a.get("new"),
                                       -(a.get("rarity") or 0), a["id"]))
 
@@ -911,6 +961,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
           f"{len(artifacts_out)-named_arti} orphan)")
     print(f"[new]     {n_new} unit/artifact/emote/wallpaper flagged new "
           f"(first-seen within {NEW_WINDOW_DAYS}d; first_seen.json)")
+    print(f"[upd]     {n_mod} unit(s) flagged updated "
+          f"(within {MOD_WINDOW_DAYS}d; modified.json)")
     print(f"\n-> {data / 'units.json'}\n-> {data / 'updates.json'}"
           f"\n-> {data / 'emotes.json'}\n-> {data / 'wallpapers.json'}"
           f"\n-> {data / 'artifacts.json'}")

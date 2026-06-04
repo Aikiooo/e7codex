@@ -89,6 +89,11 @@
   .wallpaper-cell .new-badge{left:auto;right:6px;top:6px}
   /* Emote rows aren't positioned cards — render NEW as an inline chip by the name. */
   .new-badge.inline{position:static;display:inline-block;margin-left:8px;vertical-align:middle;box-shadow:none}
+  /* UPDATED badge — existing unit changed recently (e.g. new intimacy art). Cool
+     teal to distinguish from the gold NEW badge; stacks below NEW when both. */
+  .upd-badge{position:absolute;top:8px;left:8px;z-index:3;background:linear-gradient(95deg,#5cb6c9,#93d6e2);color:#0c1418;font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;box-shadow:0 2px 9px rgba(0,0,0,.45)}
+  .card.is-new .upd-badge{top:34px}
+  .upd-badge.inline{position:static;display:inline-block;margin-left:8px;vertical-align:middle;box-shadow:none}
   .form-swap{position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;opacity:1;transition:opacity .18s;pointer-events:auto}
   /* Devices that support real hover get a clean thumb until the user
      hovers; touch devices keep the pills visible so they're discoverable. */
@@ -242,6 +247,12 @@
   .skill-gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000}
   .skill-gallery a:hover{border-color:var(--gold-dim)}
   .skill-gallery img{width:100%;display:block}
+  .intimacy-gallery{margin-top:4px}
+  .intimacy-gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000;max-width:760px}
+  .intimacy-gallery a:hover{border-color:var(--gold-dim)}
+  .intimacy-gallery img{width:100%;display:block}
+  .intimacy-vid{display:block;width:100%;max-width:760px;border:1px solid var(--line);border-radius:3px;background:#000;cursor:zoom-in}
+  .intimacy-vid:hover{border-color:var(--gold-dim)}
   .voice-actors{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 16px}
   .voice-actors .va{display:flex;gap:7px;align-items:baseline;font-size:14px}
   .voice-actors .va .lang{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--mut);min-width:22px}
@@ -262,6 +273,8 @@
   .lb-audio{display:none}
   .lightbox.audio{cursor:default}
   .lightbox.audio .lb-audio{display:block;width:min(440px,90vw)}
+  .lb-video{display:none}
+  .lightbox.video .lb-video{display:block;max-width:100%;max-height:100%;object-fit:contain;cursor:default;box-shadow:0 8px 40px rgba(0,0,0,.7);background:rgba(20,21,30,.5)}
   .section-label{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--mut);margin:30px 0 14px;border-top:1px solid var(--line);padding-top:18px}
   .section-label.first{border-top:none;margin-top:0;padding-top:0}
   .back{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--mut);cursor:pointer;letter-spacing:.12em;margin-bottom:20px;display:inline-block}
@@ -305,6 +318,7 @@
   <a class="lb-download" id="lbDownload" download aria-label="download" title="download"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></a>
   <img id="lbImage" alt="">
   <audio id="lbAudio" class="lb-audio" controls preload="auto"></audio>
+  <video id="lbVideo" class="lb-video" loop muted playsinline controls preload="metadata"></video>
   <div id="lbCaption" class="lb-caption"></div>
 </div>
 <script>
@@ -488,9 +502,11 @@ function card(group) {
   const variantsN = group.length;
   const base = u.base_id || u.id;
   const isNew = group.some(x => x.new);
-  return `<a class="card${isNew ? ' is-new' : ''}" href="#/u/${encodeURIComponent(base)}" data-base="${base}">
+  const isMod = group.some(x => x.modified);
+  return `<a class="card${isNew ? ' is-new' : ''}${isMod ? ' is-upd' : ''}" href="#/u/${encodeURIComponent(base)}" data-base="${base}">
     ${thumb(u, group)}
     ${isNew ? `<span class="new-badge">NEW</span>` : ""}
+    ${isMod ? `<span class="upd-badge">UPDATED</span>` : ""}
     ${variantsN > 1 ? `<span class="variant-badge">${variantsN} forms</span>` : ""}
     <div class="meta">
       <div class="name">${escapeHtml(displayName(u))}</div>
@@ -583,10 +599,12 @@ function hub() {
       (u.hero_name || "").toLowerCase().includes(q)
     );
   });
-  // Sort: NEW units first, then named heroes (alpha), then unnamed by id.
+  // Sort: NEW units first, then UPDATED (recently-changed existing units), then
+  // named heroes (alpha), then unnamed by id.
+  const pinRank = g => g.some(x => x.new) ? 0 : g.some(x => x.modified) ? 1 : 2;
   list.sort((a,b) => {
-    const newA = a.some(x => x.new), newB = b.some(x => x.new);
-    if (newA !== newB) return newA ? -1 : 1;
+    const ra = pinRank(a), rb = pinRank(b);
+    if (ra !== rb) return ra - rb;
     const na = (a[0].hero_name || a[0].name || "").toLowerCase();
     const nb = (b[0].hero_name || b[0].name || "").toLowerCase();
     if (na && nb) return na.localeCompare(nb);
@@ -943,7 +961,7 @@ function detail(baseId, variantSuf) {
       </div>
       <div>
         <div class="dt-head">
-          <h2>${escapeHtml(heroLabel)}${subTitle ? ` <span style="color:var(--mut);font-size:24px">— ${escapeHtml(subTitle)}</span>` : ''}</h2>
+          <h2>${escapeHtml(heroLabel)}${subTitle ? ` <span style="color:var(--mut);font-size:24px">— ${escapeHtml(subTitle)}</span>` : ''}${u.modified ? ` <span class="upd-badge inline">UPDATED</span>` : ''}</h2>
           <div class="ids">${u.id}${u.base_id && u.base_id !== u.id ? ` · base ${u.base_id}` : ''}</div>
           <div class="meta-row">
             ${rarityStars(u)} ${attrPill(u)}
@@ -989,8 +1007,12 @@ function detail(baseId, variantSuf) {
           }).join("")}</div>
         ` : ''}
         ${u.intimacy ? `
-          <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">Intimacy illustration</p>
-          <div class="skill-gallery"><a href="${u.intimacy}" data-zoom data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" target="_blank" rel="noopener"><img loading="lazy" src="${u.intimacy}" alt="${escapeHtml(u.id)} intimacy illustration"></a></div>
+          <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">Intimacy illustration${u.modified && (u.modified_parts||[]).includes('intimacy') ? `<span class="upd-badge inline">UPDATED</span>` : ''}</p>
+          <div class="intimacy-gallery">${u.intimacy.endsWith('.webm') ? `
+            <video class="intimacy-vid" src="${u.intimacy}" autoplay loop muted playsinline preload="metadata" data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" title="click to enlarge" aria-label="${escapeHtml(u.id)} intimacy illustration"></video>
+          ` : `
+            <a href="${u.intimacy}" data-zoom data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" target="_blank" rel="noopener"><img loading="lazy" src="${u.intimacy}" alt="${escapeHtml(u.id)} intimacy illustration"></a>
+          `}</div>
         ` : ''}
         ${voiceSection(u)}
         <p class="section-label">Bundled artwork</p>
@@ -1304,11 +1326,13 @@ document.querySelectorAll("nav button").forEach(b =>
 const LB        = document.getElementById("lightbox");
 const LB_IMG    = document.getElementById("lbImage");
 const LB_AUDIO  = document.getElementById("lbAudio");
+const LB_VIDEO  = document.getElementById("lbVideo");
 const LB_DL     = document.getElementById("lbDownload");
 const LB_CAP    = document.getElementById("lbCaption");
 function openLightbox(src, caption) {
-  LB.classList.remove("audio");
+  LB.classList.remove("audio", "video");
   LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
+  LB_VIDEO.pause(); LB_VIDEO.removeAttribute("src");
   LB_IMG.style.display = "";
   LB_IMG.src = src;
   LB_DL.href = src;
@@ -1318,8 +1342,9 @@ function openLightbox(src, caption) {
   LB.setAttribute("aria-hidden", "false");
 }
 function openLightboxAudio(src, caption) {
-  LB.classList.add("audio");
+  LB.classList.add("audio"); LB.classList.remove("video");
   LB_IMG.style.display = "none"; LB_IMG.src = "";
+  LB_VIDEO.pause(); LB_VIDEO.removeAttribute("src");
   LB_AUDIO.src = src;
   LB_DL.href = src;
   LB_DL.download = decodeURIComponent(src.split("/").pop() || "clip") ;
@@ -1328,11 +1353,24 @@ function openLightboxAudio(src, caption) {
   LB.setAttribute("aria-hidden", "false");
   LB_AUDIO.play().catch(() => {}); // autoplay; ignore if blocked
 }
+function openLightboxVideo(src, caption) {
+  LB.classList.add("video"); LB.classList.remove("audio");
+  LB_IMG.style.display = "none"; LB_IMG.src = "";
+  LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
+  LB_VIDEO.src = src;
+  LB_DL.href = src;
+  LB_DL.download = decodeURIComponent(src.split("/").pop() || "illustration");
+  LB_CAP.textContent = caption || "";
+  LB.classList.add("open");
+  LB.setAttribute("aria-hidden", "false");
+  LB_VIDEO.play().catch(() => {}); // autoplay; ignore if blocked
+}
 function closeLightbox() {
-  LB.classList.remove("open", "audio");
+  LB.classList.remove("open", "audio", "video");
   LB.setAttribute("aria-hidden", "true");
   LB_IMG.src = "";
   LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
+  LB_VIDEO.pause(); LB_VIDEO.removeAttribute("src");
 }
 document.addEventListener("click", (e) => {
   // Modifier-click / non-primary buttons preserve the native link behaviour.
@@ -1359,15 +1397,19 @@ document.addEventListener("click", (e) => {
     }
     return;
   }
+  // Inline intimacy illustration video → enlarge in the video lightbox.
+  const iv = e.target.closest(".intimacy-vid");
+  if (iv) { e.preventDefault(); openLightboxVideo(iv.getAttribute("src"), iv.dataset.cap || ""); return; }
   const a = e.target.closest("a[data-zoom]");
   if (!a) return;
   e.preventDefault();
   openLightbox(a.getAttribute("href"), a.dataset.cap || "");
 });
 LB.addEventListener("click", (e) => {
-  // Clicks on backdrop close; clicks on the image / audio / download / close don't.
-  if (e.target === LB_IMG || e.target === LB_AUDIO ||
-      e.target.closest(".lb-download") || e.target.closest(".lb-audio")) return;
+  // Clicks on backdrop close; clicks on the image / audio / video / download / close don't.
+  if (e.target === LB_IMG || e.target === LB_AUDIO || e.target === LB_VIDEO ||
+      e.target.closest(".lb-download") || e.target.closest(".lb-audio") ||
+      e.target.closest(".lb-video")) return;
   closeLightbox();
 });
 // Force a real download (not open-in-tab) for any lightbox asset. The native

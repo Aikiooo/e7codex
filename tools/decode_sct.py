@@ -42,8 +42,16 @@ def _decode_sct2(data: bytes) -> Image.Image:
     height       = struct.unpack("<H", data[26:28])[0]
     uncomp = struct.unpack("<I", data[offset    :offset+ 4])[0]
     comp   = struct.unpack("<I", data[offset+ 4 :offset+ 8])[0]
-    blob = data[offset+8 : offset+8+comp]
-    payload = lz4.block.decompress(blob, uncompressed_size=uncomp) if comp == dataLen - 80 else blob
+    if comp == dataLen - 80:
+        # lz4-compressed: 8-byte (uncomp,comp) prefix then the compressed blob.
+        blob = data[offset+8 : offset+8+comp]
+        payload = lz4.block.decompress(blob, uncompressed_size=uncomp)
+    else:
+        # raw/uncompressed texture: pixel data starts right at `offset`, with no
+        # length prefix (uncomp/comp read as garbage). Reading from offset+8
+        # shifts the ASTC blocks by 8 bytes and decodes to noise (seen on some
+        # uncompressed illustration backgrounds). Take the remaining bytes verbatim.
+        payload = data[offset:]
     if byte_format == 19:   raw = texture2ddecoder.decode_etc2a8(payload, width, height)
     elif byte_format == 40: raw = texture2ddecoder.decode_astc(payload, width, height, 4, 4)
     elif byte_format == 44: raw = texture2ddecoder.decode_astc(payload, width, height, 6, 6)
