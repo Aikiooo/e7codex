@@ -265,15 +265,20 @@ def load_artifact_db(root: Path) -> dict[str, dict]:
     return by_id
 
 
-def apply_new_flags(units: dict, artifacts: list) -> int:
-    """Maintain data_external/first_seen.json (id -> first-released ISO date) and
-    flag playable units (kind=='unit') + artifacts seen within NEW_WINDOW_DAYS as
-    `new` (plus `new_since`). An id missing from the ledger is recorded at today's
-    date, so a unit gets flagged the first build after it leaves the unreleased
-    gate — which correctly catches pre-staged releases that show as 'changed', not
-    'added', in the pack diff. The ledger is hand-editable: edit a date to
-    extend/clear NEW, or delete an entry to re-flag it on the next build. Returns
-    the count flagged."""
+def apply_new_flags(units: dict, artifacts: list, emotes: list, wallpapers: list) -> int:
+    """Maintain data_external/first_seen.json (id -> first-seen ISO date) and flag
+    units (kind=='unit'), artifacts, emote groups, and wallpapers seen within
+    NEW_WINDOW_DAYS as `new` (plus `new_since`). Emote/wallpaper ledger keys are
+    namespaced (`emote:` / `wp:`) so they can't collide with unit/artifact ids.
+
+    Self-bootstrapping rollout: the first build that introduces a namespace (no
+    key of that namespace is in the ledger yet) backdates its whole current batch
+    to a sentinel old date, so the rollout does NOT flag every pre-existing asset
+    as NEW. From then on a genuinely-new key is recorded at today's date and
+    flags for the window — which also catches pre-staged unit releases that show
+    as 'changed', not 'added', in the pack diff. The ledger is hand-editable:
+    edit a date to extend/clear NEW, or delete an entry to re-flag it on the next
+    build. Returns the count flagged."""
     import datetime
     path = Path(__file__).resolve().parent / "data_external" / "first_seen.json"
     ledger: dict = {}
@@ -281,18 +286,35 @@ def apply_new_flags(units: dict, artifacts: list) -> int:
         try: ledger = json.loads(path.read_text(encoding="utf-8"))
         except Exception: ledger = {}
     today = datetime.date.today().isoformat()
-    eligible = [u["id"] for u in units.values() if u.get("kind") == "unit"]
-    eligible += [a["id"] for a in artifacts]
-    for _id in eligible:
-        ledger.setdefault(_id, today)
+    SEED_OLD = "2025-01-01"   # backdate sentinel, well before any NEW window
+
+    def seed(keys: list) -> None:
+        # If the ledger already knows ANY of these keys, this namespace has been
+        # rolled out → an unseen key is genuinely new (today). If it knows NONE,
+        # this is the first build to see them → backdate the batch so nothing
+        # floods the gallery with NEW badges.
+        d = today if any(k in ledger for k in keys) else SEED_OLD
+        for k in keys:
+            ledger.setdefault(k, d)
+
+    unit_keys  = [u["id"] for u in units.values() if u.get("kind") == "unit"]
+    arti_keys  = [a["id"] for a in artifacts]
+    emote_keys = [f"emote:{g['id']}" for g in emotes]
+    wp_keys    = [f"wp:{w['file']}"  for w in wallpapers]
+    for batch in (unit_keys, arti_keys, emote_keys, wp_keys):
+        seed(batch)
+
     cutoff = (datetime.date.today() - datetime.timedelta(days=NEW_WINDOW_DAYS)).isoformat()
     n = 0
+    def flag(obj: dict, key: str) -> None:
+        nonlocal n
+        if ledger.get(key, "") >= cutoff:
+            obj["new"] = True; obj["new_since"] = ledger[key]; n += 1
     for u in units.values():
-        if u.get("kind") == "unit" and ledger.get(u["id"], "") >= cutoff:
-            u["new"] = True; u["new_since"] = ledger[u["id"]]; n += 1
-    for a in artifacts:
-        if ledger.get(a["id"], "") >= cutoff:
-            a["new"] = True; a["new_since"] = ledger[a["id"]]; n += 1
+        if u.get("kind") == "unit": flag(u, u["id"])
+    for a in artifacts:  flag(a, a["id"])
+    for g in emotes:     flag(g, f"emote:{g['id']}")
+    for w in wallpapers: flag(w, f"wp:{w['file']}")
     path.write_text(json.dumps(ledger, ensure_ascii=False, indent=0, sort_keys=True),
                     encoding="utf-8")
     return n
@@ -318,6 +340,16 @@ def build(img: Path, raw: Path, out: Path) -> None:
     p_unrel = root / "data_external" / "unreleased_units.json"
     if p_unrel.exists():
         unreleased = set(json.loads(p_unrel.read_text("utf-8")).get("slugs", []))
+
+    # Token form for art whose FILENAME references an unreleased unit but doesn't
+    # resolve to a staged slug — e.g. a wallpaper `img_intimacy_illust_cNNNN` or
+    # banner `gacha_cNNNN_01_bg`. The unit-dir guard below never sees these, so
+    # the wallpaper/emote builders filter on this. Split on non-alphanumeric
+    # because '_cNNNN_' has no word boundary for a `\b`-anchored regex.
+    _unrel_tokens = ({u.lower() for u in unreleased}
+                     | {u.split("_")[0].lower() for u in unreleased})
+    def refs_unreleased(name: str) -> bool:
+        return bool(set(re.split(r"[^a-z0-9]+", name.lower())) & _unrel_tokens)
 
     # Step 1: every staged dir with a pose.png is a unit. Two-pass approach so
     # the PRIMARY_SWAP override works regardless of iteration order:
@@ -673,6 +705,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
             # group for the same character in the gallery.
             if eid.startswith("icon_"):
                 continue
+            if eid in unreleased or refs_unreleased(eid):
+                # Emote art for an unreleased unit — withhold + purge a stale copy.
+                dst0 = emotes_dir / p.name
+                if dst0.exists():
+                    try: dst0.unlink()
+                    except OSError: pass
+                continue
             theme = m.group("theme").lower()
             dst = emotes_dir / p.name
             if not dst.exists():
@@ -747,6 +786,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
         if sub: rel = rel / sub
         dst = wp_dir / rel / src.name
         rel_str = f"assets/_wallpapers/{rel.as_posix()}/{src.name}"
+        if refs_unreleased(src.stem):
+            # Unreleased-unit art (e.g. img_intimacy_illust_cNNNN) — never publish,
+            # and purge any copy a prior build staged before the guard existed.
+            if dst.exists():
+                try: dst.unlink()
+                except OSError: pass
+            return
         if rel_str in seen_dst:
             return
         seen_dst.add(rel_str)
@@ -786,10 +832,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
             if p.suffix.lower() not in IMG_EXT: continue
             if STORY_BG_SKIP.search(p.name):
                 continue
+            if p.stem.lower() in {"black", "white"}:
+                continue   # solid-colour utility screens — not real backgrounds
             add_wallpaper(p, "story")
 
-    # Flag newly-released units/artifacts (first_seen ledger) + float them up.
-    n_new = apply_new_flags(units, artifacts_out)
+    # Flag newly-seen units/artifacts/emotes/wallpapers (first_seen ledger) +
+    # float artifacts up (units/emotes/wallpapers float up in the frontend).
+    n_new = apply_new_flags(units, artifacts_out, emotes_list, wallpapers)
     artifacts_out.sort(key=lambda a: (not a.get("new"),
                                       -(a.get("rarity") or 0), a["id"]))
 
@@ -860,7 +909,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
     print(f"[arti]    {len(artifacts_out)} artifacts ({named_arti} named "
           f"from Artifacts.json + artifacts_from_db.json, "
           f"{len(artifacts_out)-named_arti} orphan)")
-    print(f"[new]     {n_new} unit(s)/artifact(s) flagged new "
+    print(f"[new]     {n_new} unit/artifact/emote/wallpaper flagged new "
           f"(first-seen within {NEW_WINDOW_DAYS}d; first_seen.json)")
     print(f"\n-> {data / 'units.json'}\n-> {data / 'updates.json'}"
           f"\n-> {data / 'emotes.json'}\n-> {data / 'wallpapers.json'}"

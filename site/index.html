@@ -85,6 +85,10 @@
   .thumb img{width:100%;height:100%;object-fit:contain;padding:6px}
   .variant-badge{position:absolute;top:8px;right:8px;background:rgba(216,176,106,.18);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.1em;padding:3px 7px;border-radius:2px;border:1px solid var(--gold-dim);text-transform:uppercase}
   .new-badge{position:absolute;top:8px;left:8px;z-index:3;background:linear-gradient(95deg,#e6b86e,#f3d79a);color:#13141d;font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;box-shadow:0 2px 9px rgba(0,0,0,.45)}
+  /* Wallpaper cells already carry a category chip at top-left — push NEW to the right. */
+  .wallpaper-cell .new-badge{left:auto;right:6px;top:6px}
+  /* Emote rows aren't positioned cards — render NEW as an inline chip by the name. */
+  .new-badge.inline{position:static;display:inline-block;margin-left:8px;vertical-align:middle;box-shadow:none}
   .form-swap{position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;opacity:1;transition:opacity .18s;pointer-events:auto}
   /* Devices that support real hover get a clean thumb until the user
      hovers; touch devices keep the pills visible so they're discoverable. */
@@ -1067,8 +1071,11 @@ function emotes() {
     $("#app").innerHTML = `<p class="empty">No emotes indexed — run build_index.py.</p>`;
     return;
   }
-  // Sort: linked (clickable) first, alphabetically by hero name; unlinked at the bottom by id.
+  // Sort: NEW first, then linked (clickable) first, alphabetically by hero name;
+  // unlinked at the bottom by id.
   const sorted = EMOTES.slice().sort((a, b) => {
+    const nwA = a.new ? 0 : 1, nwB = b.new ? 0 : 1;
+    if (nwA !== nwB) return nwA - nwB;
     const ka = a.base_id ? 0 : 1, kb = b.base_id ? 0 : 1;
     if (ka !== kb) return ka - kb;
     const na = (a.hero_name || a.id).toLowerCase();
@@ -1084,7 +1091,7 @@ function emotes() {
       const heroLabel = g.hero_name || g.id;
       return `<div class="emote-row${clickable ? ' link' : ''}" ${clickable ? `data-base="${g.base_id}"` : ''}>
         <div class="emote-who">
-          <div class="who-name">${escapeHtml(heroLabel)}</div>
+          <div class="who-name">${escapeHtml(heroLabel)}${g.new ? `<span class="new-badge inline">NEW</span>` : ""}</div>
           <div class="who-id">${escapeHtml(g.id)}${g.slug && g.slug !== g.id ? ` · ${escapeHtml(g.slug)}` : ''}</div>
           <div class="who-count">${g.emotes.length} emote${g.emotes.length!==1?'s':''} · ${clickable ? 'open detail →' : 'no unit page'}</div>
         </div>
@@ -1116,7 +1123,10 @@ function wallpapers() {
   const catCounts = {};
   WALLPAPERS.forEach(w => { catCounts[w.category] = (catCounts[w.category]||0)+1; });
   const cats = ["all", ...Object.keys(catCounts).sort((a,b)=>catCounts[b]-catCounts[a])];
-  const list = WALLPAPERS.filter(w => wpCatF === "all" || w.category === wpCatF);
+  // Stable sort floats NEW wallpapers to the top while keeping the rest in their
+  // category insertion order.
+  const list = WALLPAPERS.filter(w => wpCatF === "all" || w.category === wpCatF)
+                         .slice().sort((a, b) => (a.new ? 0 : 1) - (b.new ? 0 : 1));
 
   $("#app").innerHTML = `
     <p class="section-label first">${WALLPAPERS.length} wallpapers · click any to open full-size</p>
@@ -1126,8 +1136,9 @@ function wallpapers() {
       return `<button data-c="${c}" class="${c===wpCatF?'on':''}">${label}<span class="n">${n}</span></button>`;
     }).join("")}</div>
     <div class="wallpaper-grid">${list.map(w => `
-      <a class="wallpaper-cell" href="${w.file}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(WP_CAT_LABEL[w.category] || w.category)}" target="_blank" rel="noopener">
+      <a class="wallpaper-cell${w.new ? ' is-new' : ''}" href="${w.file}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(WP_CAT_LABEL[w.category] || w.category)}" target="_blank" rel="noopener">
         <img loading="lazy" src="${w.file}" alt="${escapeHtml(w.name)}">
+        ${w.new ? `<span class="new-badge">NEW</span>` : ""}
         <span class="wp-cat">${escapeHtml(WP_CAT_LABEL[w.category] || w.category)}</span>
         <span class="wp-name">${escapeHtml(w.name)}</span>
       </a>`).join("")}</div>`;
