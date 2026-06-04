@@ -162,10 +162,27 @@ def rebuild_catalog(langs):
         for action in catalog[slug]:
             for lang in catalog[slug][action]['takes']:
                 catalog[slug][action]['takes'][lang].sort()
+    # Unreleased-unit guard (DMCA): drop any announced-but-unreleased slug from the
+    # catalog so it never ships in voices_audio.json. Mirrors build_voices.py.
+    unrel_p = Path(__file__).resolve().parents[1] / 'data_external' / 'unreleased_units.json'
+    if unrel_p.exists():
+        unrel = set(json.loads(unrel_p.read_text(encoding='utf-8')).get('slugs', []))
+        dropped = [s for s in catalog if any(s == u or s.startswith(u + '_') for u in unrel)]
+        for s in dropped:
+            del catalog[s]
+        if dropped:
+            print(f'  dropped {len(dropped)} unreleased slug(s) from catalog: {", ".join(sorted(dropped))}')
     OUTROOT.mkdir(parents=True, exist_ok=True)
     json.dump(catalog, open(OUTROOT / 'voice_catalog.json', 'w', encoding='utf-8'),
               ensure_ascii=False, indent=0, sort_keys=True)
     print(f'\nwrote {OUTROOT/"voice_catalog.json"} ({len(catalog)} slugs, langs={langs})')
+    # The frontend reads site/data/voices_audio.json (same schema). Emit it here
+    # too so the export actually refreshes the site voice index — previously this
+    # write was lost when the catalog was renamed, freezing the site copy.
+    site_json = REPO / 'site' / 'data' / 'voices_audio.json'
+    json.dump(catalog, open(site_json, 'w', encoding='utf-8'),
+              ensure_ascii=False, indent=0, sort_keys=True)
+    print(f'wrote {site_json} ({len(catalog)} slugs)')
 
 if __name__ == '__main__':
     main()

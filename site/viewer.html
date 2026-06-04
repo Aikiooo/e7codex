@@ -206,6 +206,7 @@
   <div class="controls">
     <label for="anim">Animation</label><select id="anim"></select>
     <label for="skin">Skin</label><select id="skin"></select>
+    <label for="rig-sel" id="rig-sel-label" hidden>Character</label><select id="rig-sel" hidden title="this unit ships two combat rigs — switch between them"></select>
     <label for="quality">Quality</label>
     <select id="quality" title="render-side upscale: makes the canvas backing store NxN larger, browser downsamples back — sharper for small assets">
       <option value="1">1× (native)</option>
@@ -292,13 +293,37 @@ if (slug) {
   fetch("data/units.json").then(r => r.json()).then(d => {
     const units = Array.isArray(d) ? d : (d.units || Object.values(d));
     const ver = {};
-    for (const u of units) for (const s of (u.spine || [])) {
-      const b = (s.json || "").split("/").pop().replace(/\.json$/, "");
-      if (b && s.version) ver[b] = s.version;
+    let combatRigs = null;
+    for (const u of units) {
+      for (const s of (u.spine || [])) {
+        const b = (s.json || "").split("/").pop().replace(/\.json$/, "");
+        if (b && s.version) ver[b] = s.version;
+      }
+      if (u.id === slug && Array.isArray(u.combat_rigs)) combatRigs = u.combat_rigs;
     }
     sourceSpineVer = ver[slug] || null;
     applySpineVer();
+    if (isCombat && combatRigs && combatRigs.length > 1) setupRigSwitcher(combatRigs);
   }).catch(() => {});
+}
+
+// Dual-rig combat units (a duo whose .scsp files are per-character) ship two
+// combat rigs; populate the "Character" <select> and reload the skeleton on
+// switch. The primary rig's file is <slug>.json (already the default
+// combatFile), so the current selection lines up with the first option. The
+// <select> lives in the static .controls bar, so it survives loadScene()'s
+// disposePlayers().
+function setupRigSwitcher(rigs) {
+  rigSel.innerHTML = rigs.map(r =>
+    `<option value="${r.file}">${r.label || r.file}</option>`).join("");
+  const cur = `${combatFile}.json`;
+  if (rigs.some(r => r.file === cur)) rigSel.value = cur;
+  rigSel.hidden = false;
+  rigSelLabel.hidden = false;
+  rigSel.onchange = () => {
+    combatFile = rigSel.value.replace(/\.json$/, "");
+    loadScene();
+  };
 }
 
 // Permanently-excluded slot names per slug (broken/junk assets). Loaded once;
@@ -318,6 +343,12 @@ const stageBg = document.getElementById("stage-bg");
 const info    = document.getElementById("info");
 const animSel = document.getElementById("anim");
 const skinSel = document.getElementById("skin");
+const rigSel = document.getElementById("rig-sel");
+const rigSelLabel = document.getElementById("rig-sel-label");
+// Which combat-rig json basename to load. Defaults to <slug> (the primary rig);
+// dual-rig units flip this via the rig <select> and reload. Only meaningful
+// when isCombat.
+let combatFile = slug;
 const qSel    = document.getElementById("quality");
 const zinBtn  = document.getElementById("zin");
 const zoutBtn = document.getElementById("zout");
@@ -1040,6 +1071,9 @@ function loadBackdrop() {
 function loadCharacter(bgViewport) {
   try {
     const rigPath = isCombat ? `${slug}/combat` : `${slug}`;
+    // For DUAL_COMBAT units the file basename is the selected rig (combatFile),
+    // which defaults to <slug> (the primary) — single-rig units are unchanged.
+    const rigBase = isCombat ? combatFile : slug;
     // When syncing to backdrop, mirror its exact viewport (incl. padding) so
     // the character projects through the same camera. When standalone, fall
     // back to the historical absolute-unit padding that frames the rig
@@ -1052,8 +1086,8 @@ function loadCharacter(bgViewport) {
           debugRender: false }
       : { padLeft: 80, padRight: 80, padTop: 40, padBottom: 80, debugRender: false };
     player = new spine.SpinePlayer("stage", {
-      jsonUrl:  `${spineBase}/${rigPath}/${slug}.json`,
-      atlasUrl: `${spineBase}/${rigPath}/${slug}.atlas`,
+      jsonUrl:  `${spineBase}/${rigPath}/${rigBase}.json`,
+      atlasUrl: `${spineBase}/${rigPath}/${rigBase}.atlas`,
       // Fully-transparent BLACK (not the theme dark with alpha=0) — the WebGL
       // context runs with premultipliedAlpha:true, so toBlob un-premultiplies
       // on read: rgb_out = rgb_buf / alpha. If we clear to (#13141d, α=0) the

@@ -114,7 +114,13 @@ _PRE = OUTER_KEY.read_bytes()
 _BASE = _PRE[256 - 51:] + _PRE[:256 - 51]
 
 def outer_decrypt_textdb(cipher):
-    return bytes(cipher[i] ^ _PRE[i % 256] for i in range(len(cipher)))
+    # text.db's outer-XOR offset is NOT fixed: it was 0, but a later update
+    # shifted it to 180. Brute the offset against the PLPcK magic, the same
+    # way outer_decrypt_db does for the other db files.
+    for off in range(256):
+        if bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(5)) == b'PLPcK':
+            return bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(len(cipher)))
+    raise SystemExit('could not find text.db outer-XOR offset (no PLPcK magic)')
 
 def outer_decrypt_db(cipher):
     for off in range(256):

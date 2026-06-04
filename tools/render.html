@@ -290,7 +290,26 @@
         }
 
         const pick = anims.find(n => /idle|wait|stand/i.test(n)) || anims[0];
-        if (pick) p.setAnimation(pick);
+        if (pick) {
+          p.setAnimation(pick);
+          // Deterministic, blink-free capture. setAnimation already computed the
+          // auto-frame viewport from the FULL idle (framing unchanged); now pin
+          // the track to its first frame and freeze stepping so the snapshot is
+          // reproducible and lands on the authored neutral rest (eyes open) — not
+          // a random mid-idle moment that can catch a blink. Fresh track → no
+          // mixingFrom, so timeScale=0 is safe here (see the spine-player
+          // freeze-trap note). Falls back to live capture if the state differs.
+          try {
+            const st = p.animationState;
+            const e0 = st && st.tracks && st.tracks[0];
+            if (e0) {
+              e0.trackTime = 0;
+              st.timeScale = 0;
+              st.apply(p.skeleton);
+              p.skeleton.updateWorldTransform();
+            }
+          } catch (_) { /* keep the live-frame behaviour */ }
+        }
 
         // Debug: capture per-slot info for slots whose name matches the
         // optional `?probe=` regex (e.g. probe=head|face|body). Useful when

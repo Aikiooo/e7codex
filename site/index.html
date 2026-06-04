@@ -84,6 +84,7 @@
   .thumb{aspect-ratio:3/4;background:linear-gradient(135deg,#1c1d2b,#101019);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
   .thumb img{width:100%;height:100%;object-fit:contain;padding:6px}
   .variant-badge{position:absolute;top:8px;right:8px;background:rgba(216,176,106,.18);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.1em;padding:3px 7px;border-radius:2px;border:1px solid var(--gold-dim);text-transform:uppercase}
+  .new-badge{position:absolute;top:8px;left:8px;z-index:3;background:linear-gradient(95deg,#e6b86e,#f3d79a);color:#13141d;font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;box-shadow:0 2px 9px rgba(0,0,0,.45)}
   .form-swap{position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;opacity:1;transition:opacity .18s;pointer-events:auto}
   /* Devices that support real hover get a clean thumb until the user
      hovers; touch devices keep the pills visible so they're discoverable. */
@@ -482,8 +483,10 @@ function card(group) {
   const hasSkill = group.some(x => (x.skills||[]).length);
   const variantsN = group.length;
   const base = u.base_id || u.id;
-  return `<a class="card" href="#/u/${encodeURIComponent(base)}" data-base="${base}">
+  const isNew = group.some(x => x.new);
+  return `<a class="card${isNew ? ' is-new' : ''}" href="#/u/${encodeURIComponent(base)}" data-base="${base}">
     ${thumb(u, group)}
+    ${isNew ? `<span class="new-badge">NEW</span>` : ""}
     ${variantsN > 1 ? `<span class="variant-badge">${variantsN} forms</span>` : ""}
     <div class="meta">
       <div class="name">${escapeHtml(displayName(u))}</div>
@@ -576,8 +579,10 @@ function hub() {
       (u.hero_name || "").toLowerCase().includes(q)
     );
   });
-  // Sort: named heroes first (alpha), then unnamed by id.
+  // Sort: NEW units first, then named heroes (alpha), then unnamed by id.
   list.sort((a,b) => {
+    const newA = a.some(x => x.new), newB = b.some(x => x.new);
+    if (newA !== newB) return newA ? -1 : 1;
     const na = (a[0].hero_name || a[0].name || "").toLowerCase();
     const nb = (b[0].hero_name || b[0].name || "").toLowerCase();
     if (na && nb) return na.localeCompare(nb);
@@ -1190,8 +1195,9 @@ function artifacts() {
       const cap = [name, meta].filter(Boolean).join(" · ");
       const cb = a.cecilia || "";
       return `
-      <a class="artifact-cell" href="${a.art_full}" data-zoom data-cap="${escapeHtml(cap)}" target="_blank" rel="noopener">
+      <a class="artifact-cell${a.new ? ' is-new' : ''}" href="${a.art_full}" data-zoom data-cap="${escapeHtml(cap)}" target="_blank" rel="noopener">
         <img loading="lazy" src="${a.art_full}" alt="${escapeHtml(name)}">
+        ${a.new ? `<span class="new-badge">NEW</span>` : ""}
         <span class="a-name">${escapeHtml(name)}${meta ? `<span class="a-meta">${escapeHtml(meta)}</span>` : ""}</span>
         ${cb ? `<button class="a-cb" data-cb="${cb}" type="button" title="open on ceciliabot">↗ cb</button>` : ""}
       </a>`;

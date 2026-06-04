@@ -63,6 +63,16 @@ STEM_OVERRIDE: dict[str, str] = {
 # workaround; col[20] IS the real filename, so the DB layer resolves them
 # directly with nothing to correct.
 
+# DUAL_COMBAT — units whose combat is two separate rigs (e.g. a duo unit
+# whose .scsp files are per-character). Each gets staged into the same
+# <cslug>/combat/ dir; FIRST is the primary (file == <cslug>.json, so the
+# default viewer load + the has_combat check still work), the rest get
+# <cslug>__<label>.json. A combat/rigs.json manifest drives the viewer's rig
+# switcher. Order = display order; first entry loads by default.
+DUAL_COMBAT: dict[str, list[tuple[str, str]]] = {
+    "c2185_1": [("rhianna_m", "Rhianna"), ("luciella_m", "Luciella")],
+}
+
 # PRIMARY_SWAP entries — keep in sync with build_index.py:PRIMARY_SWAP.
 # For these slugs the bare c#### directory holds the backdrop rig and the
 # character lives at <slug>_1. Combat rigs (which animate the character,
@@ -422,9 +432,14 @@ def patch_orphan_linkedmeshes(json_path: Path, atlas_path: Path) -> int:
     return l
 
 
-def stage_combat(stem: str, cslug: str, version: str | None, force: bool = False) -> tuple[bool, str]:
+def stage_combat(stem: str, cslug: str, version: str | None, force: bool = False,
+                 out_name: str | None = None) -> tuple[bool, str]:
     """Stage one combat rig. Returns (ok, note). `version` is the pre-detected
-    spine version ("3.8.99" or "2.1.27"); pass None to detect lazily."""
+    spine version ("3.8.99" or "2.1.27"); pass None to detect lazily.
+    `out_name` is the basename of the staged files (default == cslug); pass a
+    distinct name to stage a secondary rig of a DUAL_COMBAT unit alongside the
+    primary <cslug>.json without clobbering it."""
+    out_name = out_name or cslug
     scsp  = MODEL / f"{stem}.scsp"
     atlas = MODEL / f"{stem}.atlas"
     sct   = MODEL / f"{stem}.sct"
@@ -434,10 +449,10 @@ def stage_combat(stem: str, cslug: str, version: str | None, force: bool = False
         return False, f"missing source files for {stem}"
 
     dst_dir   = SITE / cslug / "combat"
-    dst_json  = dst_dir / f"{cslug}.json"
-    dst_atlas = dst_dir / f"{cslug}.atlas"
-    dst_png   = dst_dir / f"{cslug}.png"
-    dst_tl    = dst_dir / f"{cslug}.timeline"
+    dst_json  = dst_dir / f"{out_name}.json"
+    dst_atlas = dst_dir / f"{out_name}.atlas"
+    dst_png   = dst_dir / f"{out_name}.png"
+    dst_tl    = dst_dir / f"{out_name}.timeline"
     dst_dir.mkdir(parents=True, exist_ok=True)
 
     if force or not dst_json.exists():
@@ -457,7 +472,7 @@ def stage_combat(stem: str, cslug: str, version: str | None, force: bool = False
         decode_sct(sct, dst_png)
 
     if force or not dst_atlas.exists():
-        stage_atlas(atlas, dst_atlas, f"{cslug}.png")
+        stage_atlas(atlas, dst_atlas, f"{out_name}.png")
 
     if timeline.exists() and (force or not dst_tl.exists()):
         shutil.copy2(timeline, dst_tl)
@@ -586,6 +601,42 @@ def main() -> None:
             print(f"[fail] {stem}: {e}")
             if a.force:
                 traceback.print_exc()
+
+    # ---- DUAL_COMBAT: units whose combat is two separate rigs (rig switcher) ----
+    # Staged regardless of the kebab/DB mapping (these rigs resolve to None). The
+    # first rig is the primary (<cslug>.json — keeps the default load + has_combat
+    # check working); the rest are <cslug>__<label>.json, and a combat/rigs.json
+    # manifest lists all of them for the viewer's rig <select>.
+    for cslug, rigs in DUAL_COMBAT.items():
+        if cslug not in staged:
+            continue                      # target unit dir not staged yet
+        if a.stems and not any(stem in a.stems for stem, _ in rigs):
+            continue                      # --stems run that doesn't touch this unit
+        manifest = []
+        for i, (stem, label) in enumerate(rigs):
+            out_name = cslug if i == 0 else f"{cslug}__{label.lower()}"
+            v = scsp_to_json.detect_version(MODEL / f"{stem}.scsp")
+            if v is None:
+                print(f"[fail] {stem} (dual {cslug}): unknown/absent spine rig"); fail += 1; continue
+            try:
+                done, note = stage_combat(stem, cslug, version=v, force=a.force, out_name=out_name)
+            except Exception as e:
+                done, note = False, str(e)
+                if a.force: traceback.print_exc()
+            if done:
+                ok += 1
+                manifest.append({"file": f"{out_name}.json", "atlas": f"{out_name}.atlas",
+                                 "label": label, "stem": stem})
+                tag = "primary" if i == 0 else "alt"
+                extra = f"   ({note})" if note else ""
+                print(f"[ok]   {stem:40s} -> site/assets/{cslug}/combat/{out_name}.json  [{label} · {tag}]{extra}")
+            else:
+                fail += 1
+                print(f"[fail] {stem} (dual {cslug}): {note}")
+        if len(manifest) > 1:
+            (SITE / cslug / "combat" / "rigs.json").write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=0) + "\n", encoding="utf-8")
+            print(f"       wrote site/assets/{cslug}/combat/rigs.json ({len(manifest)} rigs)")
 
     print(f"\n[summary] staged={ok} skipped={skip} failed={fail}")
 

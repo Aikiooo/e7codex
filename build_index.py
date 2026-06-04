@@ -54,6 +54,25 @@ CECILIA_BASE = "https://ceciliabot.github.io/#/hero"
 CECILIA_INDEX = "https://ceciliabot.github.io/#/heroes"
 CECILIA_ARTIFACT = "https://ceciliabot.github.io/#/artifacts"
 
+# Hand-added artifact metadata for pieces the in-game DB / ceciliabot snapshot
+# don't carry a name for yet (newest releases lag the snapshots). Keyed by
+# art_id; wins on name/rarity/role. DELETE an entry once the source supplies the
+# name on its own.
+MANUAL_ARTIFACTS: dict[str, dict] = {
+    "art0244": {"name": "Butterfly's Baptism", "rarity": 5, "role": "thief"},
+}
+
+# Artifacts to withhold from the public site because they belong to an unreleased
+# unit (the unreleased-unit guard covers units/voices but NOT artifacts — they
+# carry no unit link in the game data). Their _fu/_l images are dropped from
+# site/assets/_artifacts so the deploy can't publish them. DELETE once the unit
+# releases (then the artifact surfaces automatically).
+UNRELEASED_ARTIFACTS: set[str] = set()
+
+# A playable unit / artifact carries a "NEW" badge (and sorts to the top of its
+# list) for this many days after it first appears released. See apply_new_flags.
+NEW_WINDOW_DAYS = 21
+
 IMG_EXT = {".png", ".webp", ".jpg", ".jpeg"}
 # Suffixes that mark a variant of the same character (skin/ML/alt-form).
 # Order matters: longest first so '_m_s01' wins over '_m'. The trailing '_1'
@@ -246,6 +265,39 @@ def load_artifact_db(root: Path) -> dict[str, dict]:
     return by_id
 
 
+def apply_new_flags(units: dict, artifacts: list) -> int:
+    """Maintain data_external/first_seen.json (id -> first-released ISO date) and
+    flag playable units (kind=='unit') + artifacts seen within NEW_WINDOW_DAYS as
+    `new` (plus `new_since`). An id missing from the ledger is recorded at today's
+    date, so a unit gets flagged the first build after it leaves the unreleased
+    gate — which correctly catches pre-staged releases that show as 'changed', not
+    'added', in the pack diff. The ledger is hand-editable: edit a date to
+    extend/clear NEW, or delete an entry to re-flag it on the next build. Returns
+    the count flagged."""
+    import datetime
+    path = Path(__file__).resolve().parent / "data_external" / "first_seen.json"
+    ledger: dict = {}
+    if path.exists():
+        try: ledger = json.loads(path.read_text(encoding="utf-8"))
+        except Exception: ledger = {}
+    today = datetime.date.today().isoformat()
+    eligible = [u["id"] for u in units.values() if u.get("kind") == "unit"]
+    eligible += [a["id"] for a in artifacts]
+    for _id in eligible:
+        ledger.setdefault(_id, today)
+    cutoff = (datetime.date.today() - datetime.timedelta(days=NEW_WINDOW_DAYS)).isoformat()
+    n = 0
+    for u in units.values():
+        if u.get("kind") == "unit" and ledger.get(u["id"], "") >= cutoff:
+            u["new"] = True; u["new_since"] = ledger[u["id"]]; n += 1
+    for a in artifacts:
+        if ledger.get(a["id"], "") >= cutoff:
+            a["new"] = True; a["new_since"] = ledger[a["id"]]; n += 1
+    path.write_text(json.dumps(ledger, ensure_ascii=False, indent=0, sort_keys=True),
+                    encoding="utf-8")
+    return n
+
+
 def build(img: Path, raw: Path, out: Path) -> None:
     site_assets = out / "assets"
     if not site_assets.exists():
@@ -403,6 +455,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
         combat_json = d / "combat" / f"{slug}.json"
         if combat_json.exists():
             unit["has_combat"] = True
+            # Dual-rig units (a duo whose .scsp files are per-character) stage a
+            # combat/rigs.json manifest listing each rig + a display label; the
+            # viewer renders a rig <select> from it. The primary's file is always
+            # <slug>.json, so the default load path is unchanged.
+            rigs_manifest = d / "combat" / "rigs.json"
+            if rigs_manifest.exists():
+                unit["combat_rigs"] = json.loads(rigs_manifest.read_text(encoding="utf-8"))
 
         trim_path = d / "pose_trim.json"
         if trim_path.exists():
@@ -563,6 +622,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
             aid = m.group(1).lower()
             suf = m.group(2).lower()
             dst = arti_dir / p.name
+            if aid in UNRELEASED_ARTIFACTS:
+                # Belongs to an unreleased unit — never stage/publish it, and
+                # purge any copy a prior build left behind.
+                if dst.exists():
+                    try: dst.unlink()
+                    except OSError: pass
+                continue
             if not dst.exists():
                 try: shutil.copy2(p, dst)
                 except OSError: continue
@@ -573,7 +639,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
     for aid, paths in arti_files.items():
         if "full" not in paths:
             continue                          # no portrait → not card-worthy
-        rec = artifact_db.get(aid, {})
+        rec = {**artifact_db.get(aid, {}), **MANUAL_ARTIFACTS.get(aid, {})}
         entry: dict = {"id": aid, "art_full": paths["full"]}
         if "lobby" in paths: entry["art_lobby"] = paths["lobby"]
         if rec.get("name"):       entry["name"]    = rec["name"]
@@ -722,6 +788,11 @@ def build(img: Path, raw: Path, out: Path) -> None:
                 continue
             add_wallpaper(p, "story")
 
+    # Flag newly-released units/artifacts (first_seen ledger) + float them up.
+    n_new = apply_new_flags(units, artifacts_out)
+    artifacts_out.sort(key=lambda a: (not a.get("new"),
+                                      -(a.get("rarity") or 0), a["id"]))
+
     # Step 7: write outputs.
     data = out / "data"
     data.mkdir(parents=True, exist_ok=True)
@@ -789,6 +860,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
     print(f"[arti]    {len(artifacts_out)} artifacts ({named_arti} named "
           f"from Artifacts.json + artifacts_from_db.json, "
           f"{len(artifacts_out)-named_arti} orphan)")
+    print(f"[new]     {n_new} unit(s)/artifact(s) flagged new "
+          f"(first-seen within {NEW_WINDOW_DAYS}d; first_seen.json)")
     print(f"\n-> {data / 'units.json'}\n-> {data / 'updates.json'}"
           f"\n-> {data / 'emotes.json'}\n-> {data / 'wallpapers.json'}"
           f"\n-> {data / 'artifacts.json'}")
