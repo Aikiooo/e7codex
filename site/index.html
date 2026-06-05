@@ -927,6 +927,11 @@ function detail(baseId, variantSuf) {
   const artN = u.artworks_count || (u.artworks||[]).length;
   const heroLabel = u.hero_name || u.name || u.id;
   const subTitle = (u.name && u.name !== heroLabel) ? u.name : "";
+  // Intimacy art is per-character, not per-skin: the asset is keyed to one slug
+  // in the group (usually the base), so resolve it (and its UPDATED state) from
+  // any variant that owns one, preferring this variant's own if it has its own.
+  const intimUnit = u.intimacy ? u : (group.find(x => x.intimacy) || null);
+  const groupModified = group.some(x => x.modified);
 
   $("#app").innerHTML = `
     <span class="back" onclick="history.length>1?history.back():location.hash='#/'">‹ back</span>
@@ -961,7 +966,7 @@ function detail(baseId, variantSuf) {
       </div>
       <div>
         <div class="dt-head">
-          <h2>${escapeHtml(heroLabel)}${subTitle ? ` <span style="color:var(--mut);font-size:24px">— ${escapeHtml(subTitle)}</span>` : ''}${u.modified ? ` <span class="upd-badge inline">UPDATED</span>` : ''}</h2>
+          <h2>${escapeHtml(heroLabel)}${subTitle ? ` <span style="color:var(--mut);font-size:24px">— ${escapeHtml(subTitle)}</span>` : ''}${groupModified ? ` <span class="upd-badge inline">UPDATED</span>` : ''}</h2>
           <div class="ids">${u.id}${u.base_id && u.base_id !== u.id ? ` · base ${u.base_id}` : ''}</div>
           <div class="meta-row">
             ${rarityStars(u)} ${attrPill(u)}
@@ -1006,12 +1011,12 @@ function detail(baseId, variantSuf) {
             return `<a href="${s}" data-zoom data-cap="${escapeHtml(u.id)} · ${lbl}" target="_blank" rel="noopener"><img loading="lazy" src="${s}" alt="${escapeHtml(u.id)} skill ${i+1}"></a>`;
           }).join("")}</div>
         ` : ''}
-        ${u.intimacy ? `
-          <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">Intimacy illustration${u.modified && (u.modified_parts||[]).includes('intimacy') ? `<span class="upd-badge inline">UPDATED</span>` : ''}</p>
-          <div class="intimacy-gallery">${u.intimacy.endsWith('.webm') ? `
-            <video class="intimacy-vid" src="${u.intimacy}" autoplay loop muted playsinline preload="metadata" data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" title="click to enlarge" aria-label="${escapeHtml(u.id)} intimacy illustration"></video>
+        ${intimUnit ? `
+          <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">Intimacy illustration${intimUnit.modified && (intimUnit.modified_parts||[]).includes('intimacy') ? `<span class="upd-badge inline">UPDATED</span>` : ''}</p>
+          <div class="intimacy-gallery">${intimUnit.intimacy.endsWith('.webm') ? `
+            <video class="intimacy-vid" src="${intimUnit.intimacy}" autoplay loop muted playsinline preload="metadata" data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" title="click to enlarge" aria-label="${escapeHtml(u.id)} intimacy illustration"></video>
           ` : `
-            <a href="${u.intimacy}" data-zoom data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" target="_blank" rel="noopener"><img loading="lazy" src="${u.intimacy}" alt="${escapeHtml(u.id)} intimacy illustration"></a>
+            <a href="${intimUnit.intimacy}" data-zoom data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" target="_blank" rel="noopener"><img loading="lazy" src="${intimUnit.intimacy}" alt="${escapeHtml(u.id)} intimacy illustration"></a>
           `}</div>
         ` : ''}
         ${voiceSection(u)}
