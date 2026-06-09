@@ -1,17 +1,17 @@
 {
   "_comment": "Copy to voice_keys.json (gitignored) and fill in your local values. Path keys are optional; omitted ones default under dump_dir as shown.",
 
-  "dump_dir": "D:/Claude/E7",
+  "dump_dir": "C:/path/to/e7-dump",
 
-  "raw_dir": "D:/Claude/E7/output",
-  "img_dir": "D:/Claude/E7/img_output",
-  "voice_dir": "D:/Claude/E7/_voice_work",
-  "tree_diff": "D:/Claude/E7/tree_diff.txt",
+  "raw_dir": "C:/path/to/e7-dump/output",
+  "img_dir": "C:/path/to/e7-dump/img_output",
+  "voice_dir": "C:/path/to/e7-dump/_voice_work",
+  "tree_diff": "C:/path/to/e7-dump/tree_diff.txt",
 
-  "game_data_pack": "D:/Games/EpicSeven/data.pack",
-  "ripper_dir": "D:/Claude/E7/EpicSevenAssetRipper",
-  "extract_scratch": "D:/Claude/E7/_extract_work",
-  "game_sound_dir": "D:/Games/EpicSeven/data.unpacked/sound",
+  "game_data_pack": "C:/path/to/EpicSeven/data.pack",
+  "ripper_dir": "C:/path/to/e7-dump/EpicSevenAssetRipper",
+  "extract_scratch": "C:/path/to/e7-dump/_extract_work",
+  "game_sound_dir": "C:/path/to/EpicSeven/data.unpacked/sound",
 
   "outer_key_file": "outer_key.bin",
   "default_xxtea_key": "<your XXTEA key>"
