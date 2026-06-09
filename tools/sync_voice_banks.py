@@ -40,7 +40,7 @@ except Exception:
     pass
 
 # Optional override from the (gitignored) voice_keys.json; falls back to the
-# default Windows PC-client install path. --game-sound beats both.
+# default PC-client install path. --game-sound beats both.
 DEFAULT_GAME_SOUND = Path('D:/Games/EpicSeven/data.unpacked/sound')
 sys.path.insert(0, str(Path(__file__).parent))
 from paths import VOICE_DIR  # central data-dir config

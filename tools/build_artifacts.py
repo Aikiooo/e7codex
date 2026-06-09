@@ -1,11 +1,11 @@
 """Build data_external/artifacts_from_db.json — self-sufficient artifact catalog.
 
-Decodes the game's own equipment table to replace the community Artifacts.json
-dependency for artifact name + rarity + role. Joins two tables:
+Mirror of `build_names.py` for artifacts: decodes the game's own equipment table
+to replace the community Artifacts.json dependency. Joins two decrypted tables:
 
   text/en/text.db       -> {export_id: text}   (`<identifier>_name` -> display name)
   db/equip_item.db      -> row per equip piece; filter `type == 'artifact'`.
-                           Fixed 97-col schema; columns we use:
+                           Fixed 55-col schema; columns we use:
                              [ 0] id            = artifact identifier (e.g. 'efw21')
                              [ 7] name          = key in text.db (e.g. 'efw21_name')
                              [ 8] type          = 'artifact' / 'weapon' / 'helm' / ...
@@ -17,36 +17,36 @@ dependency for artifact name + rarity + role. Joins two tables:
 Output (`data_external/artifacts_from_db.json`), keyed by the `art####` art id
 that `build_index.py` Step 4b already uses as the primary artifact key:
 
-  { "art0105": {"identifier": "efw21", "name": "A Little Queen's Huge Crown",
-                "rarity": 5, "role": "warrior"}, ... }
+  { "art0105": {"identifier":"efw21","name":"A Little Queen's Huge Crown",
+                "rarity":5,"role":"warrior"}, ... }
 
 `build_index.py` layers this LAST in `load_artifact_db()` and WINS on the
-overlapping fields, parallel to how `names_from_db.json` wins for heroes. The
-ceciliabot kebab (`_id`) and `tags` stay sourced from the community snapshot —
-they are not in the game data.
+overlapping fields, parallel to how `names_from_db.json` wins for heroes.
+The ceciliabot kebab (`_id`) and `tags` stay sourced from the community
+snapshot — they are not in the game data.
 
 ROLE FALLBACK. The role column is populated only for the 5★ class-specific
-artifacts (the efw##/efk##/efr##/efm##/efh##/efa## identifier families). The
-generic ef### family and lower-grade artifacts ship with role empty in-game —
-those genuinely have no class restriction. For the populated rows we
-additionally derive role from the identifier letter to confirm the column
-(w→warrior, k→knight, r→ranger, m→mage, h→manauser, a→assassin); mismatches
-would surface a schema drift.
+artifacts (the efw##/efk##/efr##/efm##/efh##/efa## identifier families).
+Lower-grade artifacts and the generic ef### family (e.g. 'A Symbol of Unity')
+ship with role empty in-game — those genuinely have no class restriction.
+For the populated rows we additionally derive role from the identifier letter
+to confirm the column (w→warrior, k→knight, r→ranger, m→mage, h→manauser,
+a→assassin); mismatches would surface a schema drift.
 
-Mirrors build_names.py / build_voices.py (same cipher primitives inline; DB
-values are cocos-XXTEA, outer layer is a 256-byte rolling XOR). Keys + paths
-live in gitignored tools/voice_keys.json — copy voice_keys.example.json to
-voice_keys.json and fill in the values from your own install.
+Cipher reference: GAMEBIN_CRACK_FINDINGS.md + memory reference-e7-text-db-format.
+Self-contained, mirrors build_voices.py/build_names.py (same primitives inline).
+Keys/paths in gitignored tools/voice_keys.json.
 """
 import struct, json, sys
 from pathlib import Path
 
 _CFG_PATH = Path(__file__).parent / 'voice_keys.json'
 if not _CFG_PATH.exists():
-    raise SystemExit('missing tools/voice_keys.json — copy voice_keys.example.json '
-                     'and fill in your local paths + key')
+    raise SystemExit('missing tools/voice_keys.json — copy from build_voices.py setup '
+                     '(dump_dir, outer_key_file, default_xxtea_key)')
 _CFG = json.loads(_CFG_PATH.read_text(encoding='utf-8'))
 
+DUMP = Path(_CFG['dump_dir'])
 sys.path.insert(0, str(Path(__file__).parent))
 from paths import RAW_DIR  # central data-dir config
 OUT_DB = RAW_DIR / 'db'
@@ -68,7 +68,7 @@ ROLE_BY_LETTER = {
     'm': 'mage',    'h': 'manauser', 'a': 'assassin',
 }
 
-# ---- cipher primitives (same as build_names.py / build_voices.py) ----
+# ---- cipher primitives (verbatim from build_names.py) ----
 def xxtea_dec(v, k):
     v = list(v); n = len(v)
     if n < 2: return v
@@ -119,9 +119,9 @@ _PRE = OUTER_KEY.read_bytes()
 _BASE = _PRE[256 - 51:] + _PRE[:256 - 51]
 
 def outer_decrypt_textdb(cipher):
-    # text.db's outer-XOR offset is NOT fixed: it was 0, but a later update
-    # shifted it to 180. Brute the offset against the PLPcK magic, the same
-    # way outer_decrypt_db does for the other db files.
+    # text.db's outer-XOR offset is NOT fixed: it was 0, but the 2026-06-04
+    # update shifted it to 180. Brute the offset against the PLPcK magic, the
+    # same way outer_decrypt_db does for the other db files.
     for off in range(256):
         if bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(5)) == b'PLPcK':
             return bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(len(cipher)))
@@ -224,6 +224,7 @@ def main():
         print('  skipped %d rows with no _fu image (likely retired/stub)' % skipped_no_image)
     if skipped_no_name:
         print('  skipped %d rows whose name key did not resolve in text.db' % skipped_no_name)
+    # spot-check 4 known artifacts
     for k in ('art0105', 'art0121', 'art0193', 'art0007'):
         print('  %s -> %r' % (k, out.get(k)))
 

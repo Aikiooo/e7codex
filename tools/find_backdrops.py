@@ -30,13 +30,13 @@ import build_index  # type: ignore  # gives us PRIMARY_SWAP, EXTRA_SUFFIX
 # known PRIMARY_SWAP entries plus the eff_back_* pattern seen in c2112_s01.
 #   ^bg       → bg1, bg_*, bgmang*, bg_d_*      (c1180, c2076, c2181, c2185)
 #   ^back     → back_01, back_02                 (c1183)
-#   ^cloud    → scene clouds
+#   ^cloud    → scene clouds                     (from TASKS.md)
 #   ^d_       → d_bg_*, d_1, d_2, …             (c2076, c2184)
 #   ^b_       → b_1, b_10, … (scene layer bones)(c6024)
 #   ^fx[/_]   → fx/flare*, fx_f_*               (c1180, c2181)
 #   ^eff_back → eff_back_*                       (c2112_s01)
-#   ^sky      → sky layers
-#   ^stage    → stage objects
+#   ^sky      → sky layers                       (from TASKS.md)
+#   ^stage    → stage objects                    (from TASKS.md)
 #   ^\d+_chick → 1_chick_*, 2_chick_* props     (c1183)
 BACKDROP_RE = re.compile(
     r"^(bg|back|cloud|d_|b_|fx[/_]|eff_back|sky|stage|\d+_chick)",

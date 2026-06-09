@@ -14,16 +14,22 @@ Names come from two community-maintained JSONs in `data_external/`:
   - HeroDatabase.json  c####           -> {_id, name, rarity, ...}
   - HeroSkins.json     c####_sNN       -> {_id, name}   (skin variants)
 
-Both are one-shot snapshots from public community datasets (see CREDITS.md);
-the game's own encrypted string table has no public decoder.
+Both are one-shot snapshots from CeciliaBot/E7Tools — the encrypted output/db
+is the long-term source of truth, but no decoder exists publicly. See
+project_e7_db_encrypted memory note.
 
 Run:
-    python build_index.py --img <img_dir> --raw <raw_dir> --out ./site
+    python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site
 """
 from __future__ import annotations
-import argparse, json, os, re, shutil, sys
+import argparse, html, json, os, re, shutil, sys
 from collections import defaultdict
 from pathlib import Path
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
 from scsp_to_json import detect_version as _detect_scsp_version
@@ -54,20 +60,23 @@ CECILIA_BASE = "https://ceciliabot.github.io/#/hero"
 CECILIA_INDEX = "https://ceciliabot.github.io/#/heroes"
 CECILIA_ARTIFACT = "https://ceciliabot.github.io/#/artifacts"
 
-# Hand-added artifact metadata for pieces the in-game DB / ceciliabot snapshot
-# don't carry a name for yet (newest releases lag the snapshots). Keyed by
-# art_id; wins on name/rarity/role. DELETE an entry once the source supplies the
-# name on its own.
+# Manual artifact names for art that ships ahead of the name data. New units'
+# signature artifacts often arrive in img_output/item_arti before equip_item.db /
+# text.db / the ceciliabot snapshot carry the name, so they'd otherwise render as
+# nameless "ARTxxxx" orphans. Keyed by art_id; wins on name/rarity/role. DELETE an
+# entry once the in-game DB or community snapshot supplies the name on its own.
 MANUAL_ARTIFACTS: dict[str, dict] = {
-    "art0244": {"name": "Butterfly's Baptism", "rarity": 5, "role": "thief"},
+    "art0244": {"name": "Butterfly's Baptism", "rarity": 5, "role": "thief"},  # Rhianna & Luciella (c2185), released 2026-06-04
 }
 
 # Artifacts to withhold from the public site because they belong to an unreleased
-# unit (the unreleased-unit guard covers units/voices but NOT artifacts — they
-# carry no unit link in the game data). Their _fu/_l images are dropped from
+# unit (the unreleased-unit guard covers units/voices/patches but NOT artifacts —
+# they carry no unit link in the game data). Their _fu/_l images are dropped from
 # site/assets/_artifacts so the deploy can't publish them. DELETE once the unit
 # releases (then the artifact surfaces automatically).
-UNRELEASED_ARTIFACTS: set[str] = set()
+UNRELEASED_ARTIFACTS: set[str] = {
+    "art0243",   # Aubade Ludwig (c5069) — still in MANUAL_UNRELEASED
+}
 
 # A playable unit / artifact carries a "NEW" badge (and sorts to the top of its
 # list) for this many days after it first appears released. See apply_new_flags.
@@ -171,11 +180,11 @@ def load_name_db(root: Path) -> tuple[dict, dict]:
 
     `names_from_db.json` (built by tools/build_names.py from the game's own
     character_player.db + text.db) is applied LAST and WINS on name / rarity /
-    attribute / role — it covers more c-slugs than HeroDatabase and needs no
-    community dependency. For c-slugs only the DB knows, we synthesise a kebab
-    from the name so a ceciliabot link still has the right shape (may 404 on
-    ceciliabot itself). Skin DISPLAY names stay with HeroSkins — the DB only
-    carries the base hero's name per costume.
+    attribute / role — it covers ~700 c-slugs vs HeroDatabase's ~380 and is
+    fully self-sufficient (see docs/TASKS.md #42). For c-slugs only the DB
+    knows, we synthesise a kebab from the name so a ceciliabot link still has
+    the right shape (may 404 on ceciliabot itself). Skin DISPLAY names stay
+    with HeroSkins — the DB only carries the base hero's name per costume.
     """
     base: dict[str, dict] = {}
     skin: dict[str, dict] = {}
@@ -249,8 +258,9 @@ def load_artifact_db(root: Path) -> dict[str, dict]:
        Source of `_id` (kebab url slug) and `tags`; neither is in the game data.
     2. `data_external/artifacts_from_db.json` — built by `tools/build_artifacts.py`
        from the game's own `equip_item.db` joined through `text.db`. Source of
-       `name`, `rarity`, `role`, and `identifier`. Self-sufficient and a few
-       entries ahead of the community snapshot when new artifacts ship.
+       `name`, `rarity`, `role`, and `identifier`. Self-sufficient
+       (`[[feedback-self-sufficient]]`) and a few entries ahead of the community
+       snapshot when new artifacts ship.
     """
     by_id: dict[str, dict] = {}
     p = root / "data_external" / "Artifacts.json"
@@ -329,7 +339,7 @@ def apply_new_flags(units: dict, artifacts: list, emotes: list, wallpapers: list
 def apply_modified_flags(units: dict) -> int:
     """Flag EXISTING units changed recently (curated, not auto-detected) with
     `modified` / `modified_since` / `modified_parts`, for MOD_WINDOW_DAYS. Source
-    is the hand-maintained ledger data_external/modified.json:
+    is the hand-maintained, COMMITTED ledger data_external/modified.json:
 
         { "<unit_id>": {"since": "YYYY-MM-DD", "parts": ["intimacy", ...]}, ... }
 
@@ -337,7 +347,8 @@ def apply_modified_flags(units: dict) -> int:
     feature to an old unit (e.g. an animated intimacy illustration), add/refresh
     its entry here. The frontend shows a MODIFIED badge on the hub card (floats it
     up, below NEW) and on each named part of the detail page (`modified_parts`).
-    Entries older than the window simply stop flagging. Returns the count flagged."""
+    Entries older than the window simply stop flagging; leave or prune them.
+    Returns the count flagged."""
     import datetime
     path = Path(__file__).resolve().parent / "data_external" / "modified.json"
     if not path.exists():
@@ -359,6 +370,58 @@ def apply_modified_flags(units: dict) -> int:
     return n
 
 
+def inspect(img: Path, raw: Path, out: Path) -> None:
+    """Read-only report (--inspect): staged slug counts by kind, name coverage,
+    raw rig counts, and update codenames detected in path tokens. Writes
+    nothing — useful before a full rebuild to spot drift."""
+    site_assets = out / "assets"
+    root = out.parent if out.name == "site" else Path(".")
+    name_base, name_skin = load_name_db(root)
+    event_labels = load_event_labels(root)
+
+    dirs = ([d for d in sorted(site_assets.iterdir())
+             if d.is_dir() and not d.name.startswith("_")
+             and (d / "pose.png").exists()]
+            if site_assets.exists() else [])
+    by_kind: dict[str, int] = defaultdict(int)
+    named = spined = combat = 0
+    for d in dirs:
+        slug = d.name
+        by_kind[kind_of(slug)] += 1
+        base_id, _, _ = split_variant(slug)
+        if slug in name_skin or base_id in name_base:
+            named += 1
+        if (d / f"{slug}.json").exists():
+            spined += 1
+        if (d / "combat" / f"{slug}.json").exists():
+            combat += 1
+    print(f"[staged]  {len(dirs)} slugs with a baked pose")
+    for k, n in sorted(by_kind.items(), key=lambda x: -x[1]):
+        print(f"  {k:10s} {n}")
+    print(f"[names]   {named} resolve a display name "
+          f"({len(name_base)} base heroes + {len(name_skin)} skins known)")
+    print(f"[spine]   {spined} with live-viewer JSON · {combat} with a combat rig")
+
+    for sub in ("portrait", "model"):
+        p = raw / sub
+        if p.exists():
+            n = sum(1 for f in p.iterdir() if f.suffix == ".scsp")
+            print(f"[raw]     {sub}: {n} .scsp rigs")
+
+    codes: set[str] = set()
+    for p in walk(img / "banner"):
+        codes |= {c.lower() for c in CODE_RE.findall(p.name.lower())}
+    sb = img / "story" / "bg"
+    if sb.exists():
+        for p in sb.iterdir():
+            codes |= {c.lower() for c in CODE_RE.findall(p.name.lower())}
+    unlabeled = sorted(codes - event_labels.keys())
+    print(f"[codes]   {len(codes)} codenames in banner/story tokens, "
+          f"{len(codes) - len(unlabeled)} labeled"
+          + (f" — unlabeled: {', '.join(unlabeled)}" if unlabeled else ""))
+    print("\n(read-only — nothing written)")
+
+
 def build(img: Path, raw: Path, out: Path) -> None:
     site_assets = out / "assets"
     if not site_assets.exists():
@@ -371,20 +434,20 @@ def build(img: Path, raw: Path, out: Path) -> None:
 
     # Unreleased-unit guard: slugs the game still labels "Unknown Hero" are
     # unannounced (placeholder rows in character_player.db; see
-    # tools/build_names.py). This project does not publish unreleased/datamined
-    # content, so they're dropped here and never listed. The flag flips to a
-    # real name shortly before release, so a unit surfaces automatically once
-    # it is officially announced.
+    # tools/build_names.py). They must not appear on the public site at all —
+    # no listing here, and deploy.ps1 keeps their assets off R2 + Pages. The
+    # flag flips to a real name a few days before release, so they surface
+    # automatically once SG announces them.
     unreleased: set[str] = set()
     p_unrel = root / "data_external" / "unreleased_units.json"
     if p_unrel.exists():
         unreleased = set(json.loads(p_unrel.read_text("utf-8")).get("slugs", []))
 
     # Token form for art whose FILENAME references an unreleased unit but doesn't
-    # resolve to a staged slug — e.g. a wallpaper `img_intimacy_illust_cNNNN` or
-    # banner `gacha_cNNNN_01_bg`. The unit-dir guard below never sees these, so
-    # the wallpaper/emote builders filter on this. Split on non-alphanumeric
-    # because '_cNNNN_' has no word boundary for a `\b`-anchored regex.
+    # resolve to a staged slug — e.g. wallpaper `img_intimacy_illust_c5069` or
+    # banner `gacha_c5069_01_bg`. The unit-dir guard above never sees these, so
+    # the wallpaper/emote builders below filter on this. Split on non-alphanumeric
+    # because '_c5069_' has no word boundary for a `\b`-anchored regex.
     _unrel_tokens = ({u.lower() for u in unreleased}
                      | {u.split("_")[0].lower() for u in unreleased})
     def refs_unreleased(name: str) -> bool:
@@ -512,7 +575,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
             # The staged JSON can't tell us — the 2.1.27 converter rewrites
             # skeleton.spine to "3.8.99" for spine-player compatibility — so we
             # re-detect from the raw .scsp. Fall back to 3.8.99 when the source
-            # isn't locatable (e.g. pre-converted rigs from the converted_json/ cache).
+            # .scsp isn't locatable.
             src_scsp = raw / "portrait" / f"{slug}.scsp"
             src_ver = (_detect_scsp_version(src_scsp) if src_scsp.exists() else None) or "3.8.99"
             unit["spine"] = [{
@@ -522,14 +585,17 @@ def build(img: Path, raw: Path, out: Path) -> None:
             }]
 
         # Combat rig (skill1/skill2/skill3/run/knock_down/rise animations).
-        # Staged by tools/prepare_combat_assets.py from output/model/.
+        # Staged by tools/prepare_combat_assets.py from output/model/. Only
+        # the 3.8.99 subset is currently supported — 2.1.27 combat rigs are
+        # blocked on multi-day RE (events block + post-events deferred
+        # linked-mesh table; see docs/TASKS.md "Combat rig live viewer").
         combat_json = d / "combat" / f"{slug}.json"
         if combat_json.exists():
             unit["has_combat"] = True
-            # Dual-rig units (a duo whose .scsp files are per-character) stage a
+            # Dual-rig units (e.g. c2185_1 Rhianna & Luciella) stage a
             # combat/rigs.json manifest listing each rig + a display label; the
-            # viewer renders a rig <select> from it. The primary's file is always
-            # <slug>.json, so the default load path is unchanged.
+            # viewer renders a rig <select> from it. The primary's file is
+            # always <slug>.json, so the default load path is unchanged.
             rigs_manifest = d / "combat" / "rigs.json"
             if rigs_manifest.exists():
                 unit["combat_rigs"] = json.loads(rigs_manifest.read_text(encoding="utf-8"))
@@ -541,7 +607,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
             if trim:
                 unit["pose_trim"] = trim
 
-        # Character-only hub thumbnail. Only emitted for slugs whose
+        # Character-only hub thumbnail (Task #8). Only emitted for slugs whose
         # rig has any FX/aura/backdrop slots — tools/render_thumbs.js skips
         # zero-hit slugs so their hub card falls back to pose.png. The smart-
         # crop (SLUG_THRESHOLDS) is baked into thumb.png at render time, so no
@@ -625,6 +691,11 @@ def build(img: Path, raw: Path, out: Path) -> None:
             units[primary]["skills"].append(f"assets/{primary}/{dst.name}")
 
     # Step 3b: intimacy illustrations — story/bg/img_intimacy_illust_c<id>.webp (skip _th).
+    # NOTE: only the `img_intimacy_illust_<slug>.webp` (story/bg) is the real
+    # fully-rendered illustration. `img_illust_<slug>.png` (item/art) and
+    # `sp_illust_<slug>_th.webp` are SELECTION THUMBNAILS, not the art — do NOT
+    # treat them as the illustration (the in-game illustration is animated w/ voice;
+    # its real static/animated source is still being identified, see TASKS).
     intimacy_re = re.compile(r"^img_intimacy_illust_(c\d+)\.webp$", re.I)
     _intimacy_dir = img / "story" / "bg"
     if _intimacy_dir.exists():
@@ -646,11 +717,37 @@ def build(img: Path, raw: Path, out: Path) -> None:
     # intimacy art as a multi-layer Spine effect rig (output/effect/uieff_illust_*),
     # not a static webp — baked offline (composited + cropped to the picture
     # rectangle) into assets/<slug>/intimacy.webm. When that file is present it WINS
-    # over the static webp; the frontend renders a looping <video> instead of an <img>.
+    # over the static webp; the frontend renders a looping <video> instead of an
+    # <img>. Currently c1153 (Harsetti); c2181_1 (Notos) pending.
     for uid, u in units.items():
         webm = site_assets / uid / "intimacy.webm"
         if webm.exists():
-            u["intimacy"] = f"assets/{uid}/intimacy.webm"
+            # Append a content-version query (file mtime) so a re-baked clip gets a
+            # NEW URL: the filename never changes, so Cloudflare's edge would keep
+            # serving the stale copy for hours after a redeploy (a redeploy does not
+            # evict the edge cache). The query is part of the CF cache key, so each
+            # new bake is a guaranteed cache miss → fresh fetch. units.json itself is
+            # served DYNAMIC (uncached), so the new query reaches clients immediately.
+            ver = int(webm.stat().st_mtime)
+            u["intimacy"] = f"assets/{uid}/intimacy.webm?v={ver}"
+        # Voice-triggered reaction clips (silent): intimacy_<kind>_<n>.webm, each with
+        # a poster intimacy_<kind>_<n>.jpg. The frontend shows them as a clickable row
+        # under the idle illustration (open in the video lightbox). Labelled from the
+        # filename: enter -> "Greeting", touch -> "Touch".
+        reacts = sorted((site_assets / uid).glob("intimacy_*.webm"))
+        if reacts:
+            LBL = {"enter": "Greeting", "touch": "Touch"}
+            rlist = []
+            for p in reacts:
+                parts = p.stem.split("_")        # intimacy_enter_1 -> [intimacy, enter, 1]
+                kind, num = (parts[1], parts[-1]) if len(parts) >= 3 else (parts[-1], "")
+                poster = site_assets / uid / f"{p.stem}.jpg"
+                rlist.append({
+                    "webm": f"assets/{uid}/{p.name}",
+                    "poster": f"assets/{uid}/{p.stem}.jpg" if poster.exists() else None,
+                    "label": f"{LBL.get(kind, kind.title())} {num}".strip(),
+                })
+            u["intimacy_reactions"] = rlist
 
     # Step 4: update gallery — copy banner art + story images per KNOWN_UPDATE codename.
     updates_dir = site_assets / "_updates"
@@ -836,7 +933,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
         dst = wp_dir / rel / src.name
         rel_str = f"assets/_wallpapers/{rel.as_posix()}/{src.name}"
         if refs_unreleased(src.stem):
-            # Unreleased-unit art (e.g. img_intimacy_illust_cNNNN) — never publish,
+            # Unreleased-unit art (e.g. img_intimacy_illust_c5069) — never publish,
             # and purge any copy a prior build staged before the guard existed.
             if dst.exists():
                 try: dst.unlink()
@@ -886,7 +983,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
             add_wallpaper(p, "story")
 
     # Flag newly-seen units/artifacts/emotes/wallpapers (first_seen ledger) +
-    # float artifacts up (units/emotes/wallpapers float up in the frontend).
+    # float artifacts up (units sort new-first in the frontend; emotes/wallpapers
+    # float up there too).
     n_new = apply_new_flags(units, artifacts_out, emotes_list, wallpapers)
     n_mod = apply_modified_flags(units)
     artifacts_out.sort(key=lambda a: (not a.get("new"),
@@ -924,6 +1022,67 @@ def build(img: Path, raw: Path, out: Path) -> None:
         json.dumps(wallpapers, indent=1, ensure_ascii=False), "utf-8")
     (data / "artifacts.json").write_text(
         json.dumps(artifacts_out, indent=1, ensure_ascii=False), "utf-8")
+
+    # Step 8: SEO prerender stubs — one static page per base hero at /u/<base>,
+    # plus sitemap.xml + robots.txt. The SPA routes by hash (#/u/<base>), which
+    # crawlers don't index, so heroes were invisible to search; these stubs give
+    # each one a crawlable URL with a real <title>/description/OG image, then
+    # bounce human visitors to the hash route. Cloudflare Pages serves /u/<base>
+    # from u/<base>.html natively (automatic .html resolution). Units here have
+    # already passed the unreleased guard, so stubs can't leak; stale stubs for
+    # pulled/renamed bases are pruned each build.
+    SITE_ORIGIN = "https://e7codex.com"
+    u_dir = out / "u"
+    u_dir.mkdir(exist_ok=True)
+    stub_bases: dict[str, list[dict]] = defaultdict(list)
+    for u in units.values():
+        stub_bases[u.get("base_id") or u["id"]].append(u)
+    for base, group in stub_bases.items():
+        rep = next((x for x in group if not x.get("variant")), group[0])
+        name = rep.get("hero_name") or rep.get("name") or base
+        forms = f" {len(group)} forms." if len(group) > 1 else ""
+        desc = (f"{name} — Epic Seven artwork, baked poses and a live Spine "
+                f"viewer on E7 Codex.{forms}")
+        e = html.escape
+        pose_url = f"{SITE_ORIGIN}/{rep['pose']}"
+        page_url = f"{SITE_ORIGIN}/u/{base}"
+        (u_dir / f"{base}.html").write_text(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{e(name)} — E7 Codex</title>
+<meta name="description" content="{e(desc)}">
+<link rel="canonical" href="{page_url}">
+<meta property="og:site_name" content="E7 Codex">
+<meta property="og:title" content="{e(name)} — E7 Codex">
+<meta property="og:description" content="{e(desc)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{page_url}">
+<meta property="og:image" content="{pose_url}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{e(name)} — E7 Codex">
+<meta name="twitter:image" content="{pose_url}">
+<script>location.replace("/#/u/{base}");</script>
+</head>
+<body>
+<p><a href="/#/u/{base}">{e(name)} on E7 Codex — artwork &amp; pose archive</a></p>
+</body>
+</html>
+""", "utf-8")
+    valid_stubs = {f"{b}.html" for b in stub_bases}
+    n_pruned = 0
+    for p in u_dir.glob("*.html"):
+        if p.name not in valid_stubs:
+            p.unlink()
+            n_pruned += 1
+    urls = [f"{SITE_ORIGIN}/"] + [f"{SITE_ORIGIN}/u/{b}" for b in sorted(stub_bases)]
+    (out / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "".join(f"  <url><loc>{u}</loc></url>\n" for u in urls)
+        + "</urlset>\n", "utf-8")
+    (out / "robots.txt").write_text(
+        f"User-agent: *\nAllow: /\nSitemap: {SITE_ORIGIN}/sitemap.xml\n", "utf-8")
 
     # Summary.
     by_kind: dict[str, int] = defaultdict(int)
@@ -963,6 +1122,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
           f"(first-seen within {NEW_WINDOW_DAYS}d; first_seen.json)")
     print(f"[upd]     {n_mod} unit(s) flagged updated "
           f"(within {MOD_WINDOW_DAYS}d; modified.json)")
+    print(f"[seo]     {len(stub_bases)} prerender stubs in site/u/ + sitemap.xml"
+          + (f" ({n_pruned} stale pruned)" if n_pruned else ""))
     print(f"\n-> {data / 'units.json'}\n-> {data / 'updates.json'}"
           f"\n-> {data / 'emotes.json'}\n-> {data / 'wallpapers.json'}"
           f"\n-> {data / 'artifacts.json'}")
@@ -973,5 +1134,10 @@ if __name__ == "__main__":
     ap.add_argument("--img", required=True, help="img_output root (decoded PNGs)")
     ap.add_argument("--raw", required=True, help="output/ root (story paths for codename scan)")
     ap.add_argument("--out", default="./site")
+    ap.add_argument("--inspect", action="store_true",
+                    help="read-only report (no files written)")
     a = ap.parse_args()
-    build(Path(a.img), Path(a.raw), Path(a.out))
+    if a.inspect:
+        inspect(Path(a.img), Path(a.raw), Path(a.out))
+    else:
+        build(Path(a.img), Path(a.raw), Path(a.out))

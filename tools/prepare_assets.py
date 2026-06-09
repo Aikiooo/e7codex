@@ -2,7 +2,7 @@
 Stage one (or many) E7 portrait units into site/assets/<slug>/.
 
 For each <slug>, produces:
-  site/assets/<slug>/<slug>.json    Spine JSON (reused from the converted_json/ cache if already converted, else freshly via scsp_to_json.py)
+  site/assets/<slug>/<slug>.json    Spine JSON (converted fresh via scsp_to_json.py)
   site/assets/<slug>/<slug>.atlas   atlas with the .sct line rewritten to .png
   site/assets/<slug>/<slug>.png     decoded texture
 
@@ -12,16 +12,14 @@ and get a renderable rig. Pair with render_poses.js to bake a static pose.png.
 Usage:
   python prepare_assets.py <slug> [<slug> ...]
   python prepare_assets.py --all                # every .scsp in output/portrait
-  python prepare_assets.py --from-converted     # every json that already exists in converted_json/
 """
 from __future__ import annotations
-import argparse, re, shutil, sys, traceback
+import argparse, re, sys, traceback
 from pathlib import Path
 
 THIS   = Path(__file__).resolve()
-REPO   = THIS.parents[1]                       # repo root
-ROOT   = REPO.parent                           # parent dir holding your asset dump
-CONVERTED_DIR = ROOT / "converted_json"   # optional cache of pre-converted Spine JSONs
+REPO   = THIS.parents[1]                       # E7 Codex
+ROOT   = REPO.parent                           # D:\Claude\E7
 SITE   = REPO / "site" / "assets"
 
 sys.path.insert(0, str(THIS.parent))
@@ -73,16 +71,10 @@ def stage_one(slug: str, force: bool = False) -> tuple[bool, str]:
     dst_png   = dst_dir / f"{slug}.png"
     dst_dir.mkdir(parents=True, exist_ok=True)
 
-    # JSON — prefer converted_json/<slug>.json, fall back to <src_slug>.json if different.
+    # JSON — always convert fresh from the .scsp (the converter is the single
+    # source of truth; no stale pre-converted cache).
     if force or not dst_json.exists():
-        conv_json = CONVERTED_DIR / f"{slug}.json"
-        conv_src  = CONVERTED_DIR / f"{src_slug}.json"
-        if conv_json.exists():
-            shutil.copy2(conv_json, dst_json)
-        elif src_slug != slug and conv_src.exists():
-            shutil.copy2(conv_src, dst_json)
-        else:
-            scsp_to_json.convert(scsp, dst_json)
+        scsp_to_json.convert(scsp, dst_json)
 
     # texture
     if force or not dst_png.exists():
@@ -98,19 +90,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("slugs", nargs="*")
     ap.add_argument("--all", action="store_true")
-    ap.add_argument("--from-converted", action="store_true",
-                    help="stage every slug that already has a JSON in the converted_json/ cache")
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
 
     slugs: list[str] = [normalize_slug(s) for s in a.slugs]
     if a.all:
         slugs += [normalize_slug(p.stem) for p in PORT.glob("*.scsp")]
-    if a.from_converted:
-        slugs += [normalize_slug(p.stem) for p in CONVERTED_DIR.glob("*.json")]
     slugs = sorted(set(slugs))
     if not slugs:
-        ap.error("no slugs given (use positional args, --all, or --from-converted)")
+        ap.error("no slugs given (use positional args or --all)")
 
     ok = fail = 0
     for s in slugs:

@@ -1,51 +1,61 @@
 """Build data_external/names_from_db.json — self-sufficient hero names + metadata.
 
-Decodes Epic Seven's local data files directly from your own game output dir
-(no external API, no runtime dependency) to pull each unit's display name +
-rarity + attribute + role straight from the game, so the project no longer
-depends on community JSONs for that data. Joins two tables:
+Pulls display name + rarity + attribute + role straight from the game's own
+encrypted tables, replacing the community-JSON dependency for that data
+(see docs/TASKS.md #42 / #45). Joins two decrypted tables:
 
-  text/en/text.db          -> {export_id: text}   (chrn_* -> "Ras", ...)
-  db/character_player.db    -> per c-slug row; columns (fixed 98-wide schema):
-                                 [0]  id (c-slug, incl. costume slugs)
-                                 [3]  name key  (chrn_<base>)
-                                 [4]  rarity    ("3".."6")
-                                 [7]  attribute (fire/ice/wind/light/dark)
-                                 [8]  role/class (warrior/knight/ranger/mage/
-                                                  manauser/assassin/material)
+  text/en/text.db            -> {export_id: text}   (chrn_* -> "Ras", ...)
+  db/character_player.db     -> per c-slug row; cols (fixed 98-wide schema):
+                                  [0]  id (c-slug, incl. costume slugs)
+                                  [3]  name key  (chrn_<base>)
+                                  [4]  rarity    ("3".."6")
+                                  [7]  attribute (fire/ice/wind/light/dark)
+                                  [8]  role/class (warrior/knight/ranger/mage/
+                                                   manauser/assassin/material)
+                                  [20] combat model name (output/model/<name>.scsp)
 
 Output (data_external/names_from_db.json), keyed by c-slug:
-  { "c1001": {"name": "Ras", "rarity": 3, "attribute": "fire", "role": "knight"}, ... }
+  { "c1001": {"name":"Ras","rarity":3,"attribute":"fire","role":"knight"}, ... }
 
-The attribute + role vocabulary matches the community DBs (the frontend aliases
-manauser->soul-weaver / assassin->thief at render time), so the output is a
-drop-in metadata source layered ahead of them in build_index.py. Skin DISPLAY
-names are NOT in character_player.db — costume rows reuse the base hero's chrn_
-key — so the community skin DB stays the source for those, as does the
-ceciliabot kebab (URL slug), which isn't in the game data either.
+Also emits data_external/model_map_from_db.json — { c-slug: model_name } from
+col[20]. This is the AUTHORITATIVE c-slug -> combat-rig-filename map (handles
+romanizations, ML/seasonal forms, and internal codenames that the ceciliabot
+kebab can't), consumed by prepare_combat_assets.py to map output/model/*.scsp
+rigs to their unit without hand-maintained alias/override tables. Unreleased
+slugs are excluded here too (never stage an unannounced unit's rig).
+
+The attribute + role vocabulary is identical to HeroDatabase.json (the frontend
+aliases manauser->soul-weaver / assassin->thief at render time), so the output
+is a drop-in metadata source. Skin DISPLAY names (sn_* keys, e.g. "Arbiter
+Vildred") are NOT in character_player.db — costume rows reuse the base hero's
+chrn_ key — so HeroSkins.json stays the source for those. The ceciliabot kebab
+(URL slug) likewise isn't in the game data and still comes from HeroDatabase.
 
 UNRELEASED GUARD: the game ships placeholder rows for unannounced units whose
-name resolves to the literal "Unknown Hero". Those names are NOT written to
-names_from_db.json (so they can't clobber a real name), and the slugs are
-written to data_external/unreleased_units.json instead. build_index.py uses that
-list to keep unannounced units off the site entirely — the project does not
-publish datamined/unreleased content. The flag flips to a real name shortly
-before release, so a unit surfaces automatically once it is officially announced.
+name key resolves to the literal "Unknown Hero" (~168 reserved future slots).
+Those names are NOT written to names_from_db.json — both to avoid clobbering a
+real community name (e.g. c6023 leaked as "Acolyte of the End Kayron") and
+because the label is the game's own authoritative "not yet announced" signal.
+Their c-slugs are emitted to data_external/unreleased_units.json instead; the
+build + deploy pipeline uses that list to keep them off the public site
+entirely (no listing, no rendered art served). The flag flips to a real name a
+few days before release, so a unit surfaces automatically once SG announces it.
+See docs/TASKS.md #42 and the conversation log for the DMCA rationale.
 
-Keys + paths are local-only. Copy tools/voice_keys.example.json → voice_keys.json
-(gitignored) and fill in the values from your own install: the game output dir,
-the outer-XOR key file, and the default XXTEA key. DB values are cocos-XXTEA; the
-outer layer is a 256-byte rolling XOR (same primitives as build_voices.py).
+Cipher reference: GAMEBIN_CRACK_FINDINGS.md + memory reference-e7-text-db-format.
+Mirrors tools/build_voices.py (same cocos-XXTEA + outer-XOR primitives). Keys
+and dump path are local-only via tools/voice_keys.json (gitignored).
 """
 import struct, json, sys
 from pathlib import Path
 
 _CFG_PATH = Path(__file__).parent / 'voice_keys.json'
 if not _CFG_PATH.exists():
-    raise SystemExit('missing tools/voice_keys.json — copy voice_keys.example.json '
-                     'and fill in your local paths + key')
+    raise SystemExit('missing tools/voice_keys.json — copy from build_voices.py setup '
+                     '(dump_dir, outer_key_file, default_xxtea_key)')
 _CFG = json.loads(_CFG_PATH.read_text(encoding='utf-8'))
 
+DUMP = Path(_CFG['dump_dir'])
 sys.path.insert(0, str(Path(__file__).parent))
 from paths import RAW_DIR  # central data-dir config
 OUT_DB = RAW_DIR / 'db'
@@ -62,8 +72,17 @@ DEFAULT_KEY = tuple(int(str(x), 16) for x in _CFG['default_xxtea_key'])
 ELEMENTS = {'fire', 'ice', 'wind', 'light', 'dark'}
 ROLES = {'warrior', 'knight', 'ranger', 'mage', 'manauser', 'assassin'}
 UNRELEASED_NAME = 'Unknown Hero'   # game's placeholder for unannounced units
+# Manually-suppressed units that are ANNOUNCED (so they already carry a real name
+# and the 'Unknown Hero' auto-signal misses them) but NOT YET RELEASED. Hosting
+# pre-release art is the highest DMCA risk (see CLAUDE.md "Unreleased-unit guard"),
+# so we hide these by hand until launch, then DELETE the entry here. Use base slugs
+# — build_index drops by slug OR base, so a base covers its skins/variants/_1 sibling.
+MANUAL_UNRELEASED = {
+    'c5069',   # added 2026-05-30 — announced, not yet released
+    # c2185 Rhianna & Luciella released 2026-06-04 — blockage dropped
+}
 
-# ---- cipher primitives (same as build_voices.py) ----
+# ---- cipher primitives (verbatim from build_voices.py) ----
 def xxtea_dec(v, k):
     v = list(v); n = len(v)
     if n < 2: return v
@@ -114,9 +133,9 @@ _PRE = OUTER_KEY.read_bytes()
 _BASE = _PRE[256 - 51:] + _PRE[:256 - 51]
 
 def outer_decrypt_textdb(cipher):
-    # text.db's outer-XOR offset is NOT fixed: it was 0, but a later update
-    # shifted it to 180. Brute the offset against the PLPcK magic, the same
-    # way outer_decrypt_db does for the other db files.
+    # text.db's outer-XOR offset is NOT fixed: it was 0, but the 2026-06-04
+    # update shifted it to 180. Brute the offset against the PLPcK magic, the
+    # same way outer_decrypt_db does for the other db files.
     for off in range(256):
         if bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(5)) == b'PLPcK':
             return bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(len(cipher)))
@@ -148,10 +167,11 @@ def decode_text(keymap):
 # The playable roster is split across THREE tables, all sharing the same
 # positional schema ([0]=c-slug, [3]=chrn_ name key, [4]=rarity, [7]=attribute,
 # [8]=role, [20]=combat-rig name). `character_player.db` is the modern roster;
-# `grade2` carries awakened/promoted forms; `grade3` carries the OLD 3-star/4-star
-# units that aren't in the base table — they map to their (often generic
-# class/element) battle rig via col[20]. Reading only the base table left the old
-# units unmapped. Base is listed FIRST so it wins on any duplicate c-slug.
+# `grade2` carries awakened/promoted forms; `grade3` carries the OLD 3★/4★ units
+# (Kluri, Adlay, the elemental Adins, …) that aren't in the base table — they map
+# to their (often generic class/element) battle rig via col[20]. Reading only the
+# base table left ~86 old units unmapped. Base is listed FIRST so it wins on any
+# duplicate c-slug (modern data is the most authoritative).
 PLAYER_DBS = (
     'character_player.db',
     'character_player_grade2.db',
@@ -220,7 +240,18 @@ def main():
             rec['role'] = r[8]
         out[cslug] = rec
         if len(r) > 20 and r[20]:
-            model_map[cslug] = r[20]   # col[20] = combat-rig filename
+            model_map[cslug] = r[20]
+
+    # Fold in the manual override list (announced-but-unreleased units the auto
+    # 'Unknown Hero' signal misses). Drop any emitted name/model for them too so
+    # nothing downstream can surface them.
+    n_manual = 0
+    for s in MANUAL_UNRELEASED:
+        out.pop(s, None)
+        model_map.pop(s, None)
+        if s not in unreleased:
+            unreleased.append(s)
+            n_manual += 1
 
     DATA_EXTERNAL.mkdir(parents=True, exist_ok=True)
     out_path = DATA_EXTERNAL / 'names_from_db.json'
@@ -228,11 +259,10 @@ def main():
               indent=0, sort_keys=True)
     unreleased.sort()
     unrel_path = DATA_EXTERNAL / 'unreleased_units.json'
-    json.dump({'signal': "character_player.db name == '%s'" % UNRELEASED_NAME,
+    json.dump({'signal': "character_player.db name == '%s' + MANUAL_UNRELEASED" % UNRELEASED_NAME,
+               'manual': sorted(MANUAL_UNRELEASED),
                'slugs': unreleased},
               open(unrel_path, 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
-    # c-slug -> combat-rig filename (col[20]); authoritative map consumed by
-    # prepare_combat_assets.py. Excludes unreleased units.
     model_path = DATA_EXTERNAL / 'model_map_from_db.json'
     json.dump(model_map, open(model_path, 'w', encoding='utf-8'),
               ensure_ascii=False, indent=0, sort_keys=True)
@@ -241,7 +271,8 @@ def main():
     print('\nwrote %s' % out_path)
     print('  entries: %d  (with full name+rarity+attribute+role: %d)' % (len(out), full))
     print('wrote %s' % unrel_path)
-    print('  unreleased (Unknown Hero) slugs: %d' % len(unreleased))
+    print('  unreleased slugs: %d  (Unknown Hero auto: %d, manual override: %d)'
+          % (len(unreleased), len(unreleased) - n_manual, n_manual))
     print('wrote %s' % model_path)
     print('  c-slug -> combat model entries: %d' % len(model_map))
     for k in ('c1001', 'c1067_s01', 'c1112', 'c1137'):

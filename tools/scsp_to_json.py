@@ -15,7 +15,7 @@ Usage:
     python scsp_to_json.py <input.scsp> <output.json>
 """
 from __future__ import annotations
-import argparse, re, struct, subprocess, sys, tempfile, shutil
+import argparse, struct, subprocess, sys, tempfile, shutil
 from pathlib import Path
 import lz4.block
 
@@ -52,16 +52,9 @@ def convert_2_1(scsp: Path, out_json: Path) -> bool:
     return out_json.exists()
 
 def convert_3_8(scsp: Path, out_json: Path) -> bool:
-    """E7_Scsp2Json.py reads INPUT_PATH/OUTPUT_PATH from module constants. Stage
-    the file in a tempdir and rewrite those constants for this one run,
-    regardless of their default values."""
+    """E7_Scsp2Json.py reads INPUT_PATH from a constant. Stage the file in a tempdir
+    and rewrite the constants for this one run."""
     src = CONV_3_8.read_text(encoding="utf-8")
-
-    def _set_const(text: str, name: str, value: Path) -> str:
-        # Forward slashes work on every OS and dodge backslash-escaping in r"".
-        v = str(value).replace("\\", "/")
-        return re.sub(rf"^{name}\s*=.*$", f'{name} = r"{v}"', text, count=1, flags=re.M)
-
     with tempfile.TemporaryDirectory() as td:
         td_in  = Path(td) / "in"
         td_out = Path(td) / "out"
@@ -71,8 +64,12 @@ def convert_3_8(scsp: Path, out_json: Path) -> bool:
         for ext in (".scsp", ".atlas", ".sct"):
             sib = scsp.with_suffix(ext)
             if sib.exists(): shutil.copy2(sib, td_in / sib.name)
-        patched = _set_const(src, "INPUT_PATH", td_in)
-        patched = _set_const(patched, "OUTPUT_PATH", td_out)
+        # patch the two path constants
+        patched = (src
+                   .replace('INPUT_PATH = r"D:\\Claude\\E7\\output\\portrait"',
+                            f'INPUT_PATH = r"{td_in}"')
+                   .replace('OUTPUT_PATH = r"D:\\Claude\\E7\\yes"',
+                            f'OUTPUT_PATH = r"{td_out}"'))
         patched_script = Path(td) / "_run.py"
         patched_script.write_text(patched, encoding="utf-8")
         r = subprocess.run([sys.executable, str(patched_script)], capture_output=True, text=True)
@@ -103,9 +100,9 @@ def post_process_2_1_27(out_json: Path) -> None:
     # scale-inheritance path. 2.1.x tracked worldScaleX/Y as SCALARS and rebuilt a
     # clean rotation*scale matrix, so non-uniform parent scale never produced shear.
     # spine-player 3.8 composes full matrices, which accumulate shear from a
-    # counter-scaled rotated parent and explode long-aspect weapon meshes into
-    # needles. A no-op for any bone without non-uniform scale under rotation, and
-    # inert unless the spine-player carries the matching e7v21x patch (see README).
+    # counter-scaled rotated parent (e.g. c3002 onehanded_ice's b_idle left-arm
+    # squash) and explode long-aspect weapon meshes into needles. A no-op for any
+    # bone without non-uniform scale under rotation. (2026-06-02 mesh-residual fix.)
     skel["e7v21x"] = True
     data["skeleton"] = skel
 
@@ -313,9 +310,10 @@ def post_process_2_1_27(out_json: Path) -> None:
     # scale (which stores absolute ratios with default 1.0). When the mix
     # timeline keyframes don't align with the bone-timeline keyframes, the
     # mix is linear-interpolated at the bone keyframe times. The bone's
-    # curve metadata is preserved unchanged. Verified visually on c1144 idle:
-    # head/center/leg bones with mode 9 mix=1 reverted from animated deltas to
-    # setup pose, fixing the "head offset" and splayed-leg symptoms.
+    # curve metadata is preserved unchanged. Verified visually on c1144
+    # idle 2026-05-23: head/center/leg bones with mode 9 mix=1 reverted from
+    # animated deltas to setup pose, fixing the user-reported "head offset"
+    # and splayed-leg symptoms.
     bone_names_e7 = [b.get("name", "") for b in data.get("bones", [])]
 
     def _e7_mix_at(frames, t):
@@ -362,13 +360,18 @@ def post_process_2_1_27(out_json: Path) -> None:
                         else:
                             entry[axis] = round(new, 4)
 
-    # The mode 9/10 record layout is idx(4)+sub_type(4)+count(4)+frames(time,mix):
-    # every idx resolves to a real bone, and sub_type is a constant per-mode flag
-    # (1 for mode 9, 0 for mode 10). Example: c1018 has 17 mode-9 records
-    # targeting arm bones (l_shoulder0, l_arm2, l_hend, r_arm0/2, r_hend) with
-    # mix=1 keyframes — without the bake, the arms animate freely where the
-    # binary says "clamp to setup", producing a "left arm rotates wrong
-    # direction" defect.
+    # Re-enabled 2026-05-24: the byte-layout sanity check via
+    # tools/_dump_mode9_subtype.py confirmed converter's idx(4)+sub_type(4)+
+    # count(4)+frames(time,mix) interpretation is correct (every idx resolves
+    # to a real bone, sub_type is a constant per-mode flag = 1 for mode 9 and
+    # 0 for mode 10). The Ghidra-derived "two float arrays" hypothesis from
+    # the late+2 disable is contradicted by that data. c1018 specifically has
+    # 17 mode-9 records targeting arm bones (l_shoulder0, l_arm2, l_hend,
+    # r_arm0/2, r_hend) with mix=1 keyframes — without the bake, the arms
+    # animate freely where the binary says "clamp to setup", producing the
+    # "left arm rotates wrong direction" symptom. The late+1 mix-bake-ship
+    # saw c1018 still broken, but at that point ffd→deform hadn't shipped
+    # yet (late+5), so cloth/skirt/cape artefacts likely masked the arm fix.
     for anim in data.get("animations", {}).values():
         recs = anim.pop("_e7_mix_records", None) or []
         if not recs:
@@ -386,7 +389,7 @@ def post_process_2_1_27(out_json: Path) -> None:
                 continue
             _e7_apply_mix_to_bone(tls, rec.get("frames", []))
 
-    # Per-animation drawOrder timeline (mode-6 revision).
+    # Per-animation drawOrder timeline (2026-05-25, mode-6 revision).
     #
     # The 2.1.27 reader now decodes timeline mode 6 as the DrawOrder timeline.
     # It was previously mislabeled FLIPY and skipped, which BOTH lost the

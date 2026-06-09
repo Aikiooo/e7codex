@@ -8,7 +8,7 @@
 //   node tools/render_poses.js --dsr 4         # force a fixed device scale factor
 //
 // Requires: puppeteer (already in package.json), and tools/spine-player.{js,css}
-// must exist (one-shot setup: see the "Cache the Spine runtime" step in README).
+// must exist (one-shot setup: see tools/fetch_spine_player.sh equivalent in README).
 
 const http = require("http");
 const fs   = require("fs");

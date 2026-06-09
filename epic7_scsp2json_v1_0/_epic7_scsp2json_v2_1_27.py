@@ -486,14 +486,14 @@ def _scsp_readSkins(input, refStrings_raw, bones, slots, count_skins):
         # were always full-size.)
         skin_width      = _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 3))
         skin_height     = _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 3))
-        
+
         skin_color = _scsp_funcs._scsp_4fuckingfloats2rgba(_scsp_funcs._scsp_readFloat(input),
                                                            _scsp_funcs._scsp_readFloat(input),
-                                                           _scsp_funcs._scsp_readFloat(input), 
+                                                           _scsp_funcs._scsp_readFloat(input),
                                                            _scsp_funcs._scsp_readFloat(input)) #RGBA
-        
+
         _scsp_funcs._scsp_skipUnknowns(input, 8)
-    
+
         _tex_w          = _scsp_funcs._scsp_readInt(input)  # packed texture size (unused; atlas handles UVs)
         _tex_h          = _scsp_funcs._scsp_readInt(input)
 

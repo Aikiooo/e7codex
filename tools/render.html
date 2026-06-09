@@ -38,7 +38,7 @@
   //   <expression> — angry / panic / sad / smile / special, with the
   //                  face base + expression overlay
   // The runtime needs all three layered to produce a "rested" pose:
-  // default + normal + first non-empty expression.
+  // default + normal + first non-empty expression. See docs/TASKS.md.
   //
   // Optional URL params for diagnosing:
   //   ?face=off          — no combining; use default skin as-is
@@ -48,7 +48,7 @@
   //   ?thumb=1           — character-only render: wipe FX/aura/backdrop
   //                        attachments from every skin so the auto-fit
   //                        viewport tightens onto the character body.
-  //                        Used for hub thumbnails. See HIDE_PREFIX
+  //                        Backs Task #8 (hub thumbnails). See HIDE_PREFIX
   //                        / HIDE_FX_SUFFIX below for the slot-name patterns.
   const params  = new URLSearchParams(location.search);
   const slug    = params.get("slug");
@@ -69,7 +69,7 @@
 
   // Additional per-call hide patterns via `?ehide=<regex>,<regex>,...` (each
   // entry URL-encoded). render_poses.js / render_thumbs.js inject
-  // slot_excludes.json through this.
+  // slot_excludes.json through this; scene_compare.js uses it to A/B-test.
   const ehideArg = params.get("ehide");
   const ehideExtra = [];
   if (ehideArg) {
@@ -161,14 +161,14 @@
         const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;
         const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
         // Per-slug overrides for rigs whose missing-face slot does NOT match
-        // the regex above (the EXPRESSION_FORCE allowlist).
+        // the regex above. See tools/audit_skins.py EXPRESSION_FORCE.
         const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01", "c4141", "c1117", "c1138", "c1128"]);
         // Second heuristic: rigs that have NO neutral face anywhere in
         // default+normal but expressions provide one. Broader face-piece
         // regex (allows suffixes like `_ag`/`_sm`, path prefixes like
         // `normal/face_nm`) — deliberately excludes bare `normal` since
         // in minimalist NPC rigs that slot is the body, not the face.
-        // Catches npc1136 / npc1138 / npc1175.
+        // Catches npc1136 / npc1138 / npc1175. See tools/audit_skins.py.
         const FACE_PIECE_RE = /^(?:[a-z]+\/)?(face|head|eye|mouth|lip|brow|eyebrow|nose|cheek)(?:[A-Z\d]|[_/]\w+)?$/i;
         const EXPR_SKIN_NAMES = ["smile","angry","panic","sad","special","special2","special3"];
         function skinHasFacePiece(skinName) {
@@ -296,7 +296,8 @@
           // auto-frame viewport from the FULL idle (framing unchanged); now pin
           // the track to its first frame and freeze stepping so the snapshot is
           // reproducible and lands on the authored neutral rest (eyes open) — not
-          // a random mid-idle moment that can catch a blink. Fresh track → no
+          // a random mid-idle moment that can catch a blink (the reason c2185_1's
+          // thumb had closed eyes while its pose didn't). Fresh track → no
           // mixingFrom, so timeScale=0 is safe here (see the spine-player
           // freeze-trap note). Falls back to live capture if the state differs.
           try {

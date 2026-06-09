@@ -18,8 +18,8 @@ from typing import Any, Dict, List, Optional, Tuple, Set
 # ==============================
 # Config
 # ==============================
-INPUT_PATH = r"./scsp_input"
-OUTPUT_PATH = r"./json_output"
+INPUT_PATH = r"D:\Claude\E7\output\portrait"
+OUTPUT_PATH = r"D:\Claude\E7\yes"
 
 
 IS_COMPRESS_JSON = True

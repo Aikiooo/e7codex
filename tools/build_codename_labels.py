@@ -27,28 +27,28 @@ labels WIN on overlap (the in-game name is canonical), and any DB codename
 with no prior label is added (so new events start appearing in the Updates
 view automatically when their banners ship). Story-style codenames (`vNNNNa`)
 are emitted for completeness even though the current Updates view filter
-(`v[a-z0-9]{3}aa`) won't pick them up — future tabs could use them.
+(`v[a-z0-9]{3}aa`) won't pick them up — future tabs (#49 Events) can use them.
 
-Note on related tables: `background_main.db` is NOT a codename → label
-source — its row IDs are scene-slot names (`grassland_1`, `castle_2`, ...)
-describing parallax layers, not version codenames. `background.db` won't
-outer-decrypt at all (no PLPcK magic — different on-disk format).
-`substory_main_illust.db` carries codenames in col[2] but no label column.
-Single-table join on `substory_main.db` is sufficient.
+Premise correction vs the original task brief: `background_main.db` is NOT
+useful here — its row IDs are scene-slot names (`grassland_1`, `castle_2`,
+...) describing parallax layers, not version codenames. The codename→label
+join lives entirely in `substory_main.db`. `substory_main_illust.db` carries
+codenames in col[2] but no label column. Single-table join is the answer.
 
-Mirrors build_names.py / build_artifacts.py / build_voices.py (same cipher
-primitives inline; DB values are cocos-XXTEA, outer layer is a 256-byte
-rolling XOR). Keys + paths live in gitignored tools/voice_keys.json — copy
-voice_keys.example.json to voice_keys.json and fill in the values from your
-own install.
+Cipher reference: GAMEBIN_CRACK_FINDINGS.md + memory reference-e7-text-db-format.
+Mirrors tools/build_names.py (same cocos-XXTEA + outer-XOR primitives inline).
+Keys/paths in gitignored tools/voice_keys.json.
+
+Self-sufficient ([[feedback-self-sufficient]]): all inputs are on-disk under
+extracted_data/output/; no network/CDN dependency at build OR runtime.
 """
 import struct, json, sys, re
 from pathlib import Path
 
 _CFG_PATH = Path(__file__).parent / 'voice_keys.json'
 if not _CFG_PATH.exists():
-    raise SystemExit('missing tools/voice_keys.json — copy voice_keys.example.json '
-                     'and fill in your local paths + key')
+    raise SystemExit('missing tools/voice_keys.json — copy from build_voices.py setup '
+                     '(dump_dir, outer_key_file, default_xxtea_key)')
 _CFG = json.loads(_CFG_PATH.read_text(encoding='utf-8'))
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -122,9 +122,9 @@ _PRE = OUTER_KEY.read_bytes()
 _BASE = _PRE[256 - 51:] + _PRE[:256 - 51]
 
 def outer_decrypt_textdb(cipher):
-    # text.db's outer-XOR offset is NOT fixed: it was 0, but a later update
-    # shifted it to 180. Brute the offset against the PLPcK magic, the same
-    # way outer_decrypt_db does for the other db files.
+    # text.db's outer-XOR offset is NOT fixed: it was 0, but the 2026-06-04
+    # update shifted it to 180. Brute the offset against the PLPcK magic, the
+    # same way outer_decrypt_db does for the other db files.
     for off in range(256):
         if bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(5)) == b'PLPcK':
             return bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(len(cipher)))

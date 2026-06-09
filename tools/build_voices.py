@@ -1,22 +1,24 @@
 """Build site/data/voices.json — per-hero voice metadata.
 
-Decodes Epic Seven's local data files directly from your own game output dir
-(no external API, no runtime dependency) and joins three tables:
+Self-contained: decodes Epic Seven's encrypted DBs directly from `output/`
+(no external API, no runtime dep). Joins three decrypted tables:
 
-  text/en/text.db                 -> {export_id: text}  (label/actor-name lookup)
-  db/character_voice.db           -> per c-slug voice ACTOR credit keys (kr/ja/en/zhs)
-  db/character_intimacy_voice.db  -> per-event voice LINE catalog (sound path + label)
+  text/en/text.db              -> {export_id: text}  (label/actor-name lookup)
+  db/character_voice.db        -> per c-slug voice ACTOR credit keys (kr/ja/en/zhs)
+  db/character_intimacy_voice.db -> per-event voice LINE catalog (sound path + label)
 
 Output (site/data/voices.json), keyed by c-slug:
   { "c1001": {
-      "actors": {"en": "...", "ja": "...", "kr": "...", "zhs": "..."},
-      "lines":  [{"event": "...", "category": "...", "label": "...", "sound": "..."}, ...]
+      "actors": {"en":"Griffin Burns","ja":"広瀬裕也","kr":"이경태","zhs":"kinsen"},
+      "lines":  [{"event":"c1001_battle_01","category":"battle",
+                  "label":"Sound when Attacked","sound":"voc/character/ras/ani/attacked"}, ...]
   }, ... }
 
-Keys + paths are local-only. Copy tools/voice_keys.example.json → voice_keys.json
-(gitignored) and fill in the values from your own install: the game output dir,
-the outer-XOR key file, and the default XXTEA key. DB values are cocos-XXTEA; the
-outer layer is a 256-byte rolling XOR.
+Cipher reference: GAMEBIN_CRACK_FINDINGS.md + memory reference-e7-text-db-format.
+DB values are cocos-XXTEA; outer layer is a 256-byte rolling XOR. Keys/paths are
+local-only (tools/voice_keys.json, gitignored): the default XXTEA key, the
+per-collection keymap (output/pass/public.pass), and the outer-XOR key file.
+See TASKS.md #45 (enabler) / #43 (this).
 """
 import struct, json, os, sys
 from pathlib import Path
@@ -34,6 +36,7 @@ if not _CFG_PATH.exists():
                      'and fill in your local paths + key')
 _CFG = json.loads(_CFG_PATH.read_text(encoding='utf-8'))
 
+DUMP = Path(_CFG['dump_dir'])
 sys.path.insert(0, str(Path(__file__).parent))
 from paths import RAW_DIR  # central data-dir config
 OUT_DB = RAW_DIR / 'db'
@@ -43,6 +46,19 @@ OUTER_KEY = Path(_CFG['outer_key_file'])
 if not OUTER_KEY.is_absolute():
     OUTER_KEY = Path(__file__).parent / OUTER_KEY
 SITE_DATA = Path(__file__).resolve().parents[1] / 'site' / 'data'
+DATA_EXTERNAL = Path(__file__).resolve().parents[1] / 'data_external'
+
+# Unreleased-unit guard (mirrors sync_pack.leak_gate): drop voice data for any
+# announced-but-unreleased c-slug so it never ships in voices.json. See CLAUDE.md
+# "Unreleased-unit guard" + MANUAL_UNRELEASED in build_names.py.
+def load_unreleased() -> set[str]:
+    p = DATA_EXTERNAL / 'unreleased_units.json'
+    if not p.exists():
+        return set()
+    return set(json.loads(p.read_text(encoding='utf-8')).get('slugs', []))
+
+def is_unreleased(slug: str, unrel: set[str]) -> bool:
+    return any(slug == u or slug.startswith(u + '_') for u in unrel)
 
 M = 0xFFFFFFFF; DELTA = 0x9E3779B9
 DEFAULT_KEY = tuple(int(str(x), 16) for x in _CFG['default_xxtea_key'])
@@ -99,9 +115,9 @@ _PRE = OUTER_KEY.read_bytes()
 _BASE = _PRE[256 - 51:] + _PRE[:256 - 51]   # un-rotated base key
 
 def outer_decrypt_textdb(cipher):
-    # text.db's outer-XOR offset is NOT fixed: it was 0, but a later update
-    # shifted it to 180. Brute the offset against the PLPcK magic, the same
-    # way outer_decrypt_db does for the other db files.
+    # text.db's outer-XOR offset is NOT fixed: it was 0, but the 2026-06-04
+    # update shifted it to 180. Brute the offset against the PLPcK magic, the
+    # same way outer_decrypt_db does for the other db files.
     for off in range(256):
         if bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(5)) == b'PLPcK':
             return bytes(cipher[i] ^ _PRE[(off + i) % 256] for i in range(len(cipher)))
@@ -185,6 +201,15 @@ def main():
         line = {'event': event, 'category': category, 'label': label, 'sound': sound}
         voices.setdefault(cslug, {}).setdefault('lines', []).append(line)
 
+    # Drop unreleased units before writing (DMCA guard).
+    unrel = load_unreleased()
+    if unrel:
+        dropped = [s for s in voices if is_unreleased(s, unrel)]
+        for s in dropped:
+            del voices[s]
+        if dropped:
+            print('  dropped %d unreleased slug(s): %s' % (len(dropped), ', '.join(sorted(dropped))))
+
     with_actors = sum(1 for v in voices.values() if v.get('actors'))
     with_lines = sum(1 for v in voices.values() if v.get('lines'))
     total_lines = sum(len(v.get('lines', [])) for v in voices.values())
@@ -195,6 +220,9 @@ def main():
     print('\nwrote %s' % out_path)
     print('  characters: %d  (with actors: %d, with lines: %d)' % (len(voices), with_actors, with_lines))
     print('  total voice lines: %d' % total_lines)
+    ex = voices.get('c1001', {})
+    print('  c1001 actors:', ex.get('actors'))
+    print('  c1001 first 3 lines:', ex.get('lines', [])[:3])
 
 if __name__ == '__main__':
     main()

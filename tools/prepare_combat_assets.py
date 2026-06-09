@@ -13,8 +13,9 @@ For each mapped (and 3.8.99) rig, produces:
 
 Both Spine versions are staged. 2.1.27 dispatches to convert_2_1 +
 post_process_2_1_27 (spine-player 3.8 compatibility patches); 3.8.99
-dispatches to convert_3_8 directly. The 2.1.27 path decodes modes 9/10
-and skips per-animation trailers via scan-forward.
+dispatches to convert_3_8 directly. The 2.1.27 path was unblocked
+2026-05-22 by decoding modes 9/10 and skipping per-animation trailers
+via scan-forward — see [[project-e7-2127-mode9-blocker]] in memory.
 
 Usage:
   python prepare_combat_assets.py [--all] [--stems abigail harsetti] [--force]
@@ -47,28 +48,33 @@ SUFFIX_PEEL = [
 # Residual manual overrides — combat-rig stems the DB model-map AND the kebab
 # lookup both miss. Everything else (romanizations like victorica/wildred, ML &
 # seasonal forms like ras_m/iseria_a01, collab bare-names, internal codenames
-# like torami, and _m_s01 skins-of-ML) is resolved authoritatively from the DB
-# model-map — character_player.db col[20], via load_db_model_map() in map_stem().
-# The ~110 hand-curated entries this file used to carry collapsed into that one
-# lookup; only these three lack a DB col[20] row:
+# like torami, and _m_s01 skins-of-ML) is now resolved authoritatively from the
+# DB model-map — character_player.db col[20], via load_db_model_map() in
+# map_stem(). The ~110 hand-curated entries this file used to carry collapsed
+# into that one lookup; only these three lack a DB col[20] row:
 STEM_OVERRIDE: dict[str, str] = {
-    "flan_m":     "c2110",      # Pirate Captain Flan  — in no player DB
+    "flan_m":     "c2110",      # Pirate Captain Flan  — in no player DB (base/grade2/grade3)
     "flan_m_s01": "c2110_s01",  # skin of Pirate Captain Flan — in no player DB
     "ludwig_a01": "c5069",      # Aubade Ludwig — in no player DB
 }
-# (The elemental Adin / Inheritor Amiki overrides briefly here were dropped once
-# build_names.py started reading the grade3 player table: its col[20] maps
-# c4141-4144 -> adin_<element> and c4158 -> amiki_c directly.)
-# (SPELLING_ALIAS removed.) The dump's romanizations were a "fix the kebab"
-# workaround; col[20] IS the real filename, so the DB layer resolves them
+# (The elemental Adin / Inheritor Amiki overrides that briefly lived here on
+# 2026-05-29 were removed once build_names.py started reading the grade3 player
+# table: character_player_grade3.db col[20] maps c4141-4144→adin_<element> and
+# c4158→amiki_c directly, so the DB layer resolves them — see "Combat rig
+# recovery" in CLAUDE.md + docs/TASKS.md #39b.)
+# (SPELLING_ALIAS removed 2026-05-29.) The dump's romanizations were a "fix the
+# kebab" workaround; col[20] IS the real filename, so the DB layer resolves them
 # directly with nothing to correct.
 
-# DUAL_COMBAT — units whose combat is two separate rigs (e.g. a duo unit
-# whose .scsp files are per-character). Each gets staged into the same
-# <cslug>/combat/ dir; FIRST is the primary (file == <cslug>.json, so the
-# default viewer load + the has_combat check still work), the rest get
-# <cslug>__<label>.json. A combat/rigs.json manifest drives the viewer's rig
-# switcher. Order = display order; first entry loads by default.
+# Dual-rig units: one c-slug whose combat is TWO separate full rigs in the dump.
+# c2185_1 "Rhianna and Luciella" ships rhianna_m + luciella_m — both complete
+# 3.8.99 combat rigs (skill1/2/3, run, knock_down, …), but neither maps via the
+# DB/kebab (the unit is in no player DB, and the rigs carry the auxiliary `_m`
+# name with no base sibling). Staged side-by-side in the unit's combat/ dir: the
+# FIRST is the primary (file == <cslug>.json, so the default viewer load + the
+# has_combat check still work), the rest get <cslug>__<label>.json. A
+# combat/rigs.json manifest drives the viewer's rig switcher. Order = display
+# order; first entry loads by default.
 DUAL_COMBAT: dict[str, list[tuple[str, str]]] = {
     "c2185_1": [("rhianna_m", "Rhianna"), ("luciella_m", "Luciella")],
 }
@@ -94,11 +100,14 @@ PRIMARY_SWAP_BARE = {
 # slots are blank and animations are missing limb/clothing swaps.
 # Better to skip than ship a broken viewer.
 INCOMPATIBLE_STEMS = {
-    # (empty) — robin was removed: its dumped atlas was STALE (declared a smaller
-    # page than the actual texture, missing ~26 regions), not a real source gap.
-    # Re-extracting the matching atlas from the current pack made the rig render
-    # cleanly. Add a stem here only if a rig's atlas truly lacks the regions its
-    # skeleton references.
+    # (empty) — robin was removed 2026-05-29. Its combat atlas in the dump was
+    # STALE (declared size 795x246, 128 regions) while the dump's robin.sct
+    # texture is the current 1194x249 page with all parts. The "missing" 26
+    # region attachments were never absent from the source texture — only from
+    # the stale .atlas. The current data.pack ships a matching atlas
+    # (1194x249, 155 regions); it was re-extracted into the dump and the rig
+    # now renders cleanly. Decode was never the problem (decode_sct is
+    # byte-exact for robin.sct). See docs/TASKS.md #39b.
 }
 
 
@@ -108,17 +117,16 @@ def load_kebab_to_cslug() -> dict[str, str]:
     return {k: v["id"] for k, v in hdb.items()}
 
 
-
 _DB_MODEL_MAP: dict[str, list[str]] | None = None
 
 
 def load_db_model_map() -> dict[str, list[str]]:
     """Inverse of character_player.db col[20]: combat-rig stem -> [c-slugs that
     use it]. Built by tools/build_names.py into data_external/model_map_from_db.json
-    (which excludes unreleased units). Authoritative for hero rig names — handles
-    romanizations, ML/seasonal forms, and internal codenames the ceciliabot kebab
-    can't. Cached; returns {} if the file isn't present (then map_stem falls back
-    to kebab + suffix-peel)."""
+    (which excludes unreleased units). This is the AUTHORITATIVE source for hero
+    rig names — handles romanizations, ML/seasonal forms, and internal codenames
+    the ceciliabot kebab can't. Cached; returns {} if the file isn't present
+    (then map_stem just falls back to kebab + suffix-peel)."""
     global _DB_MODEL_MAP
     if _DB_MODEL_MAP is None:
         p = REPO / "data_external" / "model_map_from_db.json"
@@ -152,8 +160,8 @@ def load_attributes() -> dict[str, str]:
 
 
 def merge_element_skin(json_path: Path, attribute: str | None) -> int:
-    """Several old 3-star/4-star units share generic class/element soldier rigs
-    (`onehanded_wind`, `axe_fire`, `meca_golem`, ...) whose body lives in an
+    """Several old 3★/4★ units share generic class/element soldier rigs
+    (`onehanded_wind`, `axe_fire`, `meca_golem`, …) whose body lives in an
     element-NAMED skin (`fire`/`ice`/`wind`/`light`/`dark`), not in `default`
     (which is just a sparse base: shadow + a couple of shared pieces). The live
     viewer renders the `default` skin, so without this the rig shows shadow-only.
@@ -161,13 +169,14 @@ def merge_element_skin(json_path: Path, attribute: str | None) -> int:
     Fix: merge the appropriate element skin's attachments into `default` so the
     combat JSON is self-contained (no viewer/skin-picker change needed). Target
     element = the unit's `attribute` when an element skin of that name exists,
-    else the sole element skin if there's exactly one. Idempotent. Returns the
-    number of attachments merged; single-skin rigs and rigs with no element-named
-    skin are untouched."""
+    else the sole element skin if there's exactly one. Idempotent (re-merging the
+    same attachments is a no-op). Returns the number of attachments merged.
+    Single-skin rigs and rigs with no element-named skin are untouched."""
     data = json.loads(json_path.read_text(encoding="utf-8"))
     skins = data.get("skins")
     if not skins:
         return 0
+    # 3.8 JSON skins are a list [{name, attachments}]; tolerate the dict form too.
     if isinstance(skins, dict):
         names = list(skins.keys())
         get_att = lambda n: skins.get(n) or {}
@@ -185,7 +194,7 @@ def merge_element_skin(json_path: Path, attribute: str | None) -> int:
     elif len(elem) == 1:
         tgt = elem[0]
     else:
-        return 0
+        return 0  # multiple element skins, no attribute hint — leave alone
     dft, src = get_att("default"), get_att(tgt)
     added = 0
     for slot, atts in src.items():
@@ -196,6 +205,7 @@ def merge_element_skin(json_path: Path, attribute: str | None) -> int:
     if added:
         json_path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     return added
+
 
 def _resolve(cslug: str, staged: set[str]) -> str | None:
     """If cslug is a PRIMARY_SWAP backdrop, redirect to its _1 sibling.
@@ -257,6 +267,7 @@ def map_stem(stem: str, kebab_map: dict[str, str], staged: set[str],
             if base in STEM_OVERRIDE:
                 return _resolve(STEM_OVERRIDE[base] + suf, staged)
     return None
+
 
 def stage_atlas(src_atlas: Path, dst_atlas: Path, png_name: str) -> None:
     out, swapped = [], False

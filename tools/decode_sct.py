@@ -29,7 +29,7 @@ def _decode_legacy(data: bytes) -> Image.Image:
         rgb = Image.frombytes("RGB", (width, height), raw, "raw", "BGR;16", 0, 1)
         rgb.putalpha(Image.frombytes("L", (width, height), raw[-width*height:]))
         return rgb
-    if byte_format == 102:  # single-channel grayscale
+    if byte_format == 102:  # single-channel grayscale (matches AssetRipper sct.py)
         return Image.frombytes("L", (width, height), raw)
     raise ValueError(f"unsupported legacy SCT byte_format={byte_format}")
 
@@ -49,8 +49,8 @@ def _decode_sct2(data: bytes) -> Image.Image:
     else:
         # raw/uncompressed texture: pixel data starts right at `offset`, with no
         # length prefix (uncomp/comp read as garbage). Reading from offset+8
-        # shifts the ASTC blocks by 8 bytes and decodes to noise (seen on some
-        # uncompressed illustration backgrounds). Take the remaining bytes verbatim.
+        # shifts the ASTC blocks by 8 bytes and decodes to noise (e.g. the
+        # c2181 illustration bg). Take the remaining bytes verbatim.
         payload = data[offset:]
     if byte_format == 19:   raw = texture2ddecoder.decode_etc2a8(payload, width, height)
     elif byte_format == 40: raw = texture2ddecoder.decode_astc(payload, width, height, 4, 4)

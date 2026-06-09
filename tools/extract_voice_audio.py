@@ -1,21 +1,22 @@
 """Extract Epic Seven voice clips from FMOD banks → per-clip OGG + a catalog.
 
-Pipeline (self-contained once vgmstream + ffmpeg are installed — see README):
+Pipeline (self-contained, tools cached in repo):
   FMOD .bank  --vgmstream-cli-->  WAV (subsong)  --ffmpeg-->  OGG
 
-Source banks live under <sound_dir>/<lang>/*.bank — point --sound at your own
-copy (default: <repo>/_voice_work/sound). Each bank is a concatenation of FSB5
-sub-banks; each FSB5 sample carries a name like voc_<cslug>_<action>_<take>
-(e.g. voc_c1001_attacked_1, voc_c1022_s01_win_2). vgmstream enumerates them as
-subsongs in the SAME order as the FSB5 name tables, so subsong index ↔ name.
+Source banks live in `_voice_work/sound/<lang>/voc*.audio_<lang>.bank` (a safe
+scratch copy; the live install D:/Games/EpicSeven is READ-ONLY — ban risk).
+Each bank is a concatenation of FSB5 sub-banks; each FSB5 sample carries a name
+like `voc_<cslug>_<action>_<take>` (e.g. voc_c1001_attacked_1, voc_c1022_s01_win_2).
+vgmstream enumerates them as subsongs in the SAME order as the FSB5 name tables,
+so subsong index ↔ parsed name.
 
 Output:
-  <out_dir>/<lang>/voc_<cslug>_<action>_<take>.ogg
-  <out_dir>/voice_catalog.json  ->  {cslug: {action: {label, takes:{lang:[...]}}}}
+  _voice_work/out/<lang>/voc_<cslug>_<action>_<take>.ogg
+  _voice_work/out/voice_catalog.json  ->  {cslug: {action: {label, takes:[n,...]}}}
 
 Usage:
-  python tools/extract_voice_audio.py --langs en --slugs c1001 c1017   # subset
-  python tools/extract_voice_audio.py --langs en ja ko --all           # full
+  python tools/extract_voice_audio.py --langs en --slugs c1001 c1017 c1158   # pilot
+  python tools/extract_voice_audio.py --langs en ja ko --all                  # full
 """
 import struct, glob, os, re, json, subprocess, argparse, sys, tempfile
 from pathlib import Path
@@ -25,11 +26,8 @@ REPO = Path(__file__).resolve().parents[1]
 VGM = REPO / 'tools' / 'vendor' / 'vgmstream' / 'vgmstream-cli.exe'
 sys.path.insert(0, str(Path(__file__).parent))
 from paths import VOICE_DIR  # central data-dir config
-# Defaults resolve via voice_keys.json (voice_dir, else <dump>/_voice_work);
-# override with --sound / --out (or the E7_VOICE_SOUND / E7_VOICE_OUT env vars).
-# Bring your own bank files.
-SOUND = Path(os.environ.get('E7_VOICE_SOUND', VOICE_DIR / 'sound'))
-OUTROOT = Path(os.environ.get('E7_VOICE_OUT', VOICE_DIR / 'out'))
+SOUND = VOICE_DIR / 'sound'
+OUTROOT = VOICE_DIR / 'out'
 
 SAMPLE_RX = re.compile(r'^voc_(c\d+(?:_s\d+)?|af\d+|npc\d+|pet_[a-z0-9]+)_(.+?)(?:_(\d+))?$')
 
@@ -111,14 +109,8 @@ def main():
     ap.add_argument('--slugs', nargs='*', help='c-slugs to extract (e.g. c1001)')
     ap.add_argument('--all', action='store_true')
     ap.add_argument('--jobs', type=int, default=8, help='parallel decode workers')
-    ap.add_argument('--sound', help='dir of <lang>/*.bank files (default: <repo>/_voice_work/sound)')
-    ap.add_argument('--out', help='output dir for OGGs + catalog (default: <repo>/_voice_work/out)')
     args = ap.parse_args()
-    global SOUND, OUTROOT
-    if args.sound: SOUND = Path(args.sound)
-    if args.out: OUTROOT = Path(args.out)
-    assert VGM.exists(), (f'missing {VGM} — download vgmstream into '
-                          f'tools/vendor/vgmstream/ (see README, "Voice pipeline")')
+    assert VGM.exists(), f'missing {VGM}'
     from concurrent.futures import ThreadPoolExecutor
 
     for lang in args.langs:
@@ -163,7 +155,8 @@ def rebuild_catalog(langs):
             for lang in catalog[slug][action]['takes']:
                 catalog[slug][action]['takes'][lang].sort()
     # Unreleased-unit guard (DMCA): drop any announced-but-unreleased slug from the
-    # catalog so it never ships in voices_audio.json. Mirrors build_voices.py.
+    # catalog so it never ships in voices_audio.json. Mirrors build_voices.py /
+    # sync_pack.leak_gate. See CLAUDE.md "Unreleased-unit guard".
     unrel_p = Path(__file__).resolve().parents[1] / 'data_external' / 'unreleased_units.json'
     if unrel_p.exists():
         unrel = set(json.loads(unrel_p.read_text(encoding='utf-8')).get('slugs', []))

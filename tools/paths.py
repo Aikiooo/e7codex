@@ -1,19 +1,19 @@
 """Central data-dir resolution for the E7 Codex pipeline.
 
 Every tool resolves the extracted-data roots through here, so the physical
-location of your game dump lives in ONE place: `tools/voice_keys.json`. Defaults
-preserve the flat layout (`<dump>/output`, `<dump>/img_output`,
+location of the dump lives in ONE place: `tools/voice_keys.json`. Defaults
+preserve the historical flat layout (`<dump>/output`, `<dump>/img_output`,
 `<dump>/_voice_work`), so importing this changes nothing until you set the keys.
 
-To relocate the data (e.g. group everything under `<dump>/extracted_data/`), set
-the keys in voice_keys.json and physically move the dirs once — no tool code
-changes needed:
+To relocate the data (e.g. group everything under `<dump>/extracted_data/`),
+set the keys in voice_keys.json and physically move the dirs once — no tool
+code changes needed:
 
     {
-      "dump_dir":  "/path/to/your/dump",
-      "raw_dir":   "/path/to/your/dump/extracted_data/output",
-      "img_dir":   "/path/to/your/dump/extracted_data/img_output",
-      "voice_dir": "/path/to/your/dump/extracted_data/_voice_work"
+      "dump_dir":  "D:/Claude/E7",
+      "raw_dir":   "D:/Claude/E7/extracted_data/output",
+      "img_dir":   "D:/Claude/E7/extracted_data/img_output",
+      "voice_dir": "D:/Claude/E7/extracted_data/_voice_work"
     }
 
 voice_keys.json is gitignored (bring-your-own); the committed
@@ -26,7 +26,7 @@ from pathlib import Path
 
 _TOOLS = Path(__file__).resolve().parent
 _REPO = _TOOLS.parent
-# Default dump dir = the folder that contains the repo.
+# Default dump dir = the folder that contains the repo (historically D:/Claude/E7).
 _DEFAULT_DUMP = _REPO.parent
 
 _CFG_PATH = _TOOLS / "voice_keys.json"

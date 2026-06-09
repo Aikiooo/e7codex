@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Spline+Sans+Mono:wght@400;500&family=Outfit:wght@300;400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="spine-player.css">
+<script src="shared.js"></script>
 <script src="spine-player.js"></script>
 <!-- APNG export: UPNG.js encoder + pako (its zlib dep). Vendored one-shot,
      no runtime third-party dependency. The animated-WebP path uses a libwebp
@@ -257,7 +258,8 @@ const params = new URLSearchParams(location.search);
 const slug   = params.get("slug") || "";
 // ?rig=combat loads the skill-animation rig staged under <slug>/combat/.
 // Combat rigs carry skill1/skill2/skill3/run/knock_down/rise the lobby rig
-// lacks. v1: only the 3.8.99 subset is staged (see tools/prepare_combat_assets.py).
+// lacks. v1: only the 3.8.99 subset is staged (see tools/prepare_combat_assets.py
+// and docs/TASKS.md "Combat rig live viewer").
 const rig    = params.get("rig") || "";
 const isCombat = rig === "combat";
 // ?stage=<backdrop_slug> composites the backdrop rig (PRIMARY_SWAP bare slug,
@@ -307,12 +309,11 @@ if (slug) {
   }).catch(() => {});
 }
 
-// Dual-rig combat units (a duo whose .scsp files are per-character) ship two
-// combat rigs; populate the "Character" <select> and reload the skeleton on
-// switch. The primary rig's file is <slug>.json (already the default
-// combatFile), so the current selection lines up with the first option. The
-// <select> lives in the static .controls bar, so it survives loadScene()'s
-// disposePlayers().
+// Dual-rig combat units (e.g. c2185_1 Rhianna & Luciella) ship two combat rigs;
+// populate the "Character" <select> and reload the skeleton on switch. The
+// primary rig's file is <slug>.json (already the default combatFile), so the
+// current selection lines up with the first option. The <select> lives in the
+// static .controls bar, so it survives loadScene()'s disposePlayers().
 function setupRigSwitcher(rigs) {
   rigSel.innerHTML = rigs.map(r =>
     `<option value="${r.file}">${r.label || r.file}</option>`).join("");
@@ -346,8 +347,8 @@ const skinSel = document.getElementById("skin");
 const rigSel = document.getElementById("rig-sel");
 const rigSelLabel = document.getElementById("rig-sel-label");
 // Which combat-rig json basename to load. Defaults to <slug> (the primary rig);
-// dual-rig units flip this via the rig <select> and reload. Only meaningful
-// when isCombat.
+// dual-rig units (DUAL_COMBAT, e.g. Rhianna & Luciella) flip this via the rig
+// <select> and reload. Only meaningful when isCombat.
 let combatFile = slug;
 const qSel    = document.getElementById("quality");
 const zinBtn  = document.getElementById("zin");
@@ -953,20 +954,10 @@ wrap.addEventListener("touchend", (e) => {
   if (touches.size < 2) { pinchDist = 0; pinchMid = null; }
 });
 
-// Local-dev hostnames use relative `assets/` (served by python -m http.server
-// from site/, or file://). Everything else — production e7codex.com, Pages
-// preview URLs, anything we haven't enumerated — uses the R2-backed CDN.
-// LAN IPs (192.168.*/10.*/172.16-31.*) are included so the viewer works
-// when accessed across a local network without trying the CDN (which would
-// fail CORS for non-e7codex.com origins).
-const host = location.hostname;
-const isLocal = host === 'localhost'
-  || host === '127.0.0.1'
-  || host === ''  // file://
-  || /^192\.168\./.test(host)
-  || /^10\./.test(host)
-  || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
-const spineBase = isLocal ? 'assets' : 'https://assets.e7codex.com';
+// Local-dev hostnames use relative `assets/`; everything else uses the
+// R2-backed CDN. Host detection lives in shared.js — the SAME logic
+// index.html uses for voice clips, so the two can't drift apart again.
+const spineBase = E7.spineBase;
 
 if (!slug) {
   stage.innerHTML = '<div class="err">missing ?slug= in URL.</div>';
@@ -1071,8 +1062,7 @@ function loadBackdrop() {
 function loadCharacter(bgViewport) {
   try {
     const rigPath = isCombat ? `${slug}/combat` : `${slug}`;
-    // For DUAL_COMBAT units the file basename is the selected rig (combatFile),
-    // which defaults to <slug> (the primary) — single-rig units are unchanged.
+    // For dual-rig combat units the loaded basename can differ from slug.
     const rigBase = isCombat ? combatFile : slug;
     // When syncing to backdrop, mirror its exact viewport (incl. padding) so
     // the character projects through the same camera. When standalone, fall
@@ -1124,18 +1114,18 @@ function loadCharacter(bgViewport) {
         // normal (neutral eyes/lip/brow), and an expression (smile/angry/etc
         // that fills the face silhouette or the lit-face overlay). Most rigs
         // look correct with just default+normal; only "broken-by-design" rigs
-        // (where face features live only in expression skins) need the
-        // third layer. The
+        // (where face features live only in expression skins, see
+        // tools/audit_skins.py for the heuristic) need the third layer. The
         // skin dropdown lets the user override the expression layer.
         const data = p.skeleton.data;
         const EXPR_ORDER = ["smile", "angry", "panic", "sad", "special"];
         const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;
         const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
         // Per-slug overrides for rigs whose missing-face slot does NOT match
-        // the regex above (the EXPRESSION_FORCE allowlist).
+        // the regex above. See tools/audit_skins.py EXPRESSION_FORCE.
         const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01", "c4141", "c1117", "c1138", "c1128"]);
         // Second heuristic: rigs with no neutral face anywhere in
-        // default+normal but expressions provide one.
+        // default+normal but expressions provide one. See tools/audit_skins.py.
         const FACE_PIECE_RE = /^(?:[a-z]+\/)?(face|head|eye|mouth|lip|brow|eyebrow|nose|cheek)(?:[A-Z\d]|[_/]\w+)?$/i;
         const EXPR_SKIN_NAMES = ["smile","angry","panic","sad","special","special2","special3"];
         function skinHasFacePiece(skinName) {

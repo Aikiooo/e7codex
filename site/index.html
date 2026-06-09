@@ -84,6 +84,8 @@
   .thumb{aspect-ratio:3/4;background:linear-gradient(135deg,#1c1d2b,#101019);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
   .thumb img{width:100%;height:100%;object-fit:contain;padding:6px}
   .variant-badge{position:absolute;top:8px;right:8px;background:rgba(216,176,106,.18);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.1em;padding:3px 7px;border-radius:2px;border:1px solid var(--gold-dim);text-transform:uppercase}
+  /* NEW badge — filled gold, top-left, so it pops against the dark card and
+     doesn't collide with the gold-outline variant-badge at top-right. */
   .new-badge{position:absolute;top:8px;left:8px;z-index:3;background:linear-gradient(95deg,#e6b86e,#f3d79a);color:#13141d;font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;box-shadow:0 2px 9px rgba(0,0,0,.45)}
   /* Wallpaper cells already carry a category chip at top-left — push NEW to the right. */
   .wallpaper-cell .new-badge{left:auto;right:6px;top:6px}
@@ -175,10 +177,14 @@
   .pg-label .pg-n{color:var(--mut);margin-left:4px}
   .pg-items{display:grid;gap:3px}
   .pe{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--text);display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+  .pe.has-prev{align-items:center}
   .pe code{font-size:11px;color:var(--mut)}
   .pe-sym{font-weight:700;width:11px;flex:0 0 auto;text-align:center}
   .pe-added .pe-sym{color:#7fc99a}.pe-removed .pe-sym{color:var(--rose)}.pe-changed .pe-sym{color:var(--gold)}
   .pe-size{font-size:10px;color:var(--mut)}
+  .pe-prev{flex:0 0 auto;display:block;width:46px;height:34px;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--ink-2);order:-1}
+  .pe-prev:hover{border-color:var(--gold-dim)}
+  .pe-prev img{width:100%;height:100%;object-fit:cover;display:block}
   .emote-list{display:grid;gap:14px}
   .emote-row{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:14px 18px;display:grid;grid-template-columns:minmax(160px,200px) 1fr;gap:18px;align-items:center}
   @media(max-width:640px){.emote-row{grid-template-columns:1fr;gap:10px}}
@@ -253,6 +259,14 @@
   .intimacy-gallery img{width:100%;display:block}
   .intimacy-vid{display:block;width:100%;max-width:760px;border:1px solid var(--line);border-radius:3px;background:#000;cursor:zoom-in}
   .intimacy-vid:hover{border-color:var(--gold-dim)}
+  /* Reaction clips: poster thumbnails that open the clip in the video lightbox. */
+  .intim-reacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-width:760px}
+  .intim-react{position:relative;flex:0 0 auto;width:148px;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000;cursor:zoom-in;text-decoration:none}
+  .intim-react:hover{border-color:var(--gold-dim)}
+  .intim-react img{display:block;width:148px;height:75px;object-fit:cover}
+  .intim-react .ir-label{position:absolute;left:0;right:0;bottom:0;padding:2px 6px;font-size:11px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.75))}
+  .intim-react .ir-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .intim-react .ir-play::before{content:"";border-style:solid;border-width:6px 0 6px 10px;border-color:transparent transparent transparent #fff;margin-left:2px}
   .voice-actors{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 16px}
   .voice-actors .va{display:flex;gap:7px;align-items:baseline;font-size:14px}
   .voice-actors .va .lang{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--mut);min-width:22px}
@@ -300,6 +314,76 @@
   .lb-download{position:absolute;top:14px;right:64px;background:rgba(13,14,22,.85);border:1px solid var(--line);color:var(--text);width:38px;height:38px;border-radius:3px;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;font-family:'Spline Sans Mono',monospace}
   .lb-download:hover{color:var(--gold);border-color:var(--gold-dim)}
   .lb-caption{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:0 24px;word-break:break-all}
+    /* ---- Story book (local only) ---- */
+    .story-toc{display:flex;flex-direction:column;gap:34px}
+    .story-ep-h{font-size:20px;color:var(--gold);margin:0 0 14px;font-weight:600}
+    .story-chaps{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+    .story-chap{position:relative;display:block;height:108px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel);text-decoration:none;transition:border-color .15s,transform .15s}
+    .story-chap:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+    .story-chap-bg{position:absolute;inset:0;background-size:cover;background-position:center top;opacity:.5}
+    .story-chap-bg-blank{background:linear-gradient(135deg,#1c1d2b,#13141d)}
+    .story-chap-meta{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;padding:12px 14px;background:linear-gradient(transparent,rgba(8,9,14,.86))}
+    .story-chap-t{color:var(--text);font-weight:600;font-size:15px}
+    .story-chap-n{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+    .story-reader{max-width:760px;margin:0 auto}
+    .story-rhead{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:8px}
+    .story-back{color:var(--mut);text-decoration:none;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em}
+    .story-back:hover{color:var(--teal)}
+    .story-title{flex:1 1 auto}
+    .story-title h2{margin:2px 0 0;font-size:22px;color:var(--text)}
+    .story-ep-tag{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-dim)}
+    .slang-row{display:flex;gap:6px}
+    .slang,.svlang{background:none;border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.08em;padding:4px 11px;border-radius:3px;cursor:pointer}
+    .slang.on,.svlang.on{border-color:var(--gold-dim);color:var(--gold)}
+    .story-body{display:flex;flex-direction:column;gap:18px;padding:24px 0}
+    .scene-divider{display:block;border-radius:6px;overflow:hidden;margin:10px 0;border:1px solid var(--line)}
+    .scene-divider img{display:block;width:100%;max-height:340px;object-fit:cover}
+    .scene-blank{text-align:center;color:var(--gold-dim);letter-spacing:.6em;border:none;padding:6px 0}
+    .beat-title{text-align:center;color:var(--gold);font-size:18px;font-weight:600;white-space:pre-line;line-height:1.5;padding:18px 0;letter-spacing:.04em}
+    .beat-narr{text-align:center;color:var(--mut);font-style:italic;white-space:pre-line;line-height:1.6;max-width:600px;margin:0 auto}
+    .beat-line{display:flex;gap:14px;align-items:flex-start}
+    .beat-portrait{flex:0 0 64px;width:64px;height:64px;border-radius:50%;overflow:hidden;background:var(--ink-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+    .beat-portrait img{width:100%;height:100%;object-fit:cover;object-position:center top}
+    .beat-portrait-blank{color:var(--gold-dim);font-weight:600;font-size:22px}
+    .beat-text{flex:1 1 auto;min-width:0}
+    .beat-spk{margin-bottom:3px}
+    .beat-name{color:var(--gold);font-weight:600;font-size:14px;text-decoration:none}
+    a.beat-name:hover{text-decoration:underline}
+    .beat-say{color:var(--text);line-height:1.6;white-space:pre-line}
+    .beat-choice .beat-say{color:var(--teal)}
+    .story-voices{border-top:1px solid var(--line);padding-top:18px;margin-top:8px;display:flex;flex-direction:column;gap:14px}
+    .story-vspk-h{color:var(--text);font-weight:600;font-size:14px;margin-bottom:6px}
+    .story-nav{display:flex;justify-content:space-between;gap:16px;border-top:1px solid var(--line);padding-top:18px;margin-top:24px}
+    .story-nav a{color:var(--teal);text-decoration:none;font-size:14px}
+    .story-nav a:hover{text-decoration:underline}
+    .story-theater-btn{background:var(--gold);color:#1a1206;border:none;font-weight:600;font-size:13px;padding:6px 14px;border-radius:4px;cursor:pointer}
+    .story-theater-btn:hover{background:#e6c078}
+    .story-langbar{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0 0}
+    .story-lang-grp{display:flex;align-items:center;gap:8px}
+    .story-lang-lbl{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut)}
+    .story-voiced-note{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.08em;color:var(--gold-dim);margin:10px 0 0}
+    .beat-voice{background:none;border:1px solid var(--gold-dim);color:var(--gold);border-radius:50%;width:20px;height:20px;line-height:1;font-size:9px;padding:0;margin-left:8px;cursor:pointer;vertical-align:middle}
+    .beat-voice:hover{background:var(--gold-dim);color:var(--ink)}
+    .beat-narr .beat-voice{margin:0 8px 0 0}
+    .beat-fromhere{background:none;border:1px solid var(--line);color:var(--mut);border-radius:3px;width:20px;height:20px;line-height:1;font-size:10px;padding:0;margin-left:6px;cursor:pointer;vertical-align:middle;opacity:0;transition:opacity .12s}
+    .beat-line:hover .beat-fromhere,.beat-narr:hover .beat-fromhere,.beat-title:hover .beat-fromhere{opacity:1}
+    .beat-fromhere:hover{border-color:var(--teal);color:var(--teal)}
+    /* Theater (visual-novel) overlay */
+    .theater{position:fixed;inset:0;z-index:60;background:#05060a;display:none;cursor:pointer;overflow:hidden}
+    .theater.open{display:block}
+    .th-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.62)}
+    .th-bar{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:14px 18px;z-index:2}
+    .th-prog{font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.16em;color:rgba(255,255,255,.7);text-shadow:0 1px 4px #000}
+    .th-close{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);color:#fff;width:34px;height:34px;border-radius:50%;font-size:15px;cursor:pointer}
+    .th-close:hover{background:rgba(0,0,0,.8)}
+    .th-portrait{position:absolute;bottom:200px;left:50%;transform:translateX(-50%);max-height:58vh;max-width:46vw;object-fit:contain;object-position:bottom;filter:drop-shadow(0 8px 24px rgba(0,0,0,.6));z-index:1}
+    .th-box{position:absolute;left:50%;bottom:48px;transform:translateX(-50%);width:min(900px,90vw);background:rgba(6,8,14,.74);backdrop-filter:blur(3px);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:22px 28px;z-index:2;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+    .th-box.th-center{text-align:center}
+    .th-name{color:var(--gold);font-weight:700;font-size:17px;margin-bottom:8px;letter-spacing:.02em}
+    .th-text{color:#fff;font-size:19px;line-height:1.7;white-space:pre-line;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+    .th-box.th-center .th-text{font-size:21px}
+    .th-replay{border-color:rgba(255,255,255,.4);color:#fff}
+    .th-hint{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.18em;color:rgba(255,255,255,.45);z-index:2;pointer-events:none}
 </style>
 </head>
 <body>
@@ -312,7 +396,7 @@
        <button data-v="wallpapers">Wallpapers</button>
        <button data-v="about">About</button></nav>
 </header>
-<main id="app"></main>
+<main id="app"><p class="empty">loading…</p></main>
 <div id="lightbox" class="lightbox" role="dialog" aria-hidden="true">
   <button class="lb-close" id="lbClose" aria-label="close">×</button>
   <a class="lb-download" id="lbDownload" download aria-label="download" title="download"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></a>
@@ -321,6 +405,7 @@
   <video id="lbVideo" class="lb-video" loop muted playsinline controls preload="metadata"></video>
   <div id="lbCaption" class="lb-caption"></div>
 </div>
+<script src="shared.js"></script>
 <script>
 "use strict";
 const KIND_LABELS = { unit:"Heroes", npc:"NPCs", monster:"Monsters",
@@ -341,13 +426,16 @@ const VARIANT_LABELS = {
 };
 
 let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], ARTIFACTS = [], PATCHES = [], VOICES = {}, VOICE_CLIPS = {}, BY_BASE = new Map(), demo = false;
-// Voice-clip OGGs: local (same-origin site/voice/) when developing, else the R2 CDN.
-const VOICE_BASE = (() => {
-  const h = location.hostname;
-  const local = h === "localhost" || h === "127.0.0.1" || h === "" ||
-    /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(h);
-  return local ? "voice" : "https://assets.e7codex.com/voice";
-})();
+// Story book (LOCAL ONLY — story_index.json is gitignored + held aside on deploy,
+// so this stays null in production and the Story tab never appears).
+let STORY_INDEX = null, storyLang = "en", STORY_CHAPTERS = {};
+// Per-line story voice: {clipKey: [langs]} (voices_story.json, local only).
+// Text language (storyLang) and voice language (storyVoiceLang) are independent.
+let VOICE_STORY = {}, storyAudio = null, THEATER = null, STORY_FRAMES = [];
+let storyVoiceLang = "ja";   // story voice: en/ja/ko (default original JA)
+// Voice-clip OGGs: local (same-origin site/voice/) when developing, else the
+// R2 CDN. Host detection lives in shared.js (same logic the viewer uses).
+const VOICE_BASE = E7.voiceBase;
 let kindF = "all", searchQ = "", currentVariant = "", wpCatF = "all";
 let artiRarityF = new Set(), artiRoleF = new Set(), artiSearchQ = "";
 let elementF = new Set(), rarityF = new Set(), roleF = new Set();
@@ -369,19 +457,58 @@ let qMode = "text";
 const ELEMENTS = ["fire", "ice", "wind", "light", "dark"];
 const RARITIES = [5, 4, 3];
 
+// Fetch + parse one data JSON; resolve `fallback` on any failure.
+const dataJson = (url, fallback) =>
+  fetch(url, { cache: "no-cache" })
+    .then(r => { if (!r.ok) throw new Error(url); return r.json(); })
+    .catch(() => fallback);
+
+// voices.json (~680 KB) + voices_audio.json (~720 KB) feed only the detail
+// page's voice section — don't make every hub visit pay for them at boot.
+// detail() kicks this off on first use and re-renders once it resolves.
+let _voicesPromise = null, _voicesLoaded = false;
+function ensureVoices() {
+  if (!_voicesPromise) {
+    _voicesPromise = Promise.all([
+      dataJson("data/voices.json", {}),
+      dataJson("data/voices_audio.json", {}),
+    ]).then(([v, c]) => { VOICES = v; VOICE_CLIPS = c; _voicesLoaded = true; });
+  }
+  return _voicesPromise;
+}
+
 async function load() {
   try {
-    const r = await fetch("data/units.json", { cache:"no-store" });
-    if (!r.ok) throw new Error("units.json missing");
-    UNITS = await r.json();
-    try { UPDATES    = await (await fetch("data/updates.json")).json(); }    catch { UPDATES = {}; }
-    try { EMOTES     = await (await fetch("data/emotes.json")).json(); }     catch { EMOTES = []; }
-    try { WALLPAPERS = await (await fetch("data/wallpapers.json")).json(); } catch { WALLPAPERS = []; }
-    try { ARTIFACTS  = await (await fetch("data/artifacts.json")).json(); }  catch { ARTIFACTS = []; }
-    try { PATCHES    = await (await fetch("data/patches.json")).json(); }    catch { PATCHES = []; }
-    try { VOICES     = await (await fetch("data/voices.json")).json(); }     catch { VOICES = {}; }
-    try { VOICE_CLIPS = await (await fetch("data/voices_audio.json")).json(); } catch { VOICE_CLIPS = {}; }
+    // units.json gates everything; the rest load in parallel alongside it and
+    // degrade independently to empty fallbacks. cache:"no-cache" (NOT
+    // no-store) — the browser revalidates against the server (ETag → 304)
+    // instead of re-downloading the full body on every visit, while a fresh
+    // deploy still propagates immediately.
+    [UNITS, UPDATES, EMOTES, WALLPAPERS, ARTIFACTS, PATCHES, STORY_INDEX, VOICE_STORY] =
+      await Promise.all([
+        fetch("data/units.json", { cache: "no-cache" })
+          .then(r => { if (!r.ok) throw new Error("units.json missing"); return r.json(); }),
+        dataJson("data/updates.json", {}),
+        dataJson("data/emotes.json", []),
+        dataJson("data/wallpapers.json", []),
+        dataJson("data/artifacts.json", []),
+        dataJson("data/patches.json", []),
+        dataJson("data/story_index.json", null),
+        dataJson("data/voices_story.json", {}),
+      ]);
   } catch (e) {
+    // Local dev (file:// / localhost) without built data → seed demo content
+    // so the layout is previewable. In production a failed units.json is a
+    // network blip — show a retry state, never fake data.
+    if (!E7.isLocal) {
+      $("#app").innerHTML = `<p class="empty">couldn’t load the codex data — check your connection.<br><br>
+        <button class="ext" id="retryLoad" style="background:none">↻ retry</button></p>`;
+      document.getElementById("retryLoad").onclick = () => {
+        $("#app").innerHTML = `<p class="empty">loading…</p>`;
+        load();
+      };
+      return;
+    }
     demo = true;
     UNITS = [
       { id:"c1019_s01", base_id:"c1019", variant:"s01", kind:"unit", name:"Ravi", slug:"ravi",
@@ -396,6 +523,7 @@ async function load() {
     if (!BY_BASE.has(b)) BY_BASE.set(b, []);
     BY_BASE.get(b).push(u);
   }
+  if (STORY_INDEX && (STORY_INDEX.episodes || []).length) injectStoryNav();
   route();
 }
 
@@ -433,7 +561,7 @@ function rarityStars(u) {
   return `<span class="stars" title="${u.rarity}★">${"★".repeat(u.rarity)}</span>`;
 }
 
-// Hub uses a tighter, FX-stripped thumb.png when available and
+// Hub uses a tighter, FX-stripped thumb.png when available (Task #8) and
 // falls back to pose.png when render_thumbs.js skipped the slug (no FX
 // slots to strip). The detail page always uses pose.png regardless.
 // Hub thumbnail source chain: thumb → pose → face. Each candidate is
@@ -483,13 +611,13 @@ function thumb(u, group) {
     const vc  = hubCandidates(v);
     const vh  = vc.shift() || { url: "", trim: null };
     const lab = variantTab(v.variant || "");
-    return `<button type="button" data-fs-src="${escapeHtml(vh.url)}" data-fs-fallbacks='${JSON.stringify(vc)}' data-fs-variant="${escapeHtml(v.variant || "")}"${vh.trim ? ` data-fs-trim='${JSON.stringify(vh.trim)}'` : ''}${i===0?' class="on"':''} title="preview ${escapeHtml(lab)}">${escapeHtml(lab)}</button>`;
+    return `<button type="button" data-fs-src="${escapeHtml(vh.url)}" data-fs-fallbacks="${escapeHtml(JSON.stringify(vc))}" data-fs-variant="${escapeHtml(v.variant || "")}"${vh.trim ? ` data-fs-trim="${escapeHtml(JSON.stringify(vh.trim))}"` : ''}${i===0?' class="on"':''} title="preview ${escapeHtml(lab)}">${escapeHtml(lab)}</button>`;
   }).join("")}</div>` : "";
   // src is held in data-src and lifted onto the element only when the card is
   // near the viewport (hubImgObserver below). On scroll-away before load, the
   // src attribute is removed, which aborts the in-flight network request.
   return `<div class="thumb">
-    <img data-src="${head.url}" data-fallbacks='${JSON.stringify(tail)}' onerror="hubFallback(this)"${head.trim ? ` data-trim='${JSON.stringify(head.trim)}'` : ''} onload="this.dataset.loaded='1';applyTrimCrop(this)">
+    <img data-src="${escapeHtml(head.url)}" data-fallbacks="${escapeHtml(JSON.stringify(tail))}" onerror="hubFallback(this)"${head.trim ? ` data-trim="${escapeHtml(JSON.stringify(head.trim))}"` : ''} onload="this.dataset.loaded='1';applyTrimCrop(this)">
     ${swap}
   </div>`;
 }
@@ -522,8 +650,10 @@ function card(group) {
 }
 
 // applyTrimCrop — called from hub card <img onload> and after hub() re-renders.
-// Reads pre-baked trim fractions from data-trim (written by build_index.py from
-// tools/compute_trim_data.js sidecars). No canvas scan — zero GPU/CPU cost.
+// Reads pre-baked trim fractions from data-trim (build_index.py copies them
+// out of the per-slug pose_trim.json sidecars; the tool that originally baked
+// those sidecars has been retired — slugs without one simply render with the
+// image's natural framing). No canvas scan — zero GPU/CPU cost.
 // Units without a data-trim attribute (character fills the full frame) are skipped.
 function applyTrimCrop(img) {
   const raw = img.dataset.trim;
@@ -543,7 +673,7 @@ function applyTrimCrop(img) {
     `left:${imgLeft.toFixed(1)}px;top:${imgTop.toFixed(1)}px`;
 }
 
-// Hub image lazy-loader. Native loading="lazy" queues every <img>
+// Hub image lazy-loader (Task #13). Native loading="lazy" queues every <img>
 // in document order with no abort path, so a fast scroll past ~800 cards keeps
 // the network busy fetching what the user already scrolled past — and that
 // stalls the cards they're actually looking at on mobile. With IntersectionObserver
@@ -569,9 +699,9 @@ function observeHubImages() {
   document.querySelectorAll(".grid .thumb img[data-src]").forEach(img => _hubImgObs.observe(img));
 }
 
-function escapeHtml(s) {
-  return String(s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
+// Shared with viewer.html — single implementation in shared.js. Kept as a
+// local alias so the many call sites read the same.
+const escapeHtml = E7.escapeHtml;
 
 function hub() {
   setNav("hub");
@@ -614,7 +744,7 @@ function hub() {
   });
 
   $("#app").innerHTML = `
-    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img &lt;img_output&gt; --raw &lt;output&gt; --out ./site</code> then reload.</div>` : ""}
+    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site</code> then reload.</div>` : ""}
     <div class="bar">
       <div class="q-wrap">
         <input id="q" placeholder="search name or id  ·  iseria, c1019, ravi…" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -651,15 +781,21 @@ function hub() {
     <div class="grid">${list.map(card).join("") || '<p class="empty">no match.</p>'}</div>`;
 
   const i = $("#q");
+  // Debounced: hub() rebuilds the whole grid's DOM, which is far too heavy to
+  // run per keystroke on a 600-card list. 120 ms after the last key is
+  // imperceptible and collapses a fast-typed word into one render.
   i.oninput = (e) => {
     searchQ = e.target.value;
-    hub();
-    queueMicrotask(() => {
-      const n = $("#q");
-      if (!n) return;
-      n.focus();
-      n.setSelectionRange(searchQ.length, searchQ.length);
-    });
+    clearTimeout(window._qDebounce);
+    window._qDebounce = setTimeout(() => {
+      hub();
+      queueMicrotask(() => {
+        const n = $("#q");
+        if (!n) return;
+        n.focus();
+        n.setSelectionRange(searchQ.length, searchQ.length);
+      });
+    }, 120);
   };
   // ABC/123 toggle. Mobile keyboards only pick up an inputmode change after
   // blur + refocus, so swap the attribute then bounce focus to redraw the IME.
@@ -743,20 +879,42 @@ function patchEntryRow(e) {
   const delta = (e.old_size != null)
     ? ` <span class="pe-size">${fmtBytes(e.old_size)} → ${fmtBytes(e.new_size)}</span>` : "";
   const label = e.name ? escapeHtml(e.name) : `<code>${escapeHtml(e.path)}</code>`;
-  return `<div class="pe pe-${e.change}"><span class="pe-sym">${sym}</span> ${label}${delta}</div>`;
+  // Changed/added artwork carries a `preview` URL (a transient per-pack copy or a
+  // reused already-hosted image) — render it as a clickable lightbox thumbnail.
+  const prev = e.preview
+    ? `<a class="pe-prev" href="${escapeHtml(e.preview)}" data-zoom data-cap="${escapeHtml(e.path)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(e.preview)}" alt=""></a>`
+    : "";
+  return `<div class="pe pe-${e.change}${e.preview ? ' has-prev' : ''}">${prev}<span class="pe-sym">${sym}</span> ${label}${delta}</div>`;
 }
 
 function patchBlock(p) {
   const groups = p.groups || {};
-  // Visual cards: hero/art entries that resolved to a staged pose thumbnail.
-  const thumbs = [];
+  // Visual cards: hero/art entries that resolved to a staged pose thumbnail,
+  // ONE per unit. A rig is several files (.scsp/.atlas/.sct) that all resolve to
+  // the same slug+pose, so without this a single added/changed unit would show 2-3
+  // identical cards. The per-file detail still lives in the "file changes by area"
+  // rollup below. When a unit's files carry mixed change types, the most salient
+  // badge wins (added > changed > removed).
+  const CHANGE_RANK = { added: 3, changed: 2, removed: 1 };
+  // Incidental shop/equipment art (EE icons, gacha banners) resolves to a hero
+  // slug but isn't a hero-identity change — a re-compressed banner or a new EE
+  // icon shouldn't promote that hero into the headline strip as if they were
+  // added/reworked this pack. Keep those rows in the "file changes" rollup, just
+  // don't surface them as thumbnails.
+  const STRIP_SKIP = /icon_eq_exclusive|(?:^|\/)gacha_/i;
+  const byUnit = new Map();
   for (const g of ["heroes", "art"]) for (const e of (groups[g] || [])) {
-    if (e.pose) thumbs.push(e);
+    if (!e.pose) continue;
+    if (g === "art" && STRIP_SKIP.test(e.path || "")) continue;
+    const cur = byUnit.get(e.slug);
+    if (!cur) byUnit.set(e.slug, { ...e });
+    else if ((CHANGE_RANK[e.change] || 0) > (CHANGE_RANK[cur.change] || 0)) cur.change = e.change;
   }
+  const thumbs = [...byUnit.values()];
   const thumbHtml = thumbs.length ? `<div class="patch-thumbs">${thumbs.map(e => `
     <a class="pt" href="#/u/${encodeURIComponent(e.unit || e.slug)}" title="${escapeHtml((e.name || e.slug))} — ${e.change}">
       <span class="pt-badge pt-${e.change}">${CHANGE_SYM[e.change] || "·"}</span>
-      <img loading="lazy" src="${e.pose}" alt="${escapeHtml(e.name || e.slug)}">
+      <img loading="lazy" src="${escapeHtml(e.pose)}" alt="${escapeHtml(e.name || e.slug)}">
       <span class="pt-name">${escapeHtml(e.name || e.slug)}</span>
     </a>`).join("")}</div>` : "";
 
@@ -770,7 +928,7 @@ function patchBlock(p) {
   const c = p.counts || {};
   return `<div class="patch">
     <div class="patch-head">
-      <h3>Data pack · ${escapeHtml(p.label || p.id)}</h3>
+      <h3>Data pack${p.label ? ` · ${escapeHtml(p.label)}` : ""}</h3>
       <span class="code count">+${c.added||0} · −${c.removed||0} · ~${c.changed||0}</span>
       ${p.date ? `<span class="code">${escapeHtml(p.date)}</span>` : ""}
     </div>
@@ -817,10 +975,10 @@ function updates() {
           <span class="code count">${u.banners.length} banner${u.banners.length>1?'s':''}${story.length ? ` · ${story.length} story` : ''}</span>
         </div>
         <div class="upd-banners">
-          ${u.banners.map(b => `<a href="${b}" data-zoom data-cap="${escapeHtml(label)} banner" target="_blank" rel="noopener"><img loading="lazy" src="${b}" alt="${u.codename}"></a>`).join("")}
+          ${u.banners.map(b => `<a href="${escapeHtml(b)}" data-zoom data-cap="${escapeHtml(label)} banner" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(b)}" alt="${escapeHtml(u.codename)}"></a>`).join("")}
         </div>
         ${story.length ? `<div class="upd-story">
-          ${story.map(s => `<a href="${s}" data-zoom data-cap="${escapeHtml(label)} story" target="_blank" rel="noopener"><img loading="lazy" src="${s}" alt="${u.codename} story"></a>`).join("")}
+          ${story.map(s => `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(label)} story" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.codename)} story"></a>`).join("")}
         </div>` : ''}
       </div>`;
     }).join("")}</div>`;
@@ -911,6 +1069,12 @@ function voiceSection(u) {
 }
 
 function detail(baseId, variantSuf) {
+  // Voice data is lazy-loaded (see ensureVoices). First detail visit renders
+  // without the voice section, then re-routes once — route() re-derives the
+  // unit from the hash, so this is safe even if the user navigated meanwhile.
+  if (!_voicesLoaded) ensureVoices().then(() => {
+    if (location.hash.startsWith("#/u/")) route();
+  });
   const group = (BY_BASE.get(baseId) || []).slice().sort((a,b)=>(a.variant||"").localeCompare(b.variant||""));
   if (!group.length) {
     // Maybe the URL has a full variant id like c1019_s01 — fall back to BY_BASE lookup by full id.
@@ -938,8 +1102,8 @@ function detail(baseId, variantSuf) {
     <div class="detail">
       <div>
         <div class="stage" id="stage">
-          <a href="${poseSrc}" data-zoom data-cap="${escapeHtml(displayName(u))} · pose.png" style="display:contents">
-            <img id="poseimg" src="${poseSrc}" alt="${escapeHtml(displayName(u))} pose"
+          <a href="${escapeHtml(poseSrc)}" data-zoom data-cap="${escapeHtml(displayName(u))} · pose.png" style="display:contents">
+            <img id="poseimg" src="${escapeHtml(poseSrc)}" alt="${escapeHtml(displayName(u))} pose"
                  onerror="this.style.display='none';document.getElementById('nopose').style.display='block';this.parentElement.removeAttribute('data-zoom')">
           </a>
           <div id="nopose" class="nopose" style="display:none">
@@ -1000,29 +1164,36 @@ function detail(baseId, variantSuf) {
               }).join("")}
             `;
           })()}
-          ${rigs.length && rigs[0].atlas ? `<a class="ext" href="${rigs[0].atlas.replace('.atlas','.png')}" data-zoom data-cap="${escapeHtml(u.id)} · texture atlas">⊡ texture</a>` : ""}
-          ${u.cecilia ? (() => { const cslug = u.hero_slug || u.slug; return `<a class="ext" href="${u.cecilia}" target="_blank" rel="noopener">↗ ceciliabot${cslug ? ' · '+cslug : ''}</a>`; })() : ""}
+          ${rigs.length && rigs[0].atlas ? `<a class="ext" href="${escapeHtml(rigs[0].atlas.replace('.atlas','.png'))}" data-zoom data-cap="${escapeHtml(u.id)} · texture atlas">⊡ texture</a>` : ""}
+          ${u.cecilia ? (() => { const cslug = u.hero_slug || u.slug; return `<a class="ext" href="${escapeHtml(u.cecilia)}" target="_blank" rel="noopener">↗ ceciliabot${cslug ? ' · '+escapeHtml(cslug) : ''}</a>`; })() : ""}
           ${(u.updates||[]).map(x => `<span class="ext flat">${escapeHtml(x)}</span>`).join("")}
         </div>
         ${(u.skills||[]).length ? `
           <p class="section-label first">Skill animation</p>
           <div class="skill-gallery">${u.skills.map((s,i) => {
             const lbl = u.skills.length > 1 ? `Skill animation ${i+1}` : "Skill animation";
-            return `<a href="${s}" data-zoom data-cap="${escapeHtml(u.id)} · ${lbl}" target="_blank" rel="noopener"><img loading="lazy" src="${s}" alt="${escapeHtml(u.id)} skill ${i+1}"></a>`;
+            return `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(u.id)} · ${lbl}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.id)} skill ${i+1}"></a>`;
           }).join("")}</div>
         ` : ''}
         ${intimUnit ? `
           <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">Intimacy illustration${intimUnit.modified && (intimUnit.modified_parts||[]).includes('intimacy') ? `<span class="upd-badge inline">UPDATED</span>` : ''}</p>
-          <div class="intimacy-gallery">${intimUnit.intimacy.endsWith('.webm') ? `
-            <video class="intimacy-vid" src="${intimUnit.intimacy}" autoplay loop muted playsinline preload="metadata" data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" title="click to enlarge" aria-label="${escapeHtml(u.id)} intimacy illustration"></video>
+          <div class="intimacy-gallery">${intimUnit.intimacy.split('?')[0].endsWith('.webm') ? `
+            <video class="intimacy-vid" src="${escapeHtml(intimUnit.intimacy)}" autoplay loop muted playsinline preload="metadata" data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" title="click to enlarge" aria-label="${escapeHtml(u.id)} intimacy illustration"></video>
           ` : `
-            <a href="${intimUnit.intimacy}" data-zoom data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" target="_blank" rel="noopener"><img loading="lazy" src="${intimUnit.intimacy}" alt="${escapeHtml(u.id)} intimacy illustration"></a>
+            <a href="${escapeHtml(intimUnit.intimacy)}" data-zoom data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(intimUnit.intimacy)}" alt="${escapeHtml(u.id)} intimacy illustration"></a>
           `}</div>
+          ${(intimUnit.intimacy_reactions||[]).length ? `
+          <div class="intim-reacts">${intimUnit.intimacy_reactions.map(r => `
+            <a class="intim-react" href="${escapeHtml(r.webm)}" data-react-src="${escapeHtml(r.webm)}" data-cap="${escapeHtml(displayName(u))} · ${escapeHtml(r.label)}" target="_blank" rel="noopener" title="${escapeHtml(r.label)}">
+              ${r.poster ? `<img loading="lazy" src="${escapeHtml(r.poster)}" alt="${escapeHtml(r.label)}">` : `<img loading="lazy" src="${escapeHtml(r.webm)}" alt="${escapeHtml(r.label)}">`}
+              <span class="ir-play"></span><span class="ir-label">${escapeHtml(r.label)}</span>
+            </a>`).join("")}</div>
+          ` : ''}
         ` : ''}
         ${voiceSection(u)}
         <p class="section-label">Bundled artwork</p>
         ${(u.artworks||[]).length
-          ? `<div class="gallery">${u.artworks.map(a => `<a href="${a}" data-zoom data-cap="${escapeHtml(displayName(u))} · ${escapeHtml(a.split('/').pop())}" target="_blank" rel="noopener"><img loading="lazy" src="${a}"></a>`).join("")}</div>`
+          ? `<div class="gallery">${u.artworks.map(a => `<a href="${escapeHtml(a)}" data-zoom data-cap="${escapeHtml(displayName(u))} · ${escapeHtml(a.split('/').pop())}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(a)}" alt=""></a>`).join("")}</div>`
           : `<p class="empty" style="padding:18px 0;text-align:left">${artN ? `${artN} related image${artN!==1?'s':''} exist in img_output/ but aren't bundled in the site (size budget). Browse the local dump for the full gallery.` : 'no img_output matches for this id.'}</p>`
         }
       </div>
@@ -1123,8 +1294,8 @@ function emotes() {
           <div class="who-count">${g.emotes.length} emote${g.emotes.length!==1?'s':''} · ${clickable ? 'open detail →' : 'no unit page'}</div>
         </div>
         <div class="emote-grid">${g.emotes.map(e => `
-          <a class="emote-cell${e.animated ? ' animated' : ''}" href="${e.file}" data-zoom data-cap="${escapeHtml(heroLabel)} · ${escapeHtml(e.theme)}${e.animated ? ' (animated)' : ''}" target="_blank" rel="noopener" title="${escapeHtml(e.theme)}${e.animated ? ' (animated)' : ''}">
-            <img loading="lazy" src="${e.file}" alt="${escapeHtml(e.theme)}">
+          <a class="emote-cell${e.animated ? ' animated' : ''}" href="${escapeHtml(e.file)}" data-zoom data-cap="${escapeHtml(heroLabel)} · ${escapeHtml(e.theme)}${e.animated ? ' (animated)' : ''}" target="_blank" rel="noopener" title="${escapeHtml(e.theme)}${e.animated ? ' (animated)' : ''}">
+            <img loading="lazy" src="${escapeHtml(e.file)}" alt="${escapeHtml(e.theme)}">
             <span class="theme">${escapeHtml(e.theme)}</span>
           </a>`).join("")}</div>
       </div>`;
@@ -1163,8 +1334,8 @@ function wallpapers() {
       return `<button data-c="${c}" class="${c===wpCatF?'on':''}">${label}<span class="n">${n}</span></button>`;
     }).join("")}</div>
     <div class="wallpaper-grid">${list.map(w => `
-      <a class="wallpaper-cell${w.new ? ' is-new' : ''}" href="${w.file}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(WP_CAT_LABEL[w.category] || w.category)}" target="_blank" rel="noopener">
-        <img loading="lazy" src="${w.file}" alt="${escapeHtml(w.name)}">
+      <a class="wallpaper-cell${w.new ? ' is-new' : ''}" href="${escapeHtml(w.file)}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(WP_CAT_LABEL[w.category] || w.category)}" target="_blank" rel="noopener">
+        <img loading="lazy" src="${escapeHtml(w.file)}" alt="${escapeHtml(w.name)}">
         ${w.new ? `<span class="new-badge">NEW</span>` : ""}
         <span class="wp-cat">${escapeHtml(WP_CAT_LABEL[w.category] || w.category)}</span>
         <span class="wp-name">${escapeHtml(w.name)}</span>
@@ -1233,11 +1404,11 @@ function artifacts() {
       const cap = [name, meta].filter(Boolean).join(" · ");
       const cb = a.cecilia || "";
       return `
-      <a class="artifact-cell${a.new ? ' is-new' : ''}" href="${a.art_full}" data-zoom data-cap="${escapeHtml(cap)}" target="_blank" rel="noopener">
-        <img loading="lazy" src="${a.art_full}" alt="${escapeHtml(name)}">
+      <a class="artifact-cell${a.new ? ' is-new' : ''}" href="${escapeHtml(a.art_full)}" data-zoom data-cap="${escapeHtml(cap)}" target="_blank" rel="noopener">
+        <img loading="lazy" src="${escapeHtml(a.art_full)}" alt="${escapeHtml(name)}">
         ${a.new ? `<span class="new-badge">NEW</span>` : ""}
         <span class="a-name">${escapeHtml(name)}${meta ? `<span class="a-meta">${escapeHtml(meta)}</span>` : ""}</span>
-        ${cb ? `<button class="a-cb" data-cb="${cb}" type="button" title="open on ceciliabot">↗ cb</button>` : ""}
+        ${cb ? `<button class="a-cb" data-cb="${escapeHtml(cb)}" type="button" title="open on ceciliabot">↗ cb</button>` : ""}
       </a>`;
     }).join("")}</div>`;
 
@@ -1260,15 +1431,19 @@ function artifacts() {
     artifacts();
   });
   const qEl = document.getElementById("qArti");
+  // Debounced for the same reason as the hub search (full-grid re-render).
   if (qEl) qEl.oninput = (e) => {
     artiSearchQ = e.target.value;
-    artifacts();
-    queueMicrotask(() => {
-      const n = document.getElementById("qArti");
-      if (!n) return;
-      n.focus();
-      n.setSelectionRange(artiSearchQ.length, artiSearchQ.length);
-    });
+    clearTimeout(window._qArtiDebounce);
+    window._qArtiDebounce = setTimeout(() => {
+      artifacts();
+      queueMicrotask(() => {
+        const n = document.getElementById("qArti");
+        if (!n) return;
+        n.focus();
+        n.setSelectionRange(artiSearchQ.length, artiSearchQ.length);
+      });
+    }, 120);
   };
 }
 
@@ -1297,9 +1472,225 @@ function about() {
     </div>`;
 }
 
+// ===== Story book (LOCAL ONLY) =====================================
+// The full Main-Story screenplay: a chapter table-of-contents (#/story) and an
+// illustrated reader (#/story/<chapterId>) with an EN/KR/JA dialogue toggle and
+// a per-chapter "Voices" panel reusing the voice-clip machinery. All data is
+// gitignored + held aside on deploy, so none of this ships publicly.
+// Short labels for the dialogue-text languages (the data carries up to 10).
+const STORY_TEXT_LABELS = { en:"EN", kr:"KR", ja:"JA", zht:"繁", zhs:"简",
+  de:"DE", fr:"FR", es:"ES", pt:"PT", th:"TH" };
+const STORY_VOICE_LANGS = [["en","EN"],["ja","JA"],["ko","KR"]];   // extracted voice langs
+
+function injectStoryNav() {
+  if (document.querySelector('nav button[data-v="story"]')) return;
+  const nav = document.querySelector("header nav");
+  if (!nav) return;
+  const btn = document.createElement("button");
+  btn.dataset.v = "story"; btn.textContent = "Story";
+  btn.onclick = () => { location.hash = "#/story"; };
+  const about = nav.querySelector('button[data-v="about"]');
+  nav.insertBefore(btn, about);
+}
+
+function story() {
+  setNav("story");
+  const eps = (STORY_INDEX && STORY_INDEX.episodes) || [];
+  if (!eps.length) { $("#app").innerHTML = `<p class="empty">No story indexed.</p>`; return; }
+  const total = eps.reduce((n,e) => n + e.chapters.length, 0);
+  $("#app").innerHTML = `
+    <p class="section-label first">Main Story · ${total} chapters</p>
+    <div class="story-toc">
+      ${eps.map(e => `
+        <section class="story-ep">
+          <h2 class="story-ep-h">${escapeHtml(e.label)}</h2>
+          <div class="story-chaps">
+            ${e.chapters.map(c => `
+              <a class="story-chap" href="#/story/${encodeURIComponent(c.id)}">
+                ${c.bg ? `<span class="story-chap-bg" style="background-image:url('${c.bg}')"></span>`
+                       : `<span class="story-chap-bg story-chap-bg-blank"></span>`}
+                <span class="story-chap-meta">
+                  <span class="story-chap-t">${escapeHtml(c.label)}</span>
+                  <span class="story-chap-n">${c.beats} lines</span>
+                </span>
+              </a>`).join("")}
+          </div>
+        </section>`).join("")}
+    </div>`;
+}
+
+function storyFlat() {
+  const flat = [];
+  for (const e of (STORY_INDEX && STORY_INDEX.episodes) || [])
+    for (const c of e.chapters) flat.push({ ...c, ep: e.label });
+  return flat;
+}
+
+async function storyChapter(cid) {
+  setNav("story");
+  const flat = storyFlat();
+  const idx = flat.findIndex(c => c.id === cid);
+  if (idx < 0) { $("#app").innerHTML = `<p class="empty">Chapter not found.</p>`; return; }
+  $("#app").innerHTML = `<p class="empty">Loading…</p>`;
+  let beats;
+  try {
+    beats = STORY_CHAPTERS[cid] ||
+      (STORY_CHAPTERS[cid] = await (await fetch(`data/story/${encodeURIComponent(cid)}.json`)).json());
+  } catch { $("#app").innerHTML = `<p class="empty">Chapter failed to load.</p>`; return; }
+  renderStoryChapter(cid, flat[idx], flat, idx, beats);
+}
+
+// Resolve a story-voice clip URL for the selected voice language (with fallback).
+function storyVoiceUrl(vkey) {
+  const langs = (VOICE_STORY && VOICE_STORY[vkey]) || [];
+  if (!langs.length) return null;
+  const lang = langs.includes(storyVoiceLang) ? storyVoiceLang : langs[0];
+  return `${VOICE_BASE}/story/${lang}/${vkey}.ogg`;
+}
+function playStoryVoice(vkey) {
+  const url = storyVoiceUrl(vkey);
+  if (!url) return;
+  if (!storyAudio) storyAudio = new Audio();
+  try { storyAudio.pause(); } catch {}
+  storyAudio.src = url;
+  storyAudio.play().catch(() => {});
+}
+const isVoiced = (b) => b.v && VOICE_STORY && VOICE_STORY[b.v];
+
+function beatHtml(b, L, fi) {
+  if (b.t === "scene") {
+    return b.bg
+      ? `<a class="scene-divider" data-zoom href="${b.bg}" data-cap="${escapeHtml(b.raw||'')}"><img src="${b.bg}" alt="" loading="lazy"></a>`
+      : `<div class="scene-divider scene-blank">· · ·</div>`;
+  }
+  const txt = escapeHtml((b.text && (b.text[L] || b.text.en || b.text.kr)) || "");
+  const vbtn = isVoiced(b) ? `<button class="beat-voice" data-v="${b.v}" title="play voice">▶</button>` : "";
+  // "Play in Theater from here" — fi is this beat's frame index.
+  const tbtn = fi != null ? `<button class="beat-fromhere" data-fi="${fi}" title="Play in Theater from here">⛶</button>` : "";
+  if (b.t === "title") return `<div class="beat-title">${txt}${tbtn}</div>`;
+  if (b.t === "narr")  return `<div class="beat-narr">${vbtn}${txt}${tbtn}</div>`;
+  const port = b.portrait
+    ? `<a class="beat-portrait" data-zoom href="${b.portrait}" data-cap="${escapeHtml(b.name||'')}"><img src="${b.portrait}" alt="" loading="lazy"></a>`
+    : `<span class="beat-portrait beat-portrait-blank">${escapeHtml((b.name||'?').slice(0,1))}</span>`;
+  const nm = b.slug
+    ? `<a class="beat-name" href="#/u/${encodeURIComponent(b.slug)}">${escapeHtml(b.name)}</a>`
+    : `<span class="beat-name">${escapeHtml(b.name)}</span>`;
+  return `<div class="beat-line${b.choice?' beat-choice':''}">${port}
+    <div class="beat-text"><div class="beat-spk">${nm}${vbtn}${tbtn}</div><div class="beat-say">${txt}</div></div></div>`;
+}
+
+// Render a chapter's beats to HTML, tagging each displayable beat with its theater
+// frame index (frames skip `scene` beats, matching buildFrames()).
+function storyBodyHtml(beats, L) {
+  let fi = 0;
+  return beats.map(b => b.t === "scene" ? beatHtml(b, L, null) : beatHtml(b, L, fi++)).join("");
+}
+
+// ----- Theater (visual-novel) mode -----
+// Walks the chapter's beats into VN "frames" (each line/narr/title carries the
+// latest scene background) and shows one at a time over a dimmed bg, with the
+// text in a translucent box. Click / → / Space advance; ← back; Esc closes.
+function buildFrames(beats) {
+  // Seed with the chapter's first background so opening frames aren't a blank screen.
+  let bg = (beats.find(b => b.t === "scene" && b.bg) || {}).bg || null;
+  const fr = [];
+  for (const b of beats) {
+    if (b.t === "scene") { bg = b.bg || bg; continue; }
+    fr.push({ bg, kind: b.t, name: b.name || null, portrait: b.portrait || null,
+              text: b.text, v: b.v || null });
+  }
+  return fr;
+}
+function openTheater(frames, i) {
+  if (!frames.length) return;
+  THEATER = { frames, i: i || 0 };
+  let el = document.getElementById("theater");
+  if (!el) { el = document.createElement("div"); el.id = "theater"; el.className = "theater"; document.body.appendChild(el); }
+  el.classList.add("open");
+  el.onclick = (e) => { if (!e.target.closest(".th-close, .th-bar, .beat-voice")) theaterStep(1); };
+  theaterRender();
+}
+function theaterRender() {
+  if (!THEATER) return;
+  const { frames, i } = THEATER, f = frames[i], L = storyLang;
+  const txt = escapeHtml((f.text && (f.text[L] || f.text.en || f.text.kr)) || "");
+  const voiced = f.v && VOICE_STORY && VOICE_STORY[f.v];
+  const el = document.getElementById("theater");
+  el.innerHTML = `
+    <div class="th-bg" style="${f.bg ? `background-image:url('${f.bg}')` : ""}"></div>
+    <div class="th-bar">
+      <span class="th-prog">${i+1} / ${frames.length}</span>
+      <button class="th-close" id="thClose" title="exit (Esc)">✕</button>
+    </div>
+    ${f.portrait ? `<img class="th-portrait" src="${f.portrait}" alt="">` : ""}
+    <div class="th-box${f.kind!=='line'?' th-center':''}">
+      ${f.name ? `<div class="th-name">${escapeHtml(f.name)}${voiced?` <button class="beat-voice th-replay" data-v="${f.v}" title="replay">▶</button>`:""}</div>` : ""}
+      <div class="th-text">${txt}</div>
+    </div>
+    <div class="th-hint">click / → next · ← back · Esc exit</div>`;
+  document.getElementById("thClose").onclick = (e) => { e.stopPropagation(); closeTheater(); };
+  if (voiced) playStoryVoice(f.v);
+}
+function theaterStep(d) {
+  if (!THEATER) return;
+  const n = THEATER.i + d;
+  if (n < 0) return;
+  if (n >= THEATER.frames.length) { closeTheater(); return; }
+  THEATER.i = n; theaterRender();
+}
+function closeTheater() {
+  const el = document.getElementById("theater");
+  if (el) el.classList.remove("open");
+  if (storyAudio) { try { storyAudio.pause(); } catch {} }
+  THEATER = null;
+}
+
+function renderStoryChapter(cid, meta, flat, idx, beats) {
+  STORY_FRAMES = buildFrames(beats);
+  const langs = (STORY_INDEX && STORY_INDEX.langs) || ["en", "kr", "ja"];
+  if (!langs.includes(storyLang)) storyLang = langs[0];
+  const textBtns = langs.map(k =>
+    `<button class="slang${k===storyLang?' on':''}" data-lang="${k}">${STORY_TEXT_LABELS[k]||k.toUpperCase()}</button>`).join("");
+  const voicedN = beats.filter(isVoiced).length;
+  const voiceBtns = STORY_VOICE_LANGS.map(([k,lab]) =>
+    `<button class="svlang${k===storyVoiceLang?' on':''}" data-lang="${k}">${lab}</button>`).join("");
+  const prev = idx > 0 ? flat[idx-1] : null, next = idx < flat.length-1 ? flat[idx+1] : null;
+  $("#app").innerHTML = `
+    <div class="story-reader">
+      <div class="story-rhead">
+        <a class="story-back" href="#/story">← All chapters</a>
+        <div class="story-title"><span class="story-ep-tag">${escapeHtml(meta.ep)}</span><h2>${escapeHtml(meta.label)}</h2></div>
+        <button class="story-theater-btn" id="thStart">▶ Theater</button>
+      </div>
+      <div class="story-langbar">
+        <span class="story-lang-grp"><span class="story-lang-lbl">Text</span><span class="slang-row">${textBtns}</span></span>
+        ${voicedN ? `<span class="story-lang-grp"><span class="story-lang-lbl">Voice</span><span class="slang-row">${voiceBtns}</span></span>` : ""}
+      </div>
+      ${voicedN ? `<p class="story-voiced-note">${voicedN} voiced lines — ▶ plays the line · ⛶ starts Theater there</p>` : ""}
+      <div class="story-body" id="storyBody">${storyBodyHtml(beats, storyLang)}</div>
+      <div class="story-nav">
+        ${prev ? `<a href="#/story/${encodeURIComponent(prev.id)}">← ${escapeHtml(prev.label)}</a>` : `<span></span>`}
+        ${next ? `<a href="#/story/${encodeURIComponent(next.id)}">${escapeHtml(next.label)} →</a>` : `<span></span>`}
+      </div>
+    </div>`;
+  window.scrollTo(0, 0);
+  // Text language: re-render the body in the chosen language.
+  document.querySelectorAll(".slang").forEach(btn => btn.onclick = () => {
+    storyLang = btn.dataset.lang;
+    document.querySelectorAll(".slang").forEach(b => b.classList.toggle("on", b === btn));
+    document.getElementById("storyBody").innerHTML = storyBodyHtml(beats, storyLang);
+  });
+  // Voice language: independent of text (just re-style; next play uses it).
+  document.querySelectorAll(".svlang").forEach(btn => btn.onclick = () => {
+    storyVoiceLang = btn.dataset.lang;
+    document.querySelectorAll(".svlang").forEach(b => b.classList.toggle("on", b === btn));
+  });
+  document.getElementById("thStart").onclick = () => openTheater(STORY_FRAMES, 0);
+}
+
 function route() {
   const h = location.hash;
-  const isHub = !(h.startsWith("#/u/") || h === "#/updates" || h === "#/emotes" || h === "#/wallpapers" || h === "#/artifacts" || h === "#/about");
+  const isHub = !(h.startsWith("#/u/") || h.startsWith("#/story") || h === "#/updates" || h === "#/emotes" || h === "#/wallpapers" || h === "#/artifacts" || h === "#/about");
   // Release IntersectionObserver references to the previous hub render before
   // any view swaps in — otherwise the detached <img> nodes stay pinned.
   if (!isHub && _hubImgObs) { _hubImgObs.disconnect(); _hubImgObs = null; }
@@ -1307,7 +1698,9 @@ function route() {
     const rest = decodeURIComponent(h.slice(4));
     const [base, vsuf] = rest.split("/");
     detail(base, vsuf || "");
-  } else if (h === "#/updates")    updates();
+  } else if (h.startsWith("#/story/")) storyChapter(decodeURIComponent(h.slice(8)));
+  else   if (h === "#/story")       story();
+  else   if (h === "#/updates")    updates();
   else   if (h === "#/emotes")     emotes();
   else   if (h === "#/wallpapers") wallpapers();
   else   if (h === "#/artifacts")  artifacts();
@@ -1380,6 +1773,12 @@ function closeLightbox() {
 document.addEventListener("click", (e) => {
   // Modifier-click / non-primary buttons preserve the native link behaviour.
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+  // Inline story-voice play button (reader + theater replay).
+  const bvBtn = e.target.closest(".beat-voice");
+  if (bvBtn) { e.preventDefault(); e.stopPropagation(); playStoryVoice(bvBtn.dataset.v); return; }
+  // "Play in Theater from here" button.
+  const fhBtn = e.target.closest(".beat-fromhere");
+  if (fhBtn) { e.preventDefault(); openTheater(STORY_FRAMES, +fhBtn.dataset.fi); return; }
   // Voice-line clip → audio lightbox.
   const clip = e.target.closest(".vlclip");
   if (clip) {
@@ -1405,6 +1804,9 @@ document.addEventListener("click", (e) => {
   // Inline intimacy illustration video → enlarge in the video lightbox.
   const iv = e.target.closest(".intimacy-vid");
   if (iv) { e.preventDefault(); openLightboxVideo(iv.getAttribute("src"), iv.dataset.cap || ""); return; }
+  // Intimacy reaction thumbnail → play the clip in the video lightbox.
+  const ir = e.target.closest(".intim-react");
+  if (ir) { e.preventDefault(); openLightboxVideo(ir.dataset.reactSrc, ir.dataset.cap || ""); return; }
   const a = e.target.closest("a[data-zoom]");
   if (!a) return;
   e.preventDefault();
@@ -1442,6 +1844,13 @@ document.getElementById("lbDownload").addEventListener("click", async (e) => {
 document.getElementById("lbClose").addEventListener("click", closeLightbox);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && LB.classList.contains("open")) closeLightbox();
+});
+// Theater (VN) mode keyboard nav.
+document.addEventListener("keydown", (e) => {
+  if (!THEATER) return;
+  if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); theaterStep(1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); theaterStep(-1); }
+  else if (e.key === "Escape") { e.preventDefault(); closeTheater(); }
 });
 
 load();
