@@ -341,6 +341,59 @@ SP_CURVE_STEPPED = 1
 SP_CURVE_BEZIER  = 2
 
 
+def _e7_read_curves(input, frames):
+  """Read a timeline's curve block and annotate `frames` in place.
+
+  Ground truth is the engine's v2-container reader (EpicSeven.exe
+  FUN_14032bc30, cases 0-3/7/8) + the vendored spine-c 2.1.27
+  getCurvePercent (FUN_140b71470). Wire after the frames float-vector:
+
+    u16 sentinel/count:
+      0xFFFF -> runtime curves ptr = -1   -> EVERY frame-pair LINEAR
+      0xFFFE -> runtime curves ptr = NULL -> EVERY frame-pair STEPPED
+                (getCurvePercent returns 0 when curves == NULL)
+      else   -> (u16 - 1) entries, each: 1 byte type
+                (0 linear / 1 stepped / 2 bezier); bezier adds
+                f32 target FRAME INDEX + 4 f32 control points
+                (cx1, cy1, cx2, cy2) which the engine bakes into
+                curves[frameIndex * 19].
+
+  The old code lumped 0xFFFE in with 0xFFFF ("anything >= 65534 means no
+  curves"), silently decoding E7's compact all-stepped encoding — the
+  dominant case in combat rigs — as all-linear. Every hard pose cut then
+  played as a linear blend of two unrelated poses: the "single garbled
+  frame between good frames" defect in skill animations.
+  """
+  marker = _scsp_funcs._scsp_readShortInt(input)
+  if (marker == 0xFFFF):
+    return                                   # all linear: no curve keys
+  if (marker == 0xFFFE):
+    for entry in frames[:-1]:
+      entry["curve"] = "stepped"             # all stepped
+    return
+  # Explicit per-frame list. The engine sizes/loops by (u16 - 1), NOT by
+  # frame count — trust the wire for byte accounting.
+  n = marker - 1
+  if (n != len(frames) - 1):
+    print(f"!!! curve-count u16 {marker} disagrees with frame count {len(frames)}; trusting wire")
+  entry_ind = 0
+  while (entry_ind < n):
+    ctype = _scsp_funcs._scsp_readByte(input)
+    if (ctype == SP_CURVE_STEPPED):
+      if (entry_ind < len(frames)): frames[entry_ind]["curve"] = "stepped"
+    elif (ctype == SP_CURVE_BEZIER):
+      fidx = int(_scsp_funcs._scsp_readFloat(input))  # engine bakes at this frame index
+      cv = [_scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)),
+            _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)),
+            _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)),
+            _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4))]
+      tgt = fidx if (0 <= fidx < len(frames)) else entry_ind
+      frames[tgt]["curve"] = cv
+    elif (ctype != 0):
+      print(f"!!! Unknown curve type {ctype}; continuing")
+    entry_ind = entry_ind + 1
+
+
 def _scsp_readBones(input, refStrings_raw, count_bones, pos4start=88):
   result    = []
 
@@ -892,27 +945,7 @@ def _scsp_readAnimations(input, refStrings_raw, pos4RefStrings, size4RefStrings,
             entry_scales.append(entry)
             entry_ind = entry_ind + 1
             
-          animation_mode_curve = _scsp_funcs._scsp_readShortInt(input)
-          if (animation_mode_curve < 65534):
-            entry_ind   = 0
-            while (entry_ind < (entry_count - 1)): # загружаем массив
-      
-              animation_mode_curve = _scsp_funcs._scsp_readByte(input)
-              
-              if (animation_mode_curve == SP_CURVE_STEPPED):
-                entry_scales[entry_ind]["curve"] = "stepped"
-              elif (animation_mode_curve == SP_CURVE_BEZIER):
-                _scsp_funcs._scsp_skipUnknowns(input, 4) # skip... time?
-              
-                entry_scales[entry_ind]["curve"] = [_scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                    _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                    _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                    _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4))] # 4 floats
-              
-              elif (animation_mode_curve != 0):
-                print(f"!!! Unknown curve type {animation_mode_curve}; continuing")
-
-              entry_ind = entry_ind + 1
+          _e7_read_curves(input, entry_scales)
 
         elif (animation_mode == SP_TIMELINE_ROTATE): # bone/rotate
           animation_slot = _scsp_funcs._scsp_readInt(input)
@@ -931,27 +964,7 @@ def _scsp_readAnimations(input, refStrings_raw, pos4RefStrings, size4RefStrings,
             entry_rotates.append(entry)
             entry_ind = entry_ind + 1
             
-          animation_mode_curve = _scsp_funcs._scsp_readShortInt(input)
-          if (animation_mode_curve < 65534):
-            entry_ind   = 0
-            while (entry_ind < (entry_count - 1)): # загружаем массив
-      
-              animation_mode_curve = _scsp_funcs._scsp_readByte(input)
-              
-              if (animation_mode_curve == SP_CURVE_STEPPED):
-                entry_rotates[entry_ind]["curve"] = "stepped"
-              elif (animation_mode_curve == SP_CURVE_BEZIER):
-                _scsp_funcs._scsp_skipUnknowns(input, 4) # skip... time?
-              
-                entry_rotates[entry_ind]["curve"] = [_scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                     _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                     _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                     _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4))] # 4 floats
-              
-              elif (animation_mode_curve != 0):
-                print(f"!!! Unknown curve type {animation_mode_curve}; continuing")
-
-              entry_ind = entry_ind + 1
+          _e7_read_curves(input, entry_rotates)
 
         elif (animation_mode == SP_TIMELINE_TRANSLATE): # bone/translate
           animation_slot   = _scsp_funcs._scsp_readInt(input)
@@ -972,26 +985,7 @@ def _scsp_readAnimations(input, refStrings_raw, pos4RefStrings, size4RefStrings,
             entry_translates.append(entry)
             entry_ind = entry_ind + 1
             
-          animation_mode_curve = _scsp_funcs._scsp_readShortInt(input)
-          if (animation_mode_curve < 65534):
-            entry_ind   = 0
-            while (entry_ind < (entry_count - 1)): # загружаем массив
-      
-              animation_mode_curve = _scsp_funcs._scsp_readByte(input)
-              
-              if (animation_mode_curve == SP_CURVE_STEPPED):
-                entry_translates[entry_ind]["curve"] = "stepped"
-              elif (animation_mode_curve == SP_CURVE_BEZIER):
-                _scsp_funcs._scsp_skipUnknowns(input, 4) # skip... time?
-              
-                entry_translates[entry_ind]["curve"] = [_scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                        _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                        _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                        _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4))] # 4 floats
-              elif (animation_mode_curve != 0):
-                print(f"!!! Unknown curve type {animation_mode_curve}; continuing")
-
-              entry_ind = entry_ind + 1
+          _e7_read_curves(input, entry_translates)
 
         elif (animation_mode == SP_TIMELINE_COLOR): # skin/color
           animation_slot = _scsp_funcs._scsp_readInt(input)
@@ -1010,26 +1004,7 @@ def _scsp_readAnimations(input, refStrings_raw, pos4RefStrings, size4RefStrings,
             entry_colors.append({"color" : entry_color, "time" : entry_time})
             entry_ind = entry_ind + 1
             
-          animation_mode_curve = _scsp_funcs._scsp_readShortInt(input)
-          if (animation_mode_curve < 65534):
-            entry_ind   = 0
-            while (entry_ind < (entry_count - 1)): # загружаем массив
-      
-              animation_mode_curve = _scsp_funcs._scsp_readByte(input)
-              
-              if (animation_mode_curve == SP_CURVE_STEPPED):
-                entry_colors[entry_ind]["curve"] = "stepped"
-              elif (animation_mode_curve == SP_CURVE_BEZIER):
-                _scsp_funcs._scsp_skipUnknowns(input, 4) # skip... time?
-              
-                entry_colors[entry_ind]["curve"] = [_scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                    _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                    _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                                    _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4))] # 4 floats
-              elif (animation_mode_curve != 0):
-                print(f"!!! Unknown curve type {animation_mode_curve}; continuing")
-
-              entry_ind = entry_ind + 1
+          _e7_read_curves(input, entry_colors)
 
         elif (animation_mode == SP_TIMELINE_ATTACHMENT): # skin/attachment
           animation_slot = _scsp_funcs._scsp_readInt(input)
@@ -1128,29 +1103,8 @@ def _scsp_readAnimations(input, refStrings_raw, pos4RefStrings, size4RefStrings,
             
             entry_ind = entry_ind + 1
             
-          animation_mode_curve = _scsp_funcs._scsp_readShortInt(input)
-          if (animation_mode_curve < 65534):
-            entry_ind  = 0
-            while (entry_ind < (entry_count - 1)): # загружаем массив
-              entry                = {}
-              animation_mode_curve = _scsp_funcs._scsp_readByte(input)
-              
-              if (animation_mode_curve == SP_CURVE_STEPPED):
-                entry["curve"] = "stepped"
-              elif (animation_mode_curve == SP_CURVE_BEZIER):
-                _scsp_funcs._scsp_skipUnknowns(input, 4) # skip... time?
-              
-                entry["curve"] = [_scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                  _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                  _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4)), 
-                                  _scsp_funcs._scsp_remove_float_zero(round(_scsp_funcs._scsp_readFloat(input), 4))] # 4 floats
-              elif (animation_mode_curve != 0):
-                print(f"!!! Unknown curve type {animation_mode_curve}; continuing")
-
-              entry_curves.append(entry)
-              entry_ind = entry_ind + 1
-              
-          entry_curves.append({})
+          entry_curves = [{} for _e7_i in range(entry_count)]
+          _e7_read_curves(input, entry_curves)
               
           entry_ind = 0
           while (entry_ind < entry_count):

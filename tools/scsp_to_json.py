@@ -372,9 +372,43 @@ def post_process_2_1_27(out_json: Path) -> None:
     # "left arm rotates wrong direction" symptom. The late+1 mix-bake-ship
     # saw c1018 still broken, but at that point ffd→deform hadn't shipped
     # yet (late+5), so cloth/skirt/cape artefacts likely masked the arm fix.
+    # E7_FLIP_RESOLVE=1 (2026-06-10): modes 9/10 are FlipX/FlipY bone timelines
+    # (spine-c 2.1.27 spTimelineType enum; RE-confirmed from EpicSeven.exe —
+    # spFlipTimeline_create @0x140b71bc0, apply @0x140b706f0; see
+    # docs/FINDINGS_mode9_10_flip_2026-06-10.md). idx = bone index, sub_type =
+    # the x-axis flag (mode 9 = x, mode 10 = y), frame value = flip boolean.
+    # We emit the records as an `_e7_flips` animation-level key
+    # (flat [t0,v0,t1,v1,...] frames) consumed by the patched spine-player.js
+    # (E7FlipTimeline + e7v21x world-axis mirror); stock players ignore the
+    # key. DEFAULT ON since 2026-06-10: the 13-rig regression gate passed
+    # (c1144/c1017/c1009/c1067/c1001/c1047/c1024/c1042/c1046/c1050/c1071 +
+    # c1019/c5128, b_idle + skills, island metric + locked-camera dense
+    # grids). Set E7_FLIP_RESOLVE=0 to fall back to the legacy mix-bake
+    # approximation.
+    import os as _os
+    _flip_resolve = _os.environ.get("E7_FLIP_RESOLVE", "1") != "0"
+
     for anim in data.get("animations", {}).values():
         recs = anim.pop("_e7_mix_records", None) or []
         if not recs:
+            continue
+        if _flip_resolve:
+            flips = []
+            for rec in recs:
+                idx = rec.get("idx", -1)
+                if not (0 <= idx < len(bone_names_e7)):
+                    continue
+                frames: list[float] = []
+                for f in rec.get("frames", []):
+                    frames.extend((f.get("time", 0) or 0,
+                                   1.0 if f.get("mix") else 0.0))
+                if not frames:
+                    continue
+                flips.append({"bone": bone_names_e7[idx],
+                              "axis": "x" if rec.get("mode") == 9 else "y",
+                              "frames": frames})
+            if flips:
+                anim["_e7_flips"] = flips
             continue
         bones_tls = anim.get("bones")
         if not isinstance(bones_tls, dict):

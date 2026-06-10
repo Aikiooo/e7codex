@@ -302,6 +302,14 @@
   .about-line a,.about-para a{color:var(--gold);border-bottom:1px solid var(--gold-dim)}
   .about-line a:hover,.about-para a:hover{color:var(--text);border-color:var(--text)}
   .demo{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--gold-dim);border:1px dashed var(--gold-dim);padding:10px 14px;border-radius:3px;margin-bottom:22px;letter-spacing:.04em}
+  /* One-time announcement popup (shows once per browser, auto-retires after
+     its hard expiry date — see noticePopup() at the bottom of the script). */
+  .notice-pop{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1200;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(3px)}
+  .notice-pop .np-card{background:var(--panel);border:1px solid var(--gold-dim);border-radius:4px;max-width:480px;padding:28px 30px 24px;box-shadow:0 18px 60px -20px rgba(0,0,0,.95)}
+  .notice-pop h3{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:26px;font-weight:600;margin:0 0 10px;letter-spacing:.03em}
+  .notice-pop p{margin:0 0 18px;color:var(--text);font-size:14.5px}
+  .notice-pop .np-ok{background:rgba(216,176,106,.1);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:9px 18px;border-radius:2px;cursor:pointer}
+  .notice-pop .np-ok:hover{background:rgba(216,176,106,.18)}
   /* Lightbox modal — intercepts clicks on a[data-zoom] anywhere on the page
      and shows the asset at max viewport size with a download button. Falls
      back gracefully: links keep their href so right-click → "open in new tab"
@@ -1852,6 +1860,39 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "ArrowLeft") { e.preventDefault(); theaterStep(-1); }
   else if (e.key === "Escape") { e.preventDefault(); closeTheater(); }
 });
+
+// One-time announcement: combat renders are now accurate. Shows once per
+// browser (localStorage) and ONLY until the expiry below — after that the
+// block is inert and can be deleted at leisure.
+(function noticePopup() {
+  const EXPIRES = Date.parse("2026-06-18T00:00:00Z");
+  const KEY = "notice_combat_accurate_2026_06";
+  try {
+    if (Date.now() >= EXPIRES || localStorage.getItem(KEY)) return;
+  } catch (_) { return; }
+  const wrap = document.createElement("div");
+  wrap.className = "notice-pop";
+  wrap.setAttribute("role", "dialog");
+  wrap.innerHTML =
+    `<div class="np-card">
+       <h3>Combat renders — finally accurate</h3>
+       <p>Every combat rig has been re-converted with engine-exact animation
+          data. Skill animations, hard pose cuts and mirrored limbs now play
+          exactly as they do in game. Open any unit's
+          <strong>▶ live viewer (combat)</strong> to see it.</p>
+       <button class="np-ok">Got it</button>
+     </div>`;
+  const dismiss = () => {
+    try { localStorage.setItem(KEY, "1"); } catch (_) {}
+    wrap.remove();
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (e) => { if (e.key === "Escape") dismiss(); };
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) dismiss(); });
+  wrap.querySelector(".np-ok").addEventListener("click", dismiss);
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(wrap);
+})();
 
 load();
 </script>
