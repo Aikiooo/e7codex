@@ -41,7 +41,13 @@ def detect_version(scsp: Path) -> str | None:
     except Exception:
         return None
     if b"2.1.27.scsp" in body: return "2.1.27"
-    if b"3.8.99"      in body: return "3.8.99"
+    # Match any 3.8.x / 4.x.y patch (a few rigs are 3.8.95 rather than .99;
+    # future 4.2.44+ exports should still route to the 4.2 converter).
+    import re
+    m = re.search(rb"3\.8\.\d+", body)
+    if m: return m.group().decode()
+    m = re.search(rb"4\.\d+\.\d+", body)
+    if m: return m.group().decode()
     return None
 
 def convert_2_1(scsp: Path, out_json: Path) -> bool:
@@ -529,7 +535,20 @@ def post_process_2_1_27(out_json: Path) -> None:
 def convert(scsp: Path, out_json: Path) -> str:
     """Returns the version that was used, or raises."""
     ver = detect_version(scsp)
-    order = ("2.1.27", "3.8.99") if ver != "3.8.99" else ("3.8.99", "2.1.27")
+    if ver is not None and ver.startswith("4."):
+        # Spine 4.2 container: the decompressed body is a 16-byte E7 header +
+        # stock 4.2 .skel. skel42_to_json38 parses it directly and emits
+        # 3.8-player-compatible JSON. Down-conversion is lossy for 4.x-only
+        # features (physics, sequences, single-axis curve splits) — those are
+        # surfaced as _e7_spine42_warnings in the output JSON.
+        import skel42_to_json38, json as _json
+        out = skel42_to_json38.convert_skel42(scsp.read_bytes())
+        out_json.parent.mkdir(parents=True, exist_ok=True)
+        out_json.write_text(_json.dumps(out, ensure_ascii=False, separators=(",", ":")),
+                            encoding="utf-8")
+        return ver
+    is_38 = ver is not None and ver.startswith("3.8")
+    order = ("3.8.99", "2.1.27") if is_38 else ("2.1.27", "3.8.99")
     for v in order:
         ok = convert_2_1(scsp, out_json) if v == "2.1.27" else convert_3_8(scsp, out_json)
         if ok:
