@@ -244,7 +244,6 @@
   .ext:hover{background:rgba(216,176,106,.08)}
   .ext.flat{border-color:var(--line);color:var(--mut);cursor:default}
   .ext.flat:hover{background:transparent}
-  .ext .wip{font-size:9px;letter-spacing:.12em;font-weight:600;background:var(--rose);color:var(--ink);padding:1px 5px;border-radius:2px;line-height:1.5;text-transform:uppercase}
   .gallery{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
   .gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--ink-2)}
   .gallery a:hover{border-color:var(--gold-dim)}
@@ -1165,7 +1164,7 @@ function detail(baseId, variantSuf) {
             const otherExtras = (u.extras||[]).filter(x => x.label !== "backdrop");
             return `
               ${rigs.length ? `<a class="ext" href="viewer.html?slug=${encodeURIComponent(u.id)}${stageQS}">▶ live viewer</a>` : ""}
-              ${u.has_combat ? `<a class="ext" href="viewer.html?slug=${encodeURIComponent(u.id)}&rig=combat" title="skill animations (skill1/skill2/skill3/run/…) — work in progress, combat rigs are still being recovered and some may be incomplete">▶ live viewer (combat) <span class="wip">WIP</span></a>` : ""}
+              ${u.has_combat ? `<a class="ext" href="viewer.html?slug=${encodeURIComponent(u.id)}&rig=combat" title="skill animations (skill1/skill2/skill3/run/…)">▶ live viewer (combat)</a>` : ""}
               ${otherExtras.map((x, i) => {
                 const lbl = x.label || `alt rig ${i+1}`;
                 return `<a class="ext" href="viewer.html?slug=${encodeURIComponent(x.id)}" title="rig ${x.id}">▶ ${escapeHtml(lbl)}</a>`;
