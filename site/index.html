@@ -73,6 +73,10 @@
   .qmode:hover{color:var(--text);border-color:var(--gold-dim)}
   .qmode.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.07)}
   .count{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--mut);letter-spacing:.1em}
+  .sort-toggle{margin-left:auto;display:flex;align-items:center;gap:5px}
+  .sort-toggle .sort-label{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em;color:var(--mut);text-transform:uppercase}
+  .sort-toggle button{background:var(--ink-2);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.08em;padding:5px 11px;border-radius:2px;cursor:pointer}
+  .sort-toggle button.on{color:var(--gold);border-color:var(--gold-dim)}
   .kinds{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px}
   .kinds button{background:var(--ink-2);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em;padding:6px 13px;border-radius:2px;cursor:pointer;text-transform:uppercase}
   .kinds button.on{color:var(--gold);border-color:var(--gold-dim)}
@@ -301,14 +305,6 @@
   .about-line a,.about-para a{color:var(--gold);border-bottom:1px solid var(--gold-dim)}
   .about-line a:hover,.about-para a:hover{color:var(--text);border-color:var(--text)}
   .demo{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--gold-dim);border:1px dashed var(--gold-dim);padding:10px 14px;border-radius:3px;margin-bottom:22px;letter-spacing:.04em}
-  /* One-time announcement popup (shows once per browser, auto-retires after
-     its hard expiry date — see noticePopup() at the bottom of the script). */
-  .notice-pop{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1200;display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(3px)}
-  .notice-pop .np-card{background:var(--panel);border:1px solid var(--gold-dim);border-radius:4px;max-width:480px;padding:28px 30px 24px;box-shadow:0 18px 60px -20px rgba(0,0,0,.95)}
-  .notice-pop h3{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:26px;font-weight:600;margin:0 0 10px;letter-spacing:.03em}
-  .notice-pop p{margin:0 0 18px;color:var(--text);font-size:14.5px}
-  .notice-pop .np-ok{background:rgba(216,176,106,.1);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;padding:9px 18px;border-radius:2px;cursor:pointer}
-  .notice-pop .np-ok:hover{background:rgba(216,176,106,.18)}
   /* Lightbox modal — intercepts clicks on a[data-zoom] anywhere on the page
      and shows the asset at max viewport size with a download button. Falls
      back gracefully: links keep their href so right-click → "open in new tab"
@@ -444,6 +440,11 @@ let storyVoiceLang = "ja";   // story voice: en/ja/ko (default original JA)
 // R2 CDN. Host detection lives in shared.js (same logic the viewer uses).
 const VOICE_BASE = E7.voiceBase;
 let kindF = "all", searchQ = "", currentVariant = "", wpCatF = "all";
+// Hub sort mode: "timeline" (default — by release date, newest first) or "az"
+// (alphabetical by hero name). Persisted per browser; release dates come from
+// units.json `released` (baked from timeline/timeline.json by build_index.py).
+let sortMode = "timeline";
+try { const s = localStorage.getItem("hub_sort"); if (s === "timeline" || s === "az") sortMode = s; } catch (_) {}
 let artiRarityF = new Set(), artiRoleF = new Set(), artiSearchQ = "";
 let elementF = new Set(), rarityF = new Set(), roleF = new Set();
 // Units carry the canonical-id role values from HeroDatabase ("assassin",
@@ -736,18 +737,38 @@ function hub() {
       (u.hero_name || "").toLowerCase().includes(q)
     );
   });
-  // Sort: NEW units first, then UPDATED (recently-changed existing units), then
-  // named heroes (alpha), then unnamed by id.
+  // Sort: NEW units pin to the very top, then UPDATED (recently-changed existing
+  // units), then the chosen sort mode within each tier:
+  //   "timeline" — by release date, NEWEST first (units with no timeline date
+  //                fall to the bottom and tie-break alphabetically);
+  //   "az"       — alphabetically by hero name, then by id.
   const pinRank = g => g.some(x => x.new) ? 0 : g.some(x => x.modified) ? 1 : 2;
+  // A group's timeline key is the EARLIEST release date among its variants
+  // (a hero debuts once; skins don't move the card). Null if none are dated.
+  const dateOf = g => {
+    let best = null;
+    for (const v of g) { const d = v.released; if (d && (!best || d < best)) best = d; }
+    return best;
+  };
+  const byName = (a, b) => {
+    const na = (a[0].hero_name || a[0].name || "").toLowerCase();
+    const nb = (b[0].hero_name || b[0].name || "").toLowerCase();
+    if (na && nb && na !== nb) return na.localeCompare(nb);
+    if (na && !nb) return -1;
+    if (!na && nb) return  1;
+    return (a[0].id || "").localeCompare(b[0].id || "");
+  };
   list.sort((a,b) => {
     const ra = pinRank(a), rb = pinRank(b);
     if (ra !== rb) return ra - rb;
-    const na = (a[0].hero_name || a[0].name || "").toLowerCase();
-    const nb = (b[0].hero_name || b[0].name || "").toLowerCase();
-    if (na && nb) return na.localeCompare(nb);
-    if (na) return -1;
-    if (nb) return  1;
-    return (a[0].id || "").localeCompare(b[0].id || "");
+    if (sortMode === "timeline") {
+      const da = dateOf(a), db = dateOf(b);
+      if (da && db) { if (da !== db) return db.localeCompare(da); }  // newest first
+      else if (da) return -1;   // dated before undated
+      else if (db) return  1;
+      // both undated, or same date -> alphabetical tie-break (falls through)
+    }
+    return byName(a, b);
   });
 
   $("#app").innerHTML = `
@@ -758,6 +779,11 @@ function hub() {
         <button id="qmode" type="button" class="qmode${qMode==='num'?' on':''}" title="toggle text / numeric keyboard">${qMode==='num'?'ABC':'123'}</button>
       </div>
       <span class="count">${list.length} / ${groups.length}</span>
+      <div class="sort-toggle" role="group" aria-label="sort order">
+        <span class="sort-label">sort</span>
+        <button type="button" data-sort="timeline" class="${sortMode==='timeline'?'on':''}" title="newest releases first">timeline</button>
+        <button type="button" data-sort="az" class="${sortMode==='az'?'on':''}" title="alphabetical by name">A→Z</button>
+      </div>
     </div>
     <div class="kinds">${kinds.map(k => {
       const label = k === "all" ? "ALL" : (KIND_LABELS[k] || k).toUpperCase();
@@ -818,6 +844,12 @@ function hub() {
     i.setSelectionRange(searchQ.length, searchQ.length);
   };
   document.querySelectorAll(".kinds button").forEach(b => b.onclick = () => { kindF = b.dataset.k; hub(); });
+  document.querySelectorAll(".sort-toggle button").forEach(b => b.onclick = () => {
+    if (b.dataset.sort === sortMode) return;
+    sortMode = b.dataset.sort;
+    try { localStorage.setItem("hub_sort", sortMode); } catch (_) {}
+    hub();
+  });
   document.querySelectorAll(".filters .chip").forEach(b => b.onclick = () => {
     if (b.dataset.clear) { elementF.clear(); rarityF.clear(); roleF.clear(); }
     else if (b.dataset.el)   { elementF.has(b.dataset.el) ? elementF.delete(b.dataset.el) : elementF.add(b.dataset.el); }
@@ -1859,39 +1891,6 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "ArrowLeft") { e.preventDefault(); theaterStep(-1); }
   else if (e.key === "Escape") { e.preventDefault(); closeTheater(); }
 });
-
-// One-time announcement: combat renders are now accurate. Shows once per
-// browser (localStorage) and ONLY until the expiry below — after that the
-// block is inert and can be deleted at leisure.
-(function noticePopup() {
-  const EXPIRES = Date.parse("2026-06-18T00:00:00Z");
-  const KEY = "notice_combat_accurate_2026_06";
-  try {
-    if (Date.now() >= EXPIRES || localStorage.getItem(KEY)) return;
-  } catch (_) { return; }
-  const wrap = document.createElement("div");
-  wrap.className = "notice-pop";
-  wrap.setAttribute("role", "dialog");
-  wrap.innerHTML =
-    `<div class="np-card">
-       <h3>Combat renders — finally accurate</h3>
-       <p>Every combat rig has been re-converted with engine-exact animation
-          data. Skill animations, hard pose cuts and mirrored limbs now play
-          exactly as they do in game. Open any unit's
-          <strong>▶ live viewer (combat)</strong> to see it.</p>
-       <button class="np-ok">Got it</button>
-     </div>`;
-  const dismiss = () => {
-    try { localStorage.setItem(KEY, "1"); } catch (_) {}
-    wrap.remove();
-    document.removeEventListener("keydown", onKey);
-  };
-  const onKey = (e) => { if (e.key === "Escape") dismiss(); };
-  wrap.addEventListener("click", (e) => { if (e.target === wrap) dismiss(); });
-  wrap.querySelector(".np-ok").addEventListener("click", dismiss);
-  document.addEventListener("keydown", onKey);
-  document.body.appendChild(wrap);
-})();
 
 load();
 </script>

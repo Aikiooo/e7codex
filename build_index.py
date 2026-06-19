@@ -370,6 +370,43 @@ def apply_modified_flags(units: dict) -> int:
     return n
 
 
+def apply_released_dates(units: dict) -> int:
+    """Stamp each unit with `released` (ISO date) from the hand-curated release
+    timeline at ../timeline/timeline.json (one dir above the repo, alongside the
+    dump). The frontend hub sorts by this date in its default "Timeline" mode.
+
+    The timeline is keyed by the in-game c-slug (`c1001`, `c2185_1`, …). We match
+    a unit's own `id` first (so ML/seasonal/PRIMARY_SWAP `_1` forms get their own
+    debut date), then fall back to `base_id` (so a skin like c1046_s02_1 inherits
+    its base hero's date). Units with no timeline entry (NPCs, monsters, a few
+    collab/test rigs) are left without `released` and the frontend sorts them
+    after all dated units. Returns the count stamped."""
+    path = Path(__file__).resolve().parent.parent / "timeline" / "timeline.json"
+    if not path.exists():
+        return 0
+    try:
+        tl = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return 0
+    date_of: dict[str, str] = {}
+    for rel in tl.get("releases", []):
+        d = rel.get("date")
+        if not d:
+            continue
+        for h in rel.get("heroes", []):
+            hid = h.get("id")
+            # First release wins (a hero appears once); guards stray dup ids.
+            if hid and hid not in date_of:
+                date_of[hid] = d
+    n = 0
+    for u in units.values():
+        d = date_of.get(u.get("id")) or date_of.get(u.get("base_id"))
+        if d:
+            u["released"] = d
+            n += 1
+    return n
+
+
 def inspect(img: Path, raw: Path, out: Path) -> None:
     """Read-only report (--inspect): staged slug counts by kind, name coverage,
     raw rig counts, and update codenames detected in path tokens. Writes
@@ -987,6 +1024,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
     # float up there too).
     n_new = apply_new_flags(units, artifacts_out, emotes_list, wallpapers)
     n_mod = apply_modified_flags(units)
+    n_rel = apply_released_dates(units)
     artifacts_out.sort(key=lambda a: (not a.get("new"),
                                       -(a.get("rarity") or 0), a["id"]))
 
@@ -1122,6 +1160,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
           f"(first-seen within {NEW_WINDOW_DAYS}d; first_seen.json)")
     print(f"[upd]     {n_mod} unit(s) flagged updated "
           f"(within {MOD_WINDOW_DAYS}d; modified.json)")
+    print(f"[date]    {n_rel} unit(s) stamped with release date "
+          f"(timeline/timeline.json)")
     print(f"[seo]     {len(stub_bases)} prerender stubs in site/u/ + sitemap.xml"
           + (f" ({n_pruned} stale pruned)" if n_pruned else ""))
     print(f"\n-> {data / 'units.json'}\n-> {data / 'updates.json'}"
