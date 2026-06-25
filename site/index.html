@@ -172,7 +172,7 @@
   .patch-thumbs .pt img{width:100%;height:130px;object-fit:contain;display:block;background:var(--ink-2)}
   .patch-thumbs .pt-name{display:block;font-family:'Spline Sans Mono',monospace;font-size:9px;color:var(--mut);letter-spacing:.04em;padding:4px 5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pt-badge{position:absolute;top:5px;left:5px;width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Spline Sans Mono',monospace;font-size:12px;font-weight:700;line-height:1;color:var(--ink)}
-  .pt-added{background:#7fc99a}.pt-removed{background:var(--rose)}.pt-changed{background:var(--gold)}
+  .pt-added{background:#7fc99a}.pt-update{background:#ffd84a}.pt-removed{background:var(--rose)}.pt-changed{background:var(--gold)}
   .patch-raw{border-top:1px solid var(--line)}
   .patch-raw summary{cursor:pointer;padding:12px 22px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;user-select:none}
   .patch-raw summary:hover{color:var(--gold-dim)}
@@ -184,7 +184,7 @@
   .pe.has-prev{align-items:center}
   .pe code{font-size:11px;color:var(--mut)}
   .pe-sym{font-weight:700;width:11px;flex:0 0 auto;text-align:center}
-  .pe-added .pe-sym{color:#7fc99a}.pe-removed .pe-sym{color:var(--rose)}.pe-changed .pe-sym{color:var(--gold)}
+  .pe-added .pe-sym{color:#7fc99a}.pe-update .pe-sym{color:#ffd84a}.pe-removed .pe-sym{color:var(--rose)}.pe-changed .pe-sym{color:var(--gold)}
   .pe-size{font-size:10px;color:var(--mut)}
   .pe-prev{flex:0 0 auto;display:block;width:46px;height:34px;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--ink-2);order:-1}
   .pe-prev:hover{border-color:var(--gold-dim)}
@@ -905,6 +905,66 @@ function hub() {
 const PG_LABEL = { heroes: "Heroes", art: "Artwork", effects: "Effects", engine: "Engine / data", other: "Other" };
 const PG_ORDER = ["heroes", "art", "effects", "engine", "other"];
 const CHANGE_SYM = { added: "+", removed: "−", changed: "~" };
+// "update" is a derived kind: an `added` row for content that attaches to a
+// pre-existing unit (a skin/rig on an old hero) rather than a brand-new release.
+// It reuses the "+" glyph but gets a distinct yellow so the user can tell a
+// freshly-released entity (green +) from one that just gained content (yellow +).
+const KIND_SYM = { added: "+", update: "+", changed: "~", removed: "−" };
+// Sort weight for the thumbnail strip: new releases first, then updates, then
+// content changes, then removals.
+const KIND_SORT = { added: 0, update: 1, changed: 2, removed: 3 };
+const CHANGE_RANK = { added: 3, changed: 2, removed: 1 };
+
+// Classify a patch entry into added / update / changed / removed. An "added" row
+// is downgraded to "update" (yellow +) when this content attaches to a
+// PRE-EXISTING unit — its base group contains a member that is already released
+// and not itself new this window (e.g. a new skin on an old hero). A brand-new
+// entity — hero, NPC, or monster — has no such member (the whole group is new, or
+// its members carry no release date), so it stays "added" (green +). NPCs/monsters
+// never receive the `new` flag, so we key off `released` rather than `new` alone.
+function patchKind(e) {
+  if (e.change === "added" && e.unit) {
+    const g = BY_BASE.get(e.unit);
+    if (g && g.some(x => !x.new && x.released)) return "update";
+  }
+  return e.change;
+}
+
+// Collapse a path to its bare filename stem (drop the directory and every known
+// asset extension), so the dozen files that make up one rig/asset can be folded
+// into a single rollup row instead of spamming model/x.atlas/.scsp/.sct/.timeline.
+const PATCH_EXT_RE = /\.(scsp|atlas|sct|png|webp|jpg|jpeg|timeline|particle|cfx|bin|db|unpacked)$/i;
+function stemOf(path) {
+  let n = (path || "").split("/").pop() || "";
+  let prev;
+  do { prev = n; n = n.replace(PATCH_EXT_RE, ""); } while (prev !== n);
+  return n;
+}
+function cleanPath(path) {
+  const parts = (path || "").split("/");
+  parts[parts.length - 1] = stemOf(path);
+  return parts.join("/");
+}
+// Fold a group's per-file rows into one row per unit (by slug) or per asset stem.
+// The collapsed row carries the most salient change, a named label when any
+// member had one, the first available preview, and a file count.
+function dedupRollup(items) {
+  const m = new Map();
+  for (const e of items) {
+    // Key by slug when known, else by directory+stem so a rig's
+    // model/x.{atlas,scsp,sct,timeline} fold into one row WITHOUT colliding
+    // same-named files from different folders (face/foo.png vs model/foo.png).
+    const key = e.slug || cleanPath(e.path);
+    let g = m.get(key);
+    if (!g) { g = { ...e, _n: 0 }; m.set(key, g); }
+    g._n++;
+    if ((CHANGE_RANK[e.change] || 0) > (CHANGE_RANK[g.change] || 0)) g.change = e.change;
+    if (e.name && !g.name) g.name = e.name;
+    if (e.preview && !g.preview) g.preview = e.preview;
+    if (e.unit && !g.unit) g.unit = e.unit;
+  }
+  return [...m.values()];
+}
 
 function fmtBytes(n) {
   if (n == null) return "";
@@ -914,16 +974,21 @@ function fmtBytes(n) {
 }
 
 function patchEntryRow(e) {
-  const sym = CHANGE_SYM[e.change] || "·";
-  const delta = (e.old_size != null)
-    ? ` <span class="pe-size">${fmtBytes(e.old_size)} → ${fmtBytes(e.new_size)}</span>` : "";
-  const label = e.name ? escapeHtml(e.name) : `<code>${escapeHtml(e.path)}</code>`;
+  const kind = patchKind(e);
+  const sym = KIND_SYM[kind] || "·";
+  // Collapsed rows (multiple files folded into one) show a file count; single
+  // rows keep the byte-size delta.
+  const meta = (e._n && e._n > 1)
+    ? ` <span class="pe-size">· ${e._n} files</span>`
+    : (e.old_size != null
+        ? ` <span class="pe-size">${fmtBytes(e.old_size)} → ${fmtBytes(e.new_size)}</span>` : "");
+  const label = e.name ? escapeHtml(e.name) : `<code>${escapeHtml(cleanPath(e.path))}</code>`;
   // Changed/added artwork carries a `preview` URL (a transient per-pack copy or a
   // reused already-hosted image) — render it as a clickable lightbox thumbnail.
   const prev = e.preview
     ? `<a class="pe-prev" href="${escapeHtml(e.preview)}" data-zoom data-cap="${escapeHtml(e.path)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(e.preview)}" alt=""></a>`
     : "";
-  return `<div class="pe pe-${e.change}${e.preview ? ' has-prev' : ''}">${prev}<span class="pe-sym">${sym}</span> ${label}${delta}</div>`;
+  return `<div class="pe pe-${kind}${e.preview ? ' has-prev' : ''}">${prev}<span class="pe-sym">${sym}</span> ${label}${meta}</div>`;
 }
 
 function patchBlock(p) {
@@ -933,8 +998,7 @@ function patchBlock(p) {
   // the same slug+pose, so without this a single added/changed unit would show 2-3
   // identical cards. The per-file detail still lives in the "file changes by area"
   // rollup below. When a unit's files carry mixed change types, the most salient
-  // badge wins (added > changed > removed).
-  const CHANGE_RANK = { added: 3, changed: 2, removed: 1 };
+  // badge wins (added > changed > removed) — CHANGE_RANK is module-level.
   // Incidental shop/equipment art (EE icons, gacha banners) resolves to a hero
   // slug but isn't a hero-identity change — a re-compressed banner or a new EE
   // icon shouldn't promote that hero into the headline strip as if they were
@@ -949,20 +1013,30 @@ function patchBlock(p) {
     if (!cur) byUnit.set(e.slug, { ...e });
     else if ((CHANGE_RANK[e.change] || 0) > (CHANGE_RANK[cur.change] || 0)) cur.change = e.change;
   }
-  const thumbs = [...byUnit.values()];
-  const thumbHtml = thumbs.length ? `<div class="patch-thumbs">${thumbs.map(e => `
-    <a class="pt" href="#/u/${encodeURIComponent(e.unit || e.slug)}" title="${escapeHtml((e.name || e.slug))} — ${e.change}">
-      <span class="pt-badge pt-${e.change}">${CHANGE_SYM[e.change] || "·"}</span>
+  // Sort the thumbnail strip by update type: new releases (green +) first, then
+  // updates to existing units (yellow +), then content changes (~), then removals.
+  const thumbs = [...byUnit.values()].sort((a, b) =>
+    (KIND_SORT[patchKind(a)] - KIND_SORT[patchKind(b)]) ||
+    (a.name || a.slug || "").localeCompare(b.name || b.slug || ""));
+  const thumbHtml = thumbs.length ? `<div class="patch-thumbs">${thumbs.map(e => {
+    const k = patchKind(e);
+    return `
+    <a class="pt" href="#/u/${encodeURIComponent(e.unit || e.slug)}" title="${escapeHtml((e.name || e.slug))} — ${k}">
+      <span class="pt-badge pt-${k}">${KIND_SYM[k] || "·"}</span>
       <img loading="lazy" src="${escapeHtml(e.pose)}" alt="${escapeHtml(e.name || e.slug)}">
       <span class="pt-name">${escapeHtml(e.name || e.slug)}</span>
-    </a>`).join("")}</div>` : "";
+    </a>`; }).join("")}</div>` : "";
 
-  // Text rollup per group (everything, including the thumbnailed ones).
-  const groupHtml = PG_ORDER.filter(g => (groups[g] || []).length).map(g => `
+  // Text rollup per group. Each group's per-file rows are collapsed to one row
+  // per unit/asset stem (a rig is ~5 files; without this a single change spams
+  // model/x.atlas/.scsp/.sct/.timeline as separate lines).
+  const groupHtml = PG_ORDER.filter(g => (groups[g] || []).length).map(g => {
+    const rows = dedupRollup(groups[g]);
+    return `
     <div class="patch-group">
-      <span class="pg-label">${PG_LABEL[g]} <span class="pg-n">${groups[g].length}</span></span>
-      <div class="pg-items">${groups[g].map(patchEntryRow).join("")}</div>
-    </div>`).join("");
+      <span class="pg-label">${PG_LABEL[g]} <span class="pg-n">${rows.length}</span></span>
+      <div class="pg-items">${rows.map(patchEntryRow).join("")}</div>
+    </div>`; }).join("");
 
   const c = p.counts || {};
   return `<div class="patch">

@@ -67,6 +67,7 @@ CECILIA_ARTIFACT = "https://ceciliabot.github.io/#/artifacts"
 # entry once the in-game DB or community snapshot supplies the name on its own.
 MANUAL_ARTIFACTS: dict[str, dict] = {
     "art0244": {"name": "Butterfly's Baptism", "rarity": 5, "role": "thief"},  # Rhianna & Luciella (c2185), released 2026-06-04
+    "art0241": {"name": "Refracted Desire", "rarity": 5, "role": "mage"},  # Eye of the Abyss Fumyr (c5147), released 2026-06-25
 }
 
 # Artifacts to withhold from the public site because they belong to an unreleased
@@ -114,6 +115,9 @@ PRIMARY_SWAP: dict[str, dict] = {
     "c2184":     {"label": "backdrop"},
     "c2185":     {"label": "backdrop"},
     "c6024":     {"label": "backdrop"},
+    # 2026-06-25 release (bare rig is the scene, _1 is the character):
+    "c5147":     {"label": "backdrop"},   # Eye of the Abyss Fumyr
+    "c2113_s01": {"label": "backdrop"},   # Empyrean Ilynav skin
 }
 
 # Arbitrary slug → parent mappings that don't follow the _1 suffix convention.
@@ -164,10 +168,15 @@ def walk(root: Path):
 
 
 def kebab(s: str) -> str:
-    """Make a name like 'Lionheart Cermia' into 'lionheart-cermia'."""
+    """Make a name into a ceciliabot-style URL slug: 'Lionheart Cermia' ->
+    'lionheart-cermia', "A Little Queen's Huge Crown" -> 'a-little-queens-huge-crown',
+    'Air-to-Surface Missile: MISHA' -> 'airtosurface-missile-misha'. Matches
+    ceciliabot's convention: punctuation (apostrophes, colons, intra-word hyphens)
+    is DROPPED IN PLACE, not turned into a separator — only whitespace becomes a
+    hyphen. Used to synthesise a slug when the community snapshot has none yet."""
     s = s.lower()
-    s = re.sub(r"[^a-z0-9]+", "-", s)
-    return s.strip("-")
+    s = re.sub(r"[^a-z0-9\s]", "", s)    # drop punctuation in place: queen's -> queens
+    return re.sub(r"\s+", "-", s.strip())
 
 
 def load_name_db(root: Path) -> tuple[dict, dict]:
@@ -861,8 +870,17 @@ def build(img: Path, raw: Path, out: Path) -> None:
         if rec.get("_id"):        entry["slug"]    = rec["_id"]
         if rec.get("rarity"):     entry["rarity"]  = rec["rarity"]
         if rec.get("role"):       entry["role"]    = rec["role"]
-        entry["cecilia"] = (f"{CECILIA_ARTIFACT}/{rec['_id']}" if rec.get("_id")
-                            else CECILIA_INDEX)
+        if rec.get("_id"):
+            entry["cecilia"] = f"{CECILIA_ARTIFACT}/{rec['_id']}"
+        elif rec.get("name"):
+            # No community kebab yet (e.g. a manually-named brand-new artifact):
+            # synthesise one from the name — the same deterministic shape ceciliabot
+            # uses — so the link resolves once ceciliabot adds the artifact (may 404
+            # until then), mirroring the new-hero kebab fallback. NEVER point an
+            # artifact at the HEROES index (the prior bug for the 3 NEW artifacts).
+            entry["cecilia"] = f"{CECILIA_ARTIFACT}/{kebab(rec['name'])}"
+        else:
+            entry["cecilia"] = CECILIA_ARTIFACT
         artifacts_out.append(entry)
     artifacts_out.sort(key=lambda a: (-(a.get("rarity") or 0), a["id"]))
 

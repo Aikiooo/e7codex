@@ -89,6 +89,10 @@ DUAL_COMBAT: dict[str, list[tuple[str, str]]] = {
 PRIMARY_SWAP_BARE = {
     "c1046_s02", "c1180", "c1183", "c2076", "c2112_s01",
     "c2181", "c2184", "c2185", "c6024",
+    # 2026-06-25 release backdrop-swaps (keep in sync with build_index.PRIMARY_SWAP):
+    # routes their combat rig into the _1 sibling so has_combat surfaces on the
+    # character, not the demoted backdrop.
+    "c5147", "c2113_s01",
 }
 
 # Stems we KNOW the dump doesn't carry enough atlas data to render

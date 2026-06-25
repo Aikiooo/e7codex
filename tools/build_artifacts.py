@@ -160,10 +160,27 @@ def decode_equip_rows(keymap):
         rows.append([c.decode('utf-8', 'replace') for c in pt.split(b'\x00')])
     return rows
 
-# Column indices in equip_item.db (97-col schema; positional).
+# Column indices in equip_item.db (positional schema). id/name/type are stable
+# anchors; the artifact-data block (role/grade/image/thumbnail) DRIFTS when the
+# game inserts a column — the 2026-06-25 pack added one, pushing the block +1
+# (role 24->25, grade 29->30, image 40->41, thumb 41->42). These are the
+# DOCUMENTED baseline indices; main() detects the live shift at runtime by
+# locating the `art####_fu` image cell and offsets the whole block, so a future
+# insert self-heals (same philosophy as the text.db outer-offset brute-force).
 COL_ID, COL_NAME, COL_TYPE = 0, 7, 8
-COL_ROLE, COL_GRADE = 24, 29
-COL_IMAGE, COL_THUMB = 40, 41
+BASE_ROLE, BASE_GRADE, BASE_IMAGE, BASE_THUMB = 24, 29, 40, 41
+import re as _re
+_FU_RE = _re.compile(r'^art\d+_fu$')
+
+def detect_col_shift(rows):
+    """Index delta of the artifact-data block vs the documented baseline, found by
+    locating the `art####_fu` image cell in a sample artifact row. 0 if absent."""
+    for r in rows:
+        if len(r) > COL_TYPE and r[COL_TYPE] == 'artifact':
+            for i, c in enumerate(r):
+                if isinstance(c, str) and _FU_RE.match(c):
+                    return i - BASE_IMAGE
+    return 0
 
 def derive_role(ident: str, row_role: str) -> str | None:
     """Trust the row's role column when set; else infer from identifier prefix.
@@ -184,6 +201,12 @@ def main():
     print('decoding equip_item.db ...'); sys.stdout.flush()
     rows = decode_equip_rows(keymap)
     print('  equip_item.db rows:', len(rows))
+
+    shift = detect_col_shift(rows)
+    COL_ROLE, COL_GRADE = BASE_ROLE + shift, BASE_GRADE + shift
+    COL_IMAGE, COL_THUMB = BASE_IMAGE + shift, BASE_THUMB + shift
+    if shift:
+        print('  schema shift detected: artifact-data block +%d (image col -> %d)' % (shift, COL_IMAGE))
 
     out = {}
     skipped_no_image = 0
