@@ -1037,6 +1037,40 @@ def build(img: Path, raw: Path, out: Path) -> None:
                 continue   # solid-colour utility screens — not real backgrounds
             add_wallpaper(p, "story")
 
+    # Safety net: force infinite loop on EVERY staged animated WebP. Newer packs
+    # ship cut-ins/emotes with ANIM loop=1 (play once then freeze — first bit a
+    # skill cut-in, then an emote); every older animation loops. One unconditional,
+    # idempotent sweep over the staged tree is the single guarantee no animated
+    # webp ever ships play-once, whichever step copied it.
+    def _force_webp_loop(path: Path) -> bool:
+        """Rewrite an animated WebP's ANIM loop count to 0 (infinite). Walks the
+        top-level RIFF chunks (no naive byte search — 'ANIM' can occur in
+        compressed payloads). Returns True if it rewrote the file; False (no-op)
+        for static or already-looping files. Idempotent."""
+        try:
+            b = bytearray(path.read_bytes())
+        except OSError:
+            return False
+        if len(b) < 12 or b[0:4] != b"RIFF" or b[8:12] != b"WEBP":
+            return False
+        pos = 12
+        while pos + 8 <= len(b):
+            fourcc = bytes(b[pos:pos + 4])
+            size = int.from_bytes(b[pos + 4:pos + 8], "little")
+            if fourcc == b"ANIM" and size >= 6:
+                loop_at = pos + 8 + 4          # payload: u32 bg color, u16 loop
+                if b[loop_at:loop_at + 2] != b"\x00\x00":
+                    b[loop_at:loop_at + 2] = b"\x00\x00"
+                    try:
+                        path.write_bytes(b)
+                        return True
+                    except OSError:
+                        return False
+                return False
+            pos += 8 + size + (size & 1)       # chunks are 2-byte aligned
+        return False
+    n_loop = sum(_force_webp_loop(wp) for wp in site_assets.rglob("*.webp"))
+
     # Flag newly-seen units/artifacts/emotes/wallpapers (first_seen ledger) +
     # float artifacts up (units sort new-first in the frontend; emotes/wallpapers
     # float up there too).
@@ -1180,6 +1214,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
           f"(within {MOD_WINDOW_DAYS}d; modified.json)")
     print(f"[date]    {n_rel} unit(s) stamped with release date "
           f"(timeline/timeline.json)")
+    print(f"[loop]    {n_loop} animated webp(s) forced to infinite loop "
+          f"(play-once fix; emotes/skills/intimacy/…)")
     print(f"[seo]     {len(stub_bases)} prerender stubs in site/u/ + sitemap.xml"
           + (f" ({n_pruned} stale pruned)" if n_pruned else ""))
     print(f"\n-> {data / 'units.json'}\n-> {data / 'updates.json'}"
