@@ -27,6 +27,8 @@
   header a.back{font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.12em;color:var(--mut);text-decoration:none}
   header a.back:hover{color:var(--gold)}
   header .small{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.18em;text-transform:uppercase}
+  .lang-sel{margin-left:auto;background:rgba(255,255,255,.02);border:1px solid var(--gold-dim,rgba(216,176,106,.35));color:var(--gold,#d8b06a);font-family:'Spline Sans Mono',monospace;font-size:12px;padding:6px 9px;border-radius:2px;cursor:pointer;align-self:center}
+  .lang-sel option{background:var(--ink-2,#14151d);color:var(--text)}
   header .id{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold);margin-left:auto}
   main{max-width:1300px;margin:0 auto;padding:14px;display:grid;gap:12px}
   #stage-wrap{position:relative;background:var(--ink-2);border:1px solid var(--line);border-radius:6px;height:78vh;min-height:480px;overflow:hidden;touch-action:none}
@@ -150,8 +152,8 @@
 </head>
 <body>
 <header>
-  <a class="back" href="#" id="back">‹ back to codex</a>
-  <span class="small">live spine viewer</span>
+  <a class="back" href="#" id="back" data-i18n="viewer_back">‹ back to codex</a>
+  <span class="small" data-i18n="viewer_subtitle">live spine viewer</span>
   <span class="id" id="title">…</span>
 </header>
 <main>
@@ -162,10 +164,10 @@
       <canvas id="pick-overlay"></canvas>
     </div>
     <div class="zoom-controls">
-      <button id="zin" title="zoom in">+</button>
-      <button id="zfit" title="fit / reset" style="font-size:14px">⛶</button>
-      <button id="zout" title="zoom out">−</button>
-      <button id="zshot" title="download current frame as transparent PNG" aria-label="download PNG">
+      <button id="zin" title="zoom in" data-i18n-attr="title:vz_in">+</button>
+      <button id="zfit" title="fit / reset" style="font-size:14px" data-i18n-attr="title:vz_fit">⛶</button>
+      <button id="zout" title="zoom out" data-i18n-attr="title:vz_out">−</button>
+      <button id="zshot" title="download current frame as transparent PNG" aria-label="download PNG" data-i18n-attr="title:vz_shot">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="7 10 12 15 17 10"></polyline>
@@ -180,7 +182,7 @@
       </button>
     </div>
     <div class="export-menu" id="export-menu" hidden>
-      <div class="em-title">Export animation</div>
+      <div class="em-title" data-i18n="vexp_title">Export animation</div>
       <button id="exp-webm" class="exp-opt">
         <span class="eo-name">Video</span>
         <span class="eo-desc">WebM · smallest, plays in Discord</span>
@@ -205,10 +207,10 @@
   <div class="hint">mouse wheel · drag to pan · pinch on mobile · or use the buttons</div>
   <div class="info" id="info"></div>
   <div class="controls">
-    <label for="anim">Animation</label><select id="anim"></select>
-    <label for="skin">Skin</label><select id="skin"></select>
-    <label for="rig-sel" id="rig-sel-label" hidden>Character</label><select id="rig-sel" hidden title="this unit ships two combat rigs — switch between them"></select>
-    <label for="quality">Quality</label>
+    <label for="anim" data-i18n="viewer_anim">Animation</label><select id="anim"></select>
+    <label for="skin" data-i18n="viewer_skin">Skin</label><select id="skin"></select>
+    <label for="rig-sel" id="rig-sel-label" hidden data-i18n="viewer_char">Character</label><select id="rig-sel" hidden title="this unit ships two combat rigs — switch between them"></select>
+    <label for="quality" data-i18n="viewer_quality">Quality</label>
     <select id="quality" title="render-side upscale: makes the canvas backing store NxN larger, browser downsamples back — sharper for small assets">
       <option value="1">1× (native)</option>
       <option value="1.5">1.5×</option>
@@ -216,15 +218,15 @@
       <option value="3">3×</option>
       <option value="4">4× (slow)</option>
     </select>
-    <label class="stage-toggle" id="stage-label" hidden title="composite the backdrop rig behind the character"><input type="checkbox" id="stage-on"> Stage</label>
-    <label class="stage-toggle" id="scene-label" hidden title="Reproduce the hub thumbnail: hides the FX / aura / backdrop / scene slots that the thumbnail bake strips (plus the curated scene slots for combined-file rigs like Hwayoung Summertime / Aram). Shown for any rig that has such slots. Use the Assets panel for finer control."><input type="checkbox" id="scene-on"> Hide FX/BG<sup style="color:var(--gold-dim);margin-left:2px;font-size:10px;font-family:'Spline Sans Mono',monospace">*</sup></label>
-    <button id="slot-picker-btn" type="button" title="Open the per-asset toggle panel — hide any asset on this rig (backdrop pieces, FX, accessories) with live preview.">Assets<span class="pcount" id="slot-picker-count"></span></button>
+    <label class="stage-toggle" id="stage-label" hidden title="composite the backdrop rig behind the character"><input type="checkbox" id="stage-on"> <span data-i18n="viewer_stage">Stage</span></label>
+    <label class="stage-toggle" id="scene-label" hidden title="Reproduce the hub thumbnail: hides the FX / aura / backdrop / scene slots that the thumbnail bake strips (plus the curated scene slots for combined-file rigs like Hwayoung Summertime / Aram). Shown for any rig that has such slots. Use the Assets panel for finer control."><input type="checkbox" id="scene-on"> <span data-i18n="viewer_hidefx">Hide FX/BG</span><sup style="color:var(--gold-dim);margin-left:2px;font-size:10px;font-family:'Spline Sans Mono',monospace">*</sup></label>
+    <button id="slot-picker-btn" type="button" title="Open the per-asset toggle panel — hide any asset on this rig (backdrop pieces, FX, accessories) with live preview."><span data-i18n="viewer_assets">Assets</span><span class="pcount" id="slot-picker-count"></span></button>
   </div>
 </main>
 
 <aside id="slot-picker" aria-hidden="true">
   <div class="sp-head">
-    <span class="sp-title">Assets</span>
+    <span class="sp-title" data-i18n="viewer_assets">Assets</span>
     <button type="button" class="sp-close" id="sp-undo" title="undo last action (Ctrl+Z)" disabled style="margin-right:4px">↶</button>
     <button type="button" class="sp-close" id="sp-close" title="close">×</button>
   </div>
@@ -280,6 +282,36 @@ _backEl.addEventListener("click", (e) => {
   if (history.length > 1) { e.preventDefault(); history.back(); }
 });
 
+// i18n: honor ?lang / stored language (persisted the same way index.html does),
+// add the language switcher to the header, and localize the page title (hero
+// name) once the unit record loads. Language persists across the index↔viewer
+// hop via localStorage, so the rig itself is never reloaded on a switch.
+let _unitRec = null;
+function applyViewerChrome() {
+  E7.applyI18n(document);   // sweep [data-i18n] / [data-i18n-attr] static labels
+  const t = document.getElementById("title");
+  if (t) t.textContent = (_unitRec ? (E7.gameName(_unitRec) || slug) : (slug || "(no slug)")) + titleSuffix;
+  const ls = document.getElementById("langSel");
+  if (ls) ls.value = E7.lang.get();
+}
+E7.loadLang(E7.getLang()).then(applyViewerChrome);
+(function wireViewerLang() {
+  const hdr = document.querySelector("header");
+  if (!hdr) return;
+  hdr.insertAdjacentHTML("beforeend", E7.langSelectHtml("langSel"));
+  const sel = document.getElementById("langSel");
+  sel.value = E7.getLang();
+  sel.onchange = async () => {
+    await E7.setLang(sel.value);
+    try {
+      const url = new URL(location.href);
+      url.searchParams.set("lang", sel.value);
+      history.replaceState(null, "", url);
+    } catch (e) {}
+    applyViewerChrome();
+  };
+})();
+
 // Source spine version (2.1.27 vs 3.8.99). The converted JSON's skeleton.spine is
 // always rewritten to "3.8.99" for spine-player compat, so the rig itself can't
 // tell us the real source version — look it up from units.json (keyed by rig-json
@@ -301,10 +333,14 @@ if (slug) {
         const b = (s.json || "").split("/").pop().replace(/\.json$/, "");
         if (b && s.version) ver[b] = s.version;
       }
-      if (u.id === slug && Array.isArray(u.combat_rigs)) combatRigs = u.combat_rigs;
+      if (u.id === slug) {
+        _unitRec = u;
+        if (Array.isArray(u.combat_rigs)) combatRigs = u.combat_rigs;
+      }
     }
     sourceSpineVer = ver[slug] || null;
     applySpineVer();
+    applyViewerChrome();   // localize the header title now the unit record is known
     if (isCombat && combatRigs && combatRigs.length > 1) setupRigSwitcher(combatRigs);
   }).catch(() => {});
 }

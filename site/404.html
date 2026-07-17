@@ -36,10 +36,42 @@
   <a class="brand" href="/">E7 Codex<small>artwork &amp; pose archive</small></a>
 </header>
 <main>
-  <div class="code">404 · not found</div>
-  <h1>nothing here</h1>
-  <p class="msg">This path doesn't lead anywhere in the codex. Maybe a stale link, or a unit slug that doesn't exist.</p>
-  <a class="home" href="/">‹ back to codex</a>
+  <div class="code" data-i18n="nf_title">404 · not found</div>
+  <h1 data-i18n="nf_sub">nothing here</h1>
+  <p class="msg" data-i18n="nf_body">This path doesn't lead anywhere in the codex. Maybe a stale link, or a unit slug that doesn't exist.</p>
+  <a class="home" href="/" data-i18n="nf_back">‹ back to codex</a>
 </main>
+<script>
+// Self-contained localizer — 404.html loads no shared.js and Cloudflare serves it
+// at arbitrary deep paths, so overlays are fetched with an ABSOLUTE root path.
+// English is the baked default; a non-en overlay's `ui` block swaps the 4 strings.
+(function () {
+  var LANGS = ["ko","ja","zhs","zht","th","de","fr","es","pt","vi"];
+  var lang = "en";
+  try {
+    var q = new URLSearchParams(location.search).get("lang");
+    if (q) localStorage.setItem("e7_lang", q);
+    var s = localStorage.getItem("e7_lang");
+    if (s) lang = s;
+    else {
+      var n = (navigator.language || "en").toLowerCase();
+      if (n.indexOf("zh") === 0) lang = (n.indexOf("tw")>-1||n.indexOf("hant")>-1||n.indexOf("hk")>-1) ? "zht" : "zhs";
+      else lang = n.slice(0,2);
+    }
+  } catch (e) {}
+  if (LANGS.indexOf(lang) < 0) return;   // en or unknown → keep baked English
+  fetch("/data/lang/" + lang + ".json", { cache: "no-cache" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (o) {
+      var ui = o && o.ui; if (!ui) return;
+      document.querySelectorAll("[data-i18n]").forEach(function (el) {
+        var v = ui[el.getAttribute("data-i18n")];
+        if (v) el.textContent = v;
+      });
+      document.documentElement.lang = lang;
+    })
+    .catch(function () {});
+})();
+</script>
 </body>
 </html>

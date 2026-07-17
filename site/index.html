@@ -58,6 +58,9 @@
   nav button{background:none;border:1px solid transparent;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:9px 16px;cursor:pointer;border-radius:2px;transition:.2s;flex:0 0 auto}
   nav button:hover{color:var(--text)}
   nav button.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.06)}
+  .lang-sel{background:rgba(255,255,255,.02);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.08em;padding:8px 10px;margin-left:6px;border-radius:2px;cursor:pointer;flex:0 0 auto;align-self:center}
+  .lang-sel:hover{color:var(--text)}
+  .lang-sel option{background:var(--ink,#14151d);color:var(--text)}
   @media(max-width:720px){
     header{padding:20px 16px 14px;gap:14px}
     nav{margin-left:0;width:100%;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;-ms-overflow-style:none}
@@ -392,17 +395,17 @@
 <body>
 <header>
   <a class="brand" href="#/" title="back to hub">E7 Codex<small>Artwork &amp; Pose Archive</small></a>
-  <nav><button class="on" data-v="hub">Units</button>
-       <button data-v="artifacts">Artifacts</button>
-       <button data-v="updates">Updates</button>
-       <button data-v="emotes">Emotes</button>
-       <button data-v="wallpapers">Wallpapers</button>
-       <button data-v="about">About</button></nav>
+  <nav><button class="on" data-v="hub" data-i18n="nav_hub">Units</button>
+       <button data-v="artifacts" data-i18n="nav_artifacts">Artifacts</button>
+       <button data-v="updates" data-i18n="nav_updates">Updates</button>
+       <button data-v="emotes" data-i18n="nav_emotes">Emotes</button>
+       <button data-v="wallpapers" data-i18n="nav_wallpapers">Wallpapers</button>
+       <button data-v="about" data-i18n="nav_about">About</button></nav>
 </header>
 <main id="app"><p class="empty">loading…</p></main>
 <div id="lightbox" class="lightbox" role="dialog" aria-hidden="true">
-  <button class="lb-close" id="lbClose" aria-label="close">×</button>
-  <a class="lb-download" id="lbDownload" download aria-label="download" title="download"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></a>
+  <button class="lb-close" id="lbClose" aria-label="close" data-i18n-attr="aria-label:lb_close">×</button>
+  <a class="lb-download" id="lbDownload" download aria-label="download" title="download" data-i18n-attr="aria-label:lb_download,title:lb_download"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></a>
   <img id="lbImage" alt="">
   <audio id="lbAudio" class="lb-audio" controls preload="auto"></audio>
   <video id="lbVideo" class="lb-video" loop muted playsinline controls preload="metadata"></video>
@@ -509,10 +512,10 @@ async function load() {
     // so the layout is previewable. In production a failed units.json is a
     // network blip — show a retry state, never fake data.
     if (!E7.isLocal) {
-      $("#app").innerHTML = `<p class="empty">couldn’t load the codex data — check your connection.<br><br>
-        <button class="ext" id="retryLoad" style="background:none">↻ retry</button></p>`;
+      $("#app").innerHTML = `<p class="empty">${E7.t('err_load')}<br><br>
+        <button class="ext" id="retryLoad" style="background:none">${E7.t('btn_retry')}</button></p>`;
       document.getElementById("retryLoad").onclick = () => {
-        $("#app").innerHTML = `<p class="empty">loading…</p>`;
+        $("#app").innerHTML = `<p class="empty">${E7.t('loading')}</p>`;
         load();
       };
       return;
@@ -532,7 +535,19 @@ async function load() {
     BY_BASE.get(b).push(u);
   }
   if (STORY_INDEX && (STORY_INDEX.episodes || []).length) injectStoryNav();
+  // Load the language overlay BEFORE the first render so it's already localized
+  // (English resolves instantly with no fetch; a fetch failure falls back to en).
+  await E7.loadLang(E7.getLang());
+  applyStaticChrome();
   route();
+}
+
+// Update chrome that lives OUTSIDE #app (route() never rewrites it): the nav tab
+// labels + the language <select> value. Called at boot and after a lang switch.
+function applyStaticChrome() {
+  E7.applyI18n(document);   // sweep all [data-i18n] / [data-i18n-attr] chrome
+  const ls = document.getElementById("langSel");
+  if (ls) ls.value = E7.lang.get();
 }
 
 const $ = (s) => document.querySelector(s);
@@ -547,8 +562,9 @@ function representative(base) {
 // Build a display name. For variants we prefix with hero_name when it differs from name.
 function displayName(u) {
   if (!u) return "";
-  if (u.name && u.hero_name && u.name !== u.hero_name) return `${u.hero_name} — ${u.name}`;
-  return u.name || u.id;
+  const name = E7.gameName(u), hero = E7.gameName(u, "hero_name");
+  if (name && hero && name !== hero) return `${hero} — ${name}`;
+  return name || u.id;
 }
 
 function variantTab(suf) {
@@ -557,12 +573,11 @@ function variantTab(suf) {
 
 function attrPill(u) {
   if (!u.attribute) return "";
-  return `<span class="attr ${u.attribute}">${u.attribute}</span>`;
+  return `<span class="attr ${u.attribute}">${escapeHtml(E7.gameTerm("element", u.attribute))}</span>`;
 }
 function rolePill(u) {
-  const r = roleOf(u);
-  if (!r) return "";
-  return `<span class="cls">${roleLabel(r)}</span>`;
+  if (!u.role) return "";
+  return `<span class="cls">${escapeHtml(E7.gameTerm("class", u.role))}</span>`;
 }
 function rarityStars(u) {
   if (!u.rarity) return "";
@@ -641,17 +656,17 @@ function card(group) {
   const isMod = group.some(x => x.modified);
   return `<a class="card${isNew ? ' is-new' : ''}${isMod ? ' is-upd' : ''}" href="#/u/${encodeURIComponent(base)}" data-base="${base}">
     ${thumb(u, group)}
-    ${isNew ? `<span class="new-badge">NEW</span>` : ""}
-    ${isMod ? `<span class="upd-badge">UPDATED</span>` : ""}
-    ${variantsN > 1 ? `<span class="variant-badge">${variantsN} forms</span>` : ""}
+    ${isNew ? `<span class="new-badge">${E7.t('badge_new')}</span>` : ""}
+    ${isMod ? `<span class="upd-badge">${E7.t('badge_updated')}</span>` : ""}
+    ${variantsN > 1 ? `<span class="variant-badge">${E7.t('forms_n', {n: variantsN})}</span>` : ""}
     <div class="meta">
       <div class="name">${escapeHtml(displayName(u))}</div>
       <div class="id">${base}</div>
       <div class="sub">
         ${rarityStars(u)} ${attrPill(u)} ${rolePill(u)}
-        ${group.some(x => (x.spine||[]).length) ? `<span class="tag spine">rig</span>` : ""}
-        ${totalArt ? `<span class="tag art">${totalArt} art</span>` : ""}
-        ${hasSkill ? `<span class="tag skill">skill</span>` : ""}
+        ${group.some(x => (x.spine||[]).length) ? `<span class="tag spine">${E7.t('meta_rig')}</span>` : ""}
+        ${totalArt ? `<span class="tag art">${E7.t('meta_art', {n: totalArt})}</span>` : ""}
+        ${hasSkill ? `<span class="tag skill">${E7.t('meta_skill')}</span>` : ""}
       </div>
     </div>
   </a>`;
@@ -734,7 +749,10 @@ function hub() {
       (u.id || "").toLowerCase().includes(q) ||
       (u.name || "").toLowerCase().includes(q) ||
       (u.slug || "").toLowerCase().includes(q) ||
-      (u.hero_name || "").toLowerCase().includes(q)
+      (u.hero_name || "").toLowerCase().includes(q) ||
+      // also match the localized name so e.g. a Korean user can search 한글 names
+      E7.gameName(u).toLowerCase().includes(q) ||
+      E7.gameName(u, "hero_name").toLowerCase().includes(q)
     );
   });
   // Sort: NEW units pin to the very top, then UPDATED (recently-changed existing
@@ -751,8 +769,9 @@ function hub() {
     return best;
   };
   const byName = (a, b) => {
-    const na = (a[0].hero_name || a[0].name || "").toLowerCase();
-    const nb = (b[0].hero_name || b[0].name || "").toLowerCase();
+    // Sort by the LOCALIZED name so A→Z is alphabetical in the active language.
+    const na = (E7.gameName(a[0], "hero_name") || E7.gameName(a[0]) || "").toLowerCase();
+    const nb = (E7.gameName(b[0], "hero_name") || E7.gameName(b[0]) || "").toLowerCase();
     if (na && nb && na !== nb) return na.localeCompare(nb);
     if (na && !nb) return -1;
     if (!na && nb) return  1;
@@ -775,43 +794,43 @@ function hub() {
     ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site</code> then reload.</div>` : ""}
     <div class="bar">
       <div class="q-wrap">
-        <input id="q" placeholder="search name or id  ·  iseria, c1019, ravi…" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false">
-        <button id="qmode" type="button" class="qmode${qMode==='num'?' on':''}" title="toggle text / numeric keyboard">${qMode==='num'?'ABC':'123'}</button>
+        <input id="q" placeholder="${escapeHtml(E7.t('hub_search_ph'))}" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <button id="qmode" type="button" class="qmode${qMode==='num'?' on':''}" title="${escapeHtml(E7.t('kbd_toggle_t'))}">${qMode==='num'?'ABC':'123'}</button>
       </div>
       <span class="count">${list.length} / ${groups.length}</span>
-      <div class="sort-toggle" role="group" aria-label="sort order">
-        <span class="sort-label">sort</span>
-        <button type="button" data-sort="timeline" class="${sortMode==='timeline'?'on':''}" title="newest releases first">timeline</button>
-        <button type="button" data-sort="az" class="${sortMode==='az'?'on':''}" title="alphabetical by name">A→Z</button>
+      <div class="sort-toggle" role="group" aria-label="${escapeHtml(E7.t('hub_sort_aria'))}">
+        <span class="sort-label">${escapeHtml(E7.t('hub_sort'))}</span>
+        <button type="button" data-sort="timeline" class="${sortMode==='timeline'?'on':''}" title="${escapeHtml(E7.t('sort_timeline_t'))}">${escapeHtml(E7.t('sort_timeline'))}</button>
+        <button type="button" data-sort="az" class="${sortMode==='az'?'on':''}" title="${escapeHtml(E7.t('sort_az_t'))}">${escapeHtml(E7.t('sort_az'))}</button>
       </div>
     </div>
     <div class="kinds">${kinds.map(k => {
-      const label = k === "all" ? "ALL" : (KIND_LABELS[k] || k).toUpperCase();
+      const label = k === "all" ? E7.t("kind_all") : E7.t("kind_"+k, {}, (KIND_LABELS[k]||k).toUpperCase());
       const n = k === "all" ? groups.length : (kindCounts[k]||0);
-      return `<button data-k="${k}" class="${k===kindF?'on':''}">${label}<span class="n">${n}</span></button>`;
+      return `<button data-k="${k}" class="${k===kindF?'on':''}">${escapeHtml(label)}<span class="n">${n}</span></button>`;
     }).join("")}</div>
     <div class="filters">
       <div class="fgroup">
-        <span class="flabel">element</span>
+        <span class="flabel">${escapeHtml(E7.t('filt_element'))}</span>
         ${ELEMENTS.map(e =>
-          `<button class="chip el-${e} ${elementF.has(e)?'on':''}" data-el="${e}">${e}</button>`
+          `<button class="chip el-${e} ${elementF.has(e)?'on':''}" data-el="${e}">${escapeHtml(E7.gameTerm("element", e))}</button>`
         ).join("")}
       </div>
       <div class="fgroup">
-        <span class="flabel">class</span>
+        <span class="flabel">${escapeHtml(E7.t('filt_class'))}</span>
         ${ROLES.map(r =>
-          `<button class="chip ${roleF.has(r)?'on':''}" data-role="${r}">${roleLabel(r)}</button>`
+          `<button class="chip ${roleF.has(r)?'on':''}" data-role="${r}">${escapeHtml(E7.gameTerm("class", r))}</button>`
         ).join("")}
       </div>
       <div class="fgroup">
-        <span class="flabel">rarity</span>
+        <span class="flabel">${escapeHtml(E7.t('filt_rarity'))}</span>
         ${RARITIES.map(r =>
           `<button class="chip rar ${rarityF.has(r)?'on':''}" data-rar="${r}">${'★'.repeat(r)}</button>`
         ).join("")}
       </div>
-      ${(elementF.size || rarityF.size || roleF.size) ? `<button class="chip clear" data-clear="1">clear</button>` : ""}
+      ${(elementF.size || rarityF.size || roleF.size) ? `<button class="chip clear" data-clear="1">${escapeHtml(E7.t('filt_clear'))}</button>` : ""}
     </div>
-    <div class="grid">${list.map(card).join("") || '<p class="empty">no match.</p>'}</div>`;
+    <div class="grid">${list.map(card).join("") || `<p class="empty">${escapeHtml(E7.t('hub_empty'))}</p>`}</div>`;
 
   const i = $("#q");
   // Debounced: hub() rebuilds the whole grid's DOM, which is far too heavy to
@@ -1054,7 +1073,7 @@ function updates() {
   setNav("updates");
   const labels = Object.keys(UPDATES);
   if (!labels.length && !PATCHES.length) {
-    $("#app").innerHTML = `<p class="empty">No updates indexed — run build_index.py.</p>`;
+    $("#app").innerHTML = `<p class="empty">${E7.t('empty_updates')}</p>`;
     return;
   }
   labels.sort((a, b) => {
@@ -1072,26 +1091,27 @@ function updates() {
   });
 
   const patchHtml = PATCHES.length ? `
-    <p class="section-label first">Patch diff · last ${PATCHES.length} data pack${PATCHES.length>1?'s':''} · previews hosted temporarily</p>
-    <p class="patch-note">Unannounced content is intentionally omitted — E7 Codex archives released Epic Seven assets and avoids surfacing anything Smilegate hasn't revealed yet.</p>
+    <p class="section-label first">${escapeHtml(E7.t('patch_hdr', {n: PATCHES.length}))}</p>
+    <p class="patch-note">${escapeHtml(E7.t('patch_note'))}</p>
     <div class="patches">${PATCHES.map(patchBlock).join("")}</div>` : "";
 
   $("#app").innerHTML = `${patchHtml}
-    <p class="section-label${PATCHES.length?'':' first'}">${labels.length} update codenames discovered · per-unit tagging requires the encrypted output/db</p>
+    <p class="section-label${PATCHES.length?'':' first'}">${escapeHtml(E7.t('upd_count', {n: labels.length}))}</p>
     <div class="updates-list">${labels.map(label => {
       const u = UPDATES[label];
       const story = u.story || [];
+      const title = E7.eventTitle(u.codename, label);   // localized event title
       return `<div class="upd-row">
         <div class="upd-head">
-          <h3>${escapeHtml(label)}</h3>
+          <h3>${escapeHtml(title)}</h3>
           <span class="code">${u.codename}${u.year ? ` · ${u.year}` : ''}</span>
           <span class="code count">${u.banners.length} banner${u.banners.length>1?'s':''}${story.length ? ` · ${story.length} story` : ''}</span>
         </div>
         <div class="upd-banners">
-          ${u.banners.map(b => `<a href="${escapeHtml(b)}" data-zoom data-cap="${escapeHtml(label)} banner" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(b)}" alt="${escapeHtml(u.codename)}"></a>`).join("")}
+          ${u.banners.map(b => `<a href="${escapeHtml(b)}" data-zoom data-cap="${escapeHtml(title)} banner" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(b)}" alt="${escapeHtml(u.codename)}"></a>`).join("")}
         </div>
         ${story.length ? `<div class="upd-story">
-          ${story.map(s => `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(label)} story" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.codename)} story"></a>`).join("")}
+          ${story.map(s => `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(title)} story" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.codename)} story"></a>`).join("")}
         </div>` : ''}
       </div>`;
     }).join("")}</div>`;
@@ -1147,13 +1167,13 @@ function renderVoiceClips(clipSlug, clips, lang) {
     }));
   }
   return VCLIP_GROUPS.filter(([k]) => buckets[k]).map(([k, glab]) =>
-    `<div class="vl-group"><div class="vl-cat">${glab}</div><div class="vl-items">${buckets[k].join("")}</div></div>`).join("");
+    `<div class="vl-group"><div class="vl-cat">${escapeHtml(E7.t('vgrp_'+k, {}, glab))}</div><div class="vl-items">${buckets[k].join("")}</div></div>`).join("");
 }
 function voiceSection(u) {
   const v = voiceFor(u);
   const [clipSlug, clips] = clipsFor(u);
   if (!v && !clips) return "";
-  let html = `<p class="section-label">Voice</p>`;
+  let html = `<p class="section-label">${E7.t('hdr_voice')}</p>`;
   if (v && v.actors) {
     const cells = VOICE_LANGS.filter(([k]) => v.actors[k])
       .map(([k,lab]) => `<span class="va"><span class="lang">${lab}</span><span class="nm">${escapeHtml(v.actors[k])}</span></span>`).join("");
@@ -1166,7 +1186,7 @@ function voiceSection(u) {
     const lang = avail.some(([k]) => k === voiceLang) ? voiceLang : (avail[0] ? avail[0][0] : voiceLang);
     const langBtns = avail.map(([k,lab]) =>
       `<button class="vlang${k===lang?' on':''}" data-lang="${k}">${lab}</button>`).join("");
-    html += `<div class="vlang-row">${langBtns}<span class="vlang-hint">click a line to play</span></div>`;
+    html += `<div class="vlang-row">${langBtns}<span class="vlang-hint">${E7.t('voice_hint')}</span></div>`;
     html += `<div class="voice-lines" id="voiceClips" data-clipslug="${clipSlug}">${renderVoiceClips(clipSlug, clips, lang)}</div>`;
   } else if (v && (v.lines||[]).length) {
     // fallback: non-playable DB catalog (heroes without extracted audio yet)
@@ -1174,7 +1194,7 @@ function voiceSection(u) {
     for (const ln of v.lines) (byCat[ln.category] = byCat[ln.category] || []).push(ln);
     const groups = VOICE_CATS.filter(([c]) => byCat[c]).map(([c,lab]) => {
       const items = byCat[c].map(ln => `<span title="${escapeHtml(ln.event)}">${escapeHtml(ln.label)}</span>`).join("");
-      return `<div class="vl-group"><div class="vl-cat">${lab} · ${byCat[c].length}</div><div class="vl-items">${items}</div></div>`;
+      return `<div class="vl-group"><div class="vl-cat">${escapeHtml(E7.t('vcat_'+c, {}, lab))} · ${byCat[c].length}</div><div class="vl-items">${items}</div></div>`;
     }).join("");
     html += `<div class="voice-lines">${groups}</div>`;
   }
@@ -1193,7 +1213,7 @@ function detail(baseId, variantSuf) {
     // Maybe the URL has a full variant id like c1019_s01 — fall back to BY_BASE lookup by full id.
     const direct = UNITS.find(u => u.id === baseId);
     if (direct) { detail(direct.base_id || direct.id, direct.variant); return; }
-    $("#app").innerHTML = '<p class="empty">unknown id: ' + escapeHtml(baseId) + '</p>';
+    $("#app").innerHTML = '<p class="empty">' + escapeHtml(E7.t('unknown_id', {id: baseId})) + '</p>';
     return;
   }
   // Pick the unit matching variantSuf, or the first variant if not specified/missing.
@@ -1202,8 +1222,9 @@ function detail(baseId, variantSuf) {
   const rigs = u.spine || [];
   const poseSrc = u.pose || `assets/${u.id}/pose.png`;
   const artN = u.artworks_count || (u.artworks||[]).length;
-  const heroLabel = u.hero_name || u.name || u.id;
-  const subTitle = (u.name && u.name !== heroLabel) ? u.name : "";
+  const heroLabel = E7.gameName(u, "hero_name") || E7.gameName(u) || u.id;
+  const uName = E7.gameName(u);
+  const subTitle = (uName && uName !== heroLabel) ? uName : "";
   // Intimacy art is per-character, not per-skin: the asset is keyed to one slug
   // in the group (usually the base), so resolve it (and its UPDATED state) from
   // any variant that owns one, preferring this variant's own if it has its own.
@@ -1211,7 +1232,7 @@ function detail(baseId, variantSuf) {
   const groupModified = group.some(x => x.modified);
 
   $("#app").innerHTML = `
-    <span class="back" onclick="history.length>1?history.back():location.hash='#/'">‹ back</span>
+    <span class="back" onclick="history.length>1?history.back():location.hash='#/'">${E7.t('btn_back')}</span>
     <div class="detail">
       <div>
         <div class="stage" id="stage">
@@ -1226,12 +1247,12 @@ function detail(baseId, variantSuf) {
           </div>
         </div>
         ${u.thumb ? `<div class="pose-switch render-switch" title="Base = the full detail-page pose. Thumb = the FX/backdrop-stripped hub thumbnail (same image the grid shows).">
-          <span class="ps-label">render:</span>
-          <button data-rm="base" class="on">Base</button>
-          <button data-rm="thumb">Thumb</button>
+          <span class="ps-label">${E7.t('render_switch')}</span>
+          <button data-rm="base" class="on">${E7.t('render_base')}</button>
+          <button data-rm="thumb">${E7.t('render_thumb')}</button>
         </div>` : ''}
         ${group.length > 1 ? `<div class="pose-switch" title="preview another variant's pose without leaving this page">
-          <span class="ps-label">pose:</span>
+          <span class="ps-label">${E7.t('pose_switch')}</span>
           ${group.map(v => {
             const pp = v.pose || `assets/${v.id}/pose.png`;
             const lab = variantTab(v.variant || "");
@@ -1239,16 +1260,16 @@ function detail(baseId, variantSuf) {
             return `<button data-vs="${v.variant || ''}" data-pose="${escapeHtml(pp)}" data-thumb="${escapeHtml(v.thumb || '')}" data-id="${escapeHtml(v.id)}" class="${on?'on':''}">${escapeHtml(lab)}</button>`;
           }).join("")}
         </div>` : ''}
-        ${rigs.length ? `<p class="section-label">static render · spine ${rigs[0].version || '3.8.99'}</p>` : ''}
+        ${rigs.length ? `<p class="section-label">${E7.t('render_spine', {ver: rigs[0].version || '3.8.99'})}</p>` : ''}
       </div>
       <div>
         <div class="dt-head">
-          <h2>${escapeHtml(heroLabel)}${subTitle ? ` <span style="color:var(--mut);font-size:24px">— ${escapeHtml(subTitle)}</span>` : ''}${groupModified ? ` <span class="upd-badge inline">UPDATED</span>` : ''}</h2>
-          <div class="ids">${u.id}${u.base_id && u.base_id !== u.id ? ` · base ${u.base_id}` : ''}</div>
+          <h2>${escapeHtml(heroLabel)}${subTitle ? ` <span style="color:var(--mut);font-size:24px">— ${escapeHtml(subTitle)}</span>` : ''}${groupModified ? ` <span class="upd-badge inline">${E7.t('badge_updated')}</span>` : ''}</h2>
+          <div class="ids">${u.id}${u.base_id && u.base_id !== u.id ? ` · ${escapeHtml(E7.t('detail_base_id', {id: u.base_id}))}` : ''}</div>
           <div class="meta-row">
             ${rarityStars(u)} ${attrPill(u)}
-            ${u.role ? `<span class="tag" style="color:var(--mut);border:1px solid var(--line);text-transform:capitalize">${u.role}</span>` : ''}
-            <span class="tag" style="color:var(--mut);border:1px solid var(--line)">${KIND_LABELS[u.kind] || u.kind}</span>
+            ${u.role ? `<span class="tag" style="color:var(--mut);border:1px solid var(--line);text-transform:capitalize">${escapeHtml(E7.gameTerm("class", u.role))}</span>` : ''}
+            <span class="tag" style="color:var(--mut);border:1px solid var(--line)">${escapeHtml(E7.t("kind_"+u.kind, {}, KIND_LABELS[u.kind] || u.kind))}</span>
           </div>
         </div>
         ${group.length > 1 ? `<div class="variant-tabs">${group.map(v => {
@@ -1267,29 +1288,32 @@ function detail(baseId, variantSuf) {
             // param to the main live-viewer link when one exists.
             const backdrop = (u.extras||[]).find(x => x.label === "backdrop" && x.json && x.atlas);
             const stageQS = backdrop ? `&stage=${encodeURIComponent(backdrop.id)}` : "";
+            // carry the active language into the viewer so a shared viewer link
+            // (and the viewer's own switcher default) matches the codex page
+            const langQS = E7.lang.get() !== "en" ? `&lang=${E7.lang.get()}` : "";
             const otherExtras = (u.extras||[]).filter(x => x.label !== "backdrop");
             return `
-              ${rigs.length ? `<a class="ext" href="viewer.html?slug=${encodeURIComponent(u.id)}${stageQS}">▶ live viewer</a>` : ""}
-              ${u.has_combat ? `<a class="ext" href="viewer.html?slug=${encodeURIComponent(u.id)}&rig=combat" title="skill animations (skill1/skill2/skill3/run/…)">▶ live viewer (combat)</a>` : ""}
+              ${rigs.length ? `<a class="ext" href="viewer.html?slug=${encodeURIComponent(u.id)}${stageQS}${langQS}">${E7.t('btn_live_viewer')}</a>` : ""}
+              ${u.has_combat ? `<a class="ext" href="viewer.html?slug=${encodeURIComponent(u.id)}&rig=combat${langQS}" title="${escapeHtml(E7.t('btn_live_viewer_combat_t'))}">${E7.t('btn_live_viewer_combat')}</a>` : ""}
               ${otherExtras.map((x, i) => {
                 const lbl = x.label || `alt rig ${i+1}`;
-                return `<a class="ext" href="viewer.html?slug=${encodeURIComponent(x.id)}" title="rig ${x.id}">▶ ${escapeHtml(lbl)}</a>`;
+                return `<a class="ext" href="viewer.html?slug=${encodeURIComponent(x.id)}${langQS}" title="rig ${x.id}">▶ ${escapeHtml(lbl)}</a>`;
               }).join("")}
             `;
           })()}
-          ${rigs.length && rigs[0].atlas ? `<a class="ext" href="${escapeHtml(rigs[0].atlas.replace('.atlas','.png'))}" data-zoom data-cap="${escapeHtml(u.id)} · texture atlas">⊡ texture</a>` : ""}
+          ${rigs.length && rigs[0].atlas ? `<a class="ext" href="${escapeHtml(rigs[0].atlas.replace('.atlas','.png'))}" data-zoom data-cap="${escapeHtml(u.id)} · texture atlas">${E7.t('btn_texture')}</a>` : ""}
           ${u.cecilia ? (() => { const cslug = u.hero_slug || u.slug; return `<a class="ext" href="${escapeHtml(u.cecilia)}" target="_blank" rel="noopener">↗ ceciliabot${cslug ? ' · '+escapeHtml(cslug) : ''}</a>`; })() : ""}
           ${(u.updates||[]).map(x => `<span class="ext flat">${escapeHtml(x)}</span>`).join("")}
         </div>
         ${(u.skills||[]).length ? `
-          <p class="section-label first">Skill animation</p>
+          <p class="section-label first">${E7.t('hdr_skill_anim')}</p>
           <div class="skill-gallery">${u.skills.map((s,i) => {
-            const lbl = u.skills.length > 1 ? `Skill animation ${i+1}` : "Skill animation";
+            const lbl = u.skills.length > 1 ? `${E7.t('hdr_skill_anim')} ${i+1}` : E7.t('hdr_skill_anim');
             return `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(u.id)} · ${lbl}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.id)} skill ${i+1}"></a>`;
           }).join("")}</div>
         ` : ''}
         ${intimUnit ? `
-          <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">Intimacy illustration${intimUnit.modified && (intimUnit.modified_parts||[]).includes('intimacy') ? `<span class="upd-badge inline">UPDATED</span>` : ''}</p>
+          <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">${E7.t('hdr_intimacy')}${intimUnit.modified && (intimUnit.modified_parts||[]).includes('intimacy') ? `<span class="upd-badge inline">${E7.t('badge_updated')}</span>` : ''}</p>
           <div class="intimacy-gallery">${intimUnit.intimacy.split('?')[0].endsWith('.webm') ? `
             <video class="intimacy-vid" src="${escapeHtml(intimUnit.intimacy)}" autoplay loop muted playsinline preload="metadata" data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" title="click to enlarge" aria-label="${escapeHtml(u.id)} intimacy illustration"></video>
           ` : `
@@ -1304,7 +1328,7 @@ function detail(baseId, variantSuf) {
           ` : ''}
         ` : ''}
         ${voiceSection(u)}
-        <p class="section-label">Bundled artwork</p>
+        <p class="section-label">${E7.t('hdr_artwork')}</p>
         ${(u.artworks||[]).length
           ? `<div class="gallery">${u.artworks.map(a => `<a href="${escapeHtml(a)}" data-zoom data-cap="${escapeHtml(displayName(u))} · ${escapeHtml(a.split('/').pop())}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(a)}" alt=""></a>`).join("")}</div>`
           : `<p class="empty" style="padding:18px 0;text-align:left">${artN ? `${artN} related image${artN!==1?'s':''} exist in img_output/ but aren't bundled in the site (size budget). Browse the local dump for the full gallery.` : 'no img_output matches for this id.'}</p>`
@@ -1379,7 +1403,7 @@ function detail(baseId, variantSuf) {
 function emotes() {
   setNav("emotes");
   if (!EMOTES.length) {
-    $("#app").innerHTML = `<p class="empty">No emotes indexed — run build_index.py.</p>`;
+    $("#app").innerHTML = `<p class="empty">${E7.t('empty_emotes')}</p>`;
     return;
   }
   // Sort: NEW first, then linked (clickable) first, alphabetically by hero name;
@@ -1389,22 +1413,22 @@ function emotes() {
     if (nwA !== nwB) return nwA - nwB;
     const ka = a.base_id ? 0 : 1, kb = b.base_id ? 0 : 1;
     if (ka !== kb) return ka - kb;
-    const na = (a.hero_name || a.id).toLowerCase();
-    const nb = (b.hero_name || b.id).toLowerCase();
+    const na = (E7.gameName(a, "hero_name") || a.hero_name || a.id).toLowerCase();
+    const nb = (E7.gameName(b, "hero_name") || b.hero_name || b.id).toLowerCase();
     return na.localeCompare(nb);
   });
   const totalEmotes = EMOTES.reduce((n, g) => n + g.emotes.length, 0);
   const linkedCount = EMOTES.filter(g => g.base_id).length;
   $("#app").innerHTML = `
-    <p class="section-label first">${EMOTES.length} character groups · ${totalEmotes} emote files · ${linkedCount} linked to a unit page</p>
+    <p class="section-label first">${escapeHtml(E7.t('emote_count', {n: EMOTES.length, files: totalEmotes, linked: linkedCount}))}</p>
     <div class="emote-list">${sorted.map(g => {
       const clickable = !!g.base_id;
-      const heroLabel = g.hero_name || g.id;
+      const heroLabel = E7.gameName(g, "hero_name") || g.hero_name || g.id;
       return `<div class="emote-row${clickable ? ' link' : ''}" ${clickable ? `data-base="${g.base_id}"` : ''}>
         <div class="emote-who">
-          <div class="who-name">${escapeHtml(heroLabel)}${g.new ? `<span class="new-badge inline">NEW</span>` : ""}</div>
+          <div class="who-name">${escapeHtml(heroLabel)}${g.new ? `<span class="new-badge inline">${E7.t('badge_new')}</span>` : ""}</div>
           <div class="who-id">${escapeHtml(g.id)}${g.slug && g.slug !== g.id ? ` · ${escapeHtml(g.slug)}` : ''}</div>
-          <div class="who-count">${g.emotes.length} emote${g.emotes.length!==1?'s':''} · ${clickable ? 'open detail →' : 'no unit page'}</div>
+          <div class="who-count">${g.emotes.length} emote${g.emotes.length!==1?'s':''} · ${clickable ? E7.t('emote_open') : E7.t('emote_nolink')}</div>
         </div>
         <div class="emote-grid">${g.emotes.map(e => `
           <a class="emote-cell${e.animated ? ' animated' : ''}" href="${escapeHtml(e.file)}" data-zoom data-cap="${escapeHtml(heroLabel)} · ${escapeHtml(e.theme)}${e.animated ? ' (animated)' : ''}" target="_blank" rel="noopener" title="${escapeHtml(e.theme)}${e.animated ? ' (animated)' : ''}">
@@ -1428,7 +1452,7 @@ const WP_CAT_LABEL = { lobby:"Lobby BG", event:"Event splash", episode:"Episode 
 function wallpapers() {
   setNav("wallpapers");
   if (!WALLPAPERS.length) {
-    $("#app").innerHTML = `<p class="empty">No wallpapers indexed — run build_index.py.</p>`;
+    $("#app").innerHTML = `<p class="empty">${E7.t('empty_wallpapers')}</p>`;
     return;
   }
   const catCounts = {};
@@ -1440,17 +1464,17 @@ function wallpapers() {
                          .slice().sort((a, b) => (a.new ? 0 : 1) - (b.new ? 0 : 1));
 
   $("#app").innerHTML = `
-    <p class="section-label first">${WALLPAPERS.length} wallpapers · click any to open full-size</p>
+    <p class="section-label first">${escapeHtml(E7.t('wp_count', {n: WALLPAPERS.length}))}</p>
     <div class="kinds">${cats.map(c => {
-      const label = c === "all" ? "ALL" : (WP_CAT_LABEL[c] || c).toUpperCase();
+      const label = c === "all" ? E7.t("kind_all") : E7.t('wp_'+c, {}, WP_CAT_LABEL[c]||c).toUpperCase();
       const n = c === "all" ? WALLPAPERS.length : (catCounts[c]||0);
-      return `<button data-c="${c}" class="${c===wpCatF?'on':''}">${label}<span class="n">${n}</span></button>`;
+      return `<button data-c="${c}" class="${c===wpCatF?'on':''}">${escapeHtml(label)}<span class="n">${n}</span></button>`;
     }).join("")}</div>
     <div class="wallpaper-grid">${list.map(w => `
-      <a class="wallpaper-cell${w.new ? ' is-new' : ''}" href="${escapeHtml(w.file)}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(WP_CAT_LABEL[w.category] || w.category)}" target="_blank" rel="noopener">
+      <a class="wallpaper-cell${w.new ? ' is-new' : ''}" href="${escapeHtml(w.file)}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(E7.t('wp_'+w.category, {}, WP_CAT_LABEL[w.category]||w.category))}" target="_blank" rel="noopener">
         <img loading="lazy" src="${escapeHtml(w.file)}" alt="${escapeHtml(w.name)}">
-        ${w.new ? `<span class="new-badge">NEW</span>` : ""}
-        <span class="wp-cat">${escapeHtml(WP_CAT_LABEL[w.category] || w.category)}</span>
+        ${w.new ? `<span class="new-badge">${E7.t('badge_new')}</span>` : ""}
+        <span class="wp-cat">${escapeHtml(E7.t('wp_'+w.category, {}, WP_CAT_LABEL[w.category]||w.category))}</span>
         <span class="wp-name">${escapeHtml(w.name)}</span>
       </a>`).join("")}</div>`;
 
@@ -1471,7 +1495,7 @@ function artiRarityStars(r) { return r ? "★".repeat(r) : ""; }
 function artifacts() {
   setNav("artifacts");
   if (!ARTIFACTS.length) {
-    $("#app").innerHTML = `<p class="empty">No artifacts indexed — run build_index.py.</p>`;
+    $("#app").innerHTML = `<p class="empty">${E7.t('empty_artifacts')}</p>`;
     return;
   }
   const q = artiSearchQ.trim().toLowerCase();
@@ -1480,6 +1504,7 @@ function artifacts() {
     if (artiRoleF.size  && !artiRoleF.has(artiRoleOf(a))) return false;
     if (!q) return true;
     return (a.name && a.name.toLowerCase().includes(q))
+        || E7.artifactName(a).toLowerCase().includes(q)
         || a.id.toLowerCase().includes(q);
   });
   const rarities = [5, 4, 3, 2, 1];
@@ -1495,23 +1520,23 @@ function artifacts() {
   $("#app").innerHTML = `
     <div class="bar">
       <div class="q-wrap">
-        <input id="qArti" placeholder="search artifacts by name or art####"
+        <input id="qArti" placeholder="${escapeHtml(E7.t('arti_search_ph'))}"
                value="${escapeHtml(artiSearchQ)}" inputmode="search">
       </div>
     </div>
-    <p class="section-label first">${list.length} of ${ARTIFACTS.length} artifacts · click any for full art</p>
+    <p class="section-label first">${escapeHtml(E7.t('arti_count', {n: list.length, total: ARTIFACTS.length}))}</p>
     <div class="kinds" id="artiRarity">
       ${rarities.filter(r => rarityCounts[r]).map(r => `
         <button data-r="${r}" class="${artiRarityF.has(r)?'on':''}">${artiRarityStars(r)}<span class="n">${rarityCounts[r]}</span></button>`).join("")}
     </div>
     <div class="kinds" id="artiRole">
       ${roleList.map(r => `
-        <button data-role="${r}" class="${artiRoleF.has(r)?'on':''}">${r.replace('-',' ')}<span class="n">${roleCounts[r]}</span></button>`).join("")}
+        <button data-role="${r}" class="${artiRoleF.has(r)?'on':''}">${escapeHtml(E7.gameTerm("class", r))}<span class="n">${roleCounts[r]}</span></button>`).join("")}
     </div>
     <div class="artifact-grid">${list.map(a => {
-      const name = a.name || a.id;
+      const name = E7.artifactName(a) || a.id;
       const role = artiRoleOf(a);
-      const roleCap = role ? role.charAt(0).toUpperCase() + role.slice(1) : "";
+      const roleCap = role ? E7.gameTerm("class", role) : "";
       const rarity = a.rarity ? `${a.rarity}★` : "";
       const meta = [rarity, roleCap].filter(Boolean).join(" · ");
       const cap = [name, meta].filter(Boolean).join(" · ");
@@ -1519,9 +1544,9 @@ function artifacts() {
       return `
       <a class="artifact-cell${a.new ? ' is-new' : ''}" href="${escapeHtml(a.art_full)}" data-zoom data-cap="${escapeHtml(cap)}" target="_blank" rel="noopener">
         <img loading="lazy" src="${escapeHtml(a.art_full)}" alt="${escapeHtml(name)}">
-        ${a.new ? `<span class="new-badge">NEW</span>` : ""}
+        ${a.new ? `<span class="new-badge">${E7.t('badge_new')}</span>` : ""}
         <span class="a-name">${escapeHtml(name)}${meta ? `<span class="a-meta">${escapeHtml(meta)}</span>` : ""}</span>
-        ${cb ? `<button class="a-cb" data-cb="${escapeHtml(cb)}" type="button" title="open on ceciliabot">↗ cb</button>` : ""}
+        ${cb ? `<button class="a-cb" data-cb="${escapeHtml(cb)}" type="button" title="${escapeHtml(E7.t('arti_cb_t'))}">↗ cb</button>` : ""}
       </a>`;
     }).join("")}</div>`;
 
@@ -1600,7 +1625,7 @@ function injectStoryNav() {
   const nav = document.querySelector("header nav");
   if (!nav) return;
   const btn = document.createElement("button");
-  btn.dataset.v = "story"; btn.textContent = "Story";
+  btn.dataset.v = "story"; btn.textContent = "Story"; btn.setAttribute("data-i18n", "nav_story");
   btn.onclick = () => { location.hash = "#/story"; };
   const about = nav.querySelector('button[data-v="about"]');
   nav.insertBefore(btn, about);
@@ -1828,6 +1853,29 @@ document.querySelectorAll("nav button").forEach(b =>
     location.hash = v === "hub" ? "#/" : "#/" + v;
   }
 );
+
+// Language switcher: a native <select> at the end of the header nav. Mirrors the
+// nav-button wiring above. On change it persists + loads the overlay, fixes the
+// out-of-#app chrome, and re-renders the current view (route() is pure). The
+// select value is synced to the active language in applyStaticChrome().
+(function wireLangSwitcher() {
+  const nav = document.querySelector("header nav");
+  if (!nav) return;
+  nav.insertAdjacentHTML("beforeend", E7.langSelectHtml("langSel"));
+  const sel = document.getElementById("langSel");
+  sel.value = E7.getLang();
+  sel.onchange = async () => {
+    await E7.setLang(sel.value);
+    // keep the language in the URL so it survives reloads + is shareable
+    try {
+      const url = new URL(location.href);
+      url.searchParams.set("lang", sel.value);
+      history.replaceState(null, "", url);
+    } catch (e) {}
+    applyStaticChrome();
+    route();
+  };
+})();
 
 // Global lightbox: any <a data-zoom href="..."> opens the asset full-size in
 // the modal instead of navigating. We use delegation so it picks up links
