@@ -805,6 +805,16 @@ def build(img: Path, raw: Path, out: Path) -> None:
     for p in walk(img / "banner"):
         if p.suffix.lower() not in IMG_EXT: continue
         codes = {c.lower() for c in CODE_RE.findall(p.name.lower())} & event_labels.keys()
+        if refs_unreleased(p.name):
+            # Unreleased-unit promo art (gacha/update banner) reaches _updates by
+            # CODENAME, not a staged unit dir — the unit-dir hold-back misses it.
+            # Never stage/reference it, and purge any copy a prior build left.
+            for c in codes:
+                stale = updates_dir / c / p.name
+                if stale.exists():
+                    try: stale.unlink()
+                    except OSError: pass
+            continue
         for c in codes:
             dst = updates_dir / c / p.name
             dst.parent.mkdir(exist_ok=True)
@@ -819,6 +829,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
             if p.suffix.lower() not in IMG_EXT: continue
             if STORY_SKIP.search(p.name): continue
             codes = {c.lower() for c in CODE_RE.findall(p.name.lower())} & event_labels.keys()
+            if refs_unreleased(p.name):
+                for c in codes:
+                    stale = updates_dir / c / p.name
+                    if stale.exists():
+                        try: stale.unlink()
+                        except OSError: pass
+                continue
             for c in codes:
                 dst = updates_dir / c / p.name
                 dst.parent.mkdir(exist_ok=True)
