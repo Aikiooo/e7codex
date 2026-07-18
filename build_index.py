@@ -1100,9 +1100,21 @@ def build(img: Path, raw: Path, out: Path) -> None:
     # Step 7: write outputs.
     data = out / "data"
     data.mkdir(parents=True, exist_ok=True)
-    (data / "units.json").write_text(
-        json.dumps(sorted(units.values(), key=lambda u: u["id"]),
-                   indent=1, ensure_ascii=False), "utf-8")
+    _units_text = json.dumps(sorted(units.values(), key=lambda u: u["id"]),
+                             indent=1, ensure_ascii=False)
+    # Deep belt: the unit-dir drop above only guards TOP-LEVEL slugs — a held
+    # slug nested in a string field (extras, aliases) would pass it. Token-scan
+    # the serialized text instead (consecutive-sequence match, so a held _1
+    # variant never false-flags its released base).
+    _held_seqs = [tuple(p for p in re.split(r"[^a-z0-9]+", u.lower()) if p)
+                  for u in unreleased]
+    _toks = [t for t in re.split(r"[^a-z0-9]+", _units_text.lower()) if t]
+    _deep = sorted({"_".join(seq) for seq in _held_seqs
+                    for i, t in enumerate(_toks) if t == seq[0]
+                    and tuple(_toks[i:i + len(seq)]) == seq})
+    if _deep:
+        raise SystemExit(f"FATAL: held slug token(s) inside units.json: {_deep}")
+    (data / "units.json").write_text(_units_text, "utf-8")
     updates_out = {}
     # Only iterate over codenames that picked up any art — keeps the JSON tight
     # even though event_labels now has 100+ entries (most have no on-disk assets).
