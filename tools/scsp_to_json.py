@@ -1,9 +1,11 @@
 """
-E7 .scsp → Spine .json (auto-detects 2.1.27 vs 3.8.99).
+E7 .scsp → Spine .json (auto-detects 2.1.27 / 3.8.x / 4.2.x).
 
-Delegates to the two third-party converters that already work for each format:
+Delegates to the right converter for each format:
   - 2.1.27.scsp -> epic7_scsp2json_v1_0/epic7_scsp2json.py
-  - 3.8.99.scsp -> E7_Scsp2Json.py   (top-level Chinese-language fork)
+  - 3.8.x.scsp  -> E7_Scsp2Json.py   (top-level Chinese-language fork)
+  - 4.2.x.scsp  -> skel42_to_json38.py (E7 header + stock .skel, converted
+                   down to 3.8-compatible JSON for the site's spine-player)
 
 This script wraps both with a unified CLI and decides which to call by
 peeking at the first decompressed-bytes string table for a "spine: VERSION"

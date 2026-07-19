@@ -128,6 +128,13 @@ This is the step you do yourself. You need:
   - *Artifacts (same setup):* `python tools/build_artifacts.py` decodes
     `equip_item.db` into `data_external/artifacts_from_db.json`, layered ahead
     of the community `Artifacts.json` for name/rarity/role. Gitignored.
+  - *Localization (same setup):* `python tools/build_i18n.py` decodes each
+    language's `text.db` into per-language display-name overlays
+    (`site/data/lang/<lang>.json`) that power the site's language switcher
+    (10 game languages + unofficial Vietnamese). It needs the same keys/data
+    as `build_names.py`, plus hand-maintained UI-chrome translations
+    (`data_external/i18n_ui/<lang>.json`, not bundled). Without the overlays
+    the switcher still renders and every name falls back to English.
 
 Tell the pipeline where your data lives in **one place**: copy
 `tools/voice_keys.example.json` to `tools/voice_keys.json` (gitignored) and set
@@ -142,8 +149,11 @@ python tools/prepare_assets.py --all          # portraits → site/assets/<slug>
 python tools/prepare_combat_assets.py --all    # combat rigs (optional)
 ```
 
-`tools/scsp_to_json.py` auto-detects the rig version (2.1.27 vs 3.8.99) and
-dispatches to the right converter.
+`tools/scsp_to_json.py` auto-detects the rig version (2.1.27, 3.8.x, or 4.2.x)
+and dispatches to the right converter — the vendored third-party ones for
+2.1.27 / 3.8.x, and `tools/skel42_to_json38.py` for Spine 4.2 rigs (an
+E7-wrapped stock `.skel`, converted down to 3.8-compatible JSON so the same
+spine-player renders every rig).
 
 ### 4. Render pose thumbnails
 
