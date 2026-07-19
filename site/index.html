@@ -228,6 +228,7 @@
     .artifact-cell:hover .a-cb,.artifact-cell .a-cb:focus{opacity:1;pointer-events:auto}
   }
   .detail{display:grid;grid-template-columns:minmax(0,520px) 1fr;gap:40px}
+  .detail>.art-sec{grid-column:1/-1}
   @media(max-width:880px){.detail{grid-template-columns:1fr}}
   .stage{background:var(--ink-2);border:1px solid var(--line);border-radius:5px;min-height:560px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
   .stage img{max-width:100%;max-height:78vh;display:block;object-fit:contain}
@@ -1328,11 +1329,13 @@ function detail(baseId, variantSuf) {
           ` : ''}
         ` : ''}
         ${voiceSection(u)}
+        <div class="art-sec">
         <p class="section-label">${E7.t('hdr_artwork')}</p>
         ${(u.artworks||[]).length
           ? `<div class="gallery">${u.artworks.map(a => `<a href="${escapeHtml(a)}" data-zoom data-cap="${escapeHtml(displayName(u))} · ${escapeHtml(a.split('/').pop())}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(a)}" alt=""></a>`).join("")}</div>`
           : `<p class="empty" style="padding:18px 0;text-align:left">${artN ? `${artN} related image${artN!==1?'s':''} exist in img_output/ but aren't bundled in the site (size budget). Browse the local dump for the full gallery.` : 'no img_output matches for this id.'}</p>`
         }
+        </div>
       </div>
     </div>`;
 
@@ -1343,6 +1346,49 @@ function detail(baseId, variantSuf) {
       const v = b.dataset.vs;
       location.hash = "#/u/" + baseId + (v ? "/" + v : "");
     });
+
+  // Bundled artwork: the strip may live at the end of the info column (status
+  // quo), in the pose column's dead space under the render, or as a full-width
+  // bottom row (thumb's left edge → content right edge). Try all three, keep
+  // whichever measures strictly shortest — ties keep the status quo, so nothing
+  // moves without a real gain. Try-measure-revert runs in one frame (no paint
+  // between), and it's pure layout math: in the single-column layout all
+  // placements are identical, so portrait devices are untouched by
+  // construction, not by a width check.
+  const fitArtSec = window._fitArtSec = () => {
+    const det = document.querySelector(".detail");
+    const sec = det && det.querySelector(".art-sec");
+    if (!det || !sec || !sec.querySelector(".gallery")) return;
+    const pose = det.children[0], info = det.children[1];
+    // Stacked columns (single-column layout) have no dead space beside them —
+    // relocating would only reorder content, so keep the status quo. Geometric
+    // fact, not a viewport/orientation check.
+    if (info.getBoundingClientRect().top >= pose.getBoundingClientRect().bottom) {
+      if (sec.parentElement !== info) info.appendChild(sec);
+      return;
+    }
+    // preference order on equal heights: info column > pose column > full width
+    const spots = [info, pose, det];
+    let best = spots[0], bestH = Infinity;
+    for (const s of spots) {
+      s.appendChild(sec);
+      const h = det.offsetHeight;
+      if (h < bestH - 1) { best = s; bestH = h; }
+    }
+    if (sec.parentElement !== best) best.appendChild(sec);
+  };
+  fitArtSec();
+  // Lazy tiles change gallery wrap heights as they load; re-judge per load and
+  // on resize (handler is global-once — it no-ops off the detail view).
+  document.querySelectorAll(".art-sec img").forEach(im =>
+    im.complete || im.addEventListener("load", () => window._fitArtSec(), { once: true }));
+  if (!window._artFitWired) {
+    window._artFitWired = true;
+    let t;
+    window.addEventListener("resize", () => {
+      clearTimeout(t); t = setTimeout(() => window._fitArtSec(), 120);
+    });
+  }
 
   // Pose quick-switch: swap only the displayed pose image between variants
   // without rerouting. Variant-tabs above are the right tool for a full
