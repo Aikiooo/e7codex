@@ -88,11 +88,12 @@ DUAL_COMBAT: dict[str, list[tuple[str, str]]] = {
 # _1 entry has no combat/ subdir to flag has_combat on.
 PRIMARY_SWAP_BARE = {
     "c1046_s02", "c1180", "c1183", "c2076", "c2112_s01",
-    "c2181", "c2184", "c2185", "c6024",
+    "c2181", "c2184", "c2185", "c5069", "c6024",
     # 2026-06-25 release backdrop-swaps (keep in sync with build_index.PRIMARY_SWAP):
     # routes their combat rig into the _1 sibling so has_combat surfaces on the
-    # character, not the demoted backdrop.
-    "c5147", "c2113_s01",
+    # character, not the demoted backdrop. c2148->elvira_m, c5147->fumyr_a01,
+    # c2113_s01->ilinav_m_s01, c5190 (Aube)->orb.
+    "c5147", "c2113_s01", "c2148", "c5190",
 }
 
 # Stems we KNOW the dump doesn't carry enough atlas data to render

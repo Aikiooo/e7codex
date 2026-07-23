@@ -76,7 +76,7 @@ MANUAL_ARTIFACTS: dict[str, dict] = {
 # site/assets/_artifacts so the deploy can't publish them. DELETE once the unit
 # releases (then the artifact surfaces automatically).
 UNRELEASED_ARTIFACTS: set[str] = {
-    "art0243",   # Aubade Ludwig (c5069) — still in MANUAL_UNRELEASED
+    # art0243 "Aubade Orb" released 2026-06-11 with Aubade Ludwig (c5069)
 }
 
 # A playable unit / artifact carries a "NEW" badge (and sorts to the top of its
@@ -114,9 +114,13 @@ PRIMARY_SWAP: dict[str, dict] = {
     "c2181":     {"label": "backdrop"},
     "c2184":     {"label": "backdrop"},
     "c2185":     {"label": "backdrop"},
+    "c5069":     {"label": "backdrop"},   # Aubade Ludwig — bare rig is bg/sky+clouds+moon
     "c6024":     {"label": "backdrop"},
     # 2026-06-25 release (bare rig is the scene, _1 is the character):
     "c5147":     {"label": "backdrop"},   # Eye of the Abyss Fumyr
+    "c2148":     {"label": "backdrop"},   # Tidal Rift Elvira — 98% backdrop slots
+    "c5190":     {"label": "backdrop"},   # Aube — underwater coral scene; detector
+                                          # false-negative, confirmed visually
     "c2113_s01": {"label": "backdrop"},   # Empyrean Ilynav skin
 }
 
