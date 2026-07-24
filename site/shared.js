@@ -9,7 +9,21 @@ const E7 = (() => {
   // Pages preview URLs — uses the R2-backed CDN. Single source of truth:
   // index.html keys voice clips off this, viewer.html keys spine rigs off it.
   const h = location.hostname;
-  const isLocal = h === "localhost" || h === "127.0.0.1" || h === "" ||
+  // Production hosts ALWAYS use the CDN and never expose held-back content, no
+  // matter what flags are set.
+  const isProd = /(?:^|\.)e7codex\.com$/.test(h) || /\.pages\.dev$/.test(h);
+  // Opt-in "local mode" for trusted off-LAN access (e.g. a personal Cloudflare
+  // tunnel): append ?local=1 ONCE to persist it on this device (?local=0 clears).
+  // Treats the page as local — relative asset paths + the unreleased browser —
+  // WITHOUT hardcoding any private hostname into the shipped JS. Ignored on prod.
+  let localFlag = false;
+  try {
+    const v = new URLSearchParams(location.search).get("local");
+    if (v === "1") localStorage.setItem("e7_local", "1");
+    else if (v === "0") localStorage.removeItem("e7_local");
+    localFlag = !isProd && localStorage.getItem("e7_local") === "1";
+  } catch (e) {}
+  const isLocal = localFlag || h === "localhost" || h === "127.0.0.1" || h === "" ||
     /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(h);
   const CDN = "https://assets.e7codex.com";
   const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g,
@@ -19,8 +33,8 @@ const E7 = (() => {
   // Localization for both pages. English is inline (units.json names + the maps
   // below) so the default path costs ZERO extra fetch; every other language pulls
   // ONE overlay data/lang/<lang>.json = {names, artifacts, events, elements,
-  // classes, ui} lazily on first use. Selection: ?lang= wins and persists to
-  // localStorage, else the stored value, else navigator.language, else en.
+  // classes, ui} lazily on first use. Mirrors the ?local flag idiom above:
+  // ?lang= wins and persists to localStorage, else stored, else navigator, else en.
   // 10 game-sourced languages + Vietnamese (vi) — unofficial, hand-translated UI,
   // game names fall back to English (no in-game Vietnamese text exists).
   const LANGS = ["en", "ko", "ja", "zhs", "zht", "th", "de", "fr", "es", "pt", "vi"];
@@ -59,6 +73,14 @@ const E7 = (() => {
     badge_new: "NEW", badge_updated: "UPDATED", badge_unrel: "UNRELEASED",
     badge_unrel_local: "UNRELEASED · LOCAL ONLY",
     badge_unrel_t: "held back from the public site — visible locally only",
+    badge_announced: "ANNOUNCED",
+    badge_announced_t: "officially previewed — not in gacha yet",
+    btn_announce_video: "▶ official preview",
+    btn_announce_video_t: "official skill / hero preview",
+    hdr_official_preview: "Official preview",
+    btn_open_youtube: "↗ open on YouTube",
+    lb_owner_unit: "Unit",
+    lb_owner_unit_t: "Open owner unit page",
     forms_n: "{n} forms",
     // card meta
     meta_rig: "rig", meta_art: "{n} art", meta_skill: "skill",
@@ -67,9 +89,30 @@ const E7 = (() => {
     btn_live_viewer: "▶ live viewer", btn_live_viewer_combat: "▶ live viewer (combat)",
     btn_live_viewer_combat_t: "skill animations (skill1/skill2/skill3/run/…)",
     btn_texture: "⊡ texture", detail_base_id: "base {id}",
+    // Profile frame compositor (TASKS #32)
+    btn_frame: "⊡ frame",
+    btn_frame_t: "preview profile face + frame",
+    frame_title: "Profile frame",
+    frame_face: "face",
+    frame_pick: "frames",
+    frame_none: "no frame",
+    frame_download: "Download PNG",
+    frame_search_ph: "filter frames…",
+    frame_cat_all: "all",
+    frame_cat_arena: "arena",
+    frame_cat_rta: "RTA",
+    frame_cat_tournament: "tournament",
+    frame_cat_clan: "clan",
+    frame_cat_abyss: "abyss",
+    frame_cat_event: "event",
+    frame_cat_other: "other",
+    frame_empty: "no frames loaded — run python tools/build_frames.py",
+    frame_no_face: "no profile face (_s) for this unit",
     render_switch: "render:", render_base: "Base", render_thumb: "Thumb",
     pose_switch: "pose:",
     hdr_voice: "Voice", hdr_artwork: "Bundled artwork", hdr_skill_anim: "Skill animation",
+    hdr_signature_artifact: "Signature artifact",
+    hdr_signature_artifacts: "Signature artifacts",
     hdr_intimacy: "Intimacy illustration", render_spine: "static render · spine {ver}",
     voice_hint: "click a line to play",
     vcat_battle: "Battle", vcat_skill: "Skill", vcat_camping: "Camping", vcat_misc: "Other",
@@ -78,10 +121,44 @@ const E7 = (() => {
     arti_search_ph: "search artifacts by name or art####",
     arti_count: "{n} of {total} artifacts · click any for full art",
     arti_cb_t: "open on ceciliabot",
-    // updates view
-    upd_count: "{n} update codenames discovered · per-unit tagging requires the encrypted output/db",
-    patch_hdr: "Patch diff · last {n} data pack(s) · previews hosted temporarily",
-    patch_note: "Unannounced content is intentionally omitted — E7 Codex archives released Epic Seven assets and avoids surfacing anything Smilegate hasn't revealed yet.",
+    // lightbox action bar (artifact zooms from Updates / Artifacts)
+    lb_cb: "↗ cb",
+    lb_artifacts_t: "Open the Artifacts tab",
+    // updates view (two panes: event showcases vs pack-to-pack changelog)
+    upd_page_title: "Updates",
+    upd_page_blurb: "Two different lists live here. Pick a tab — they are not the same content.",
+    upd_tab_events: "Events",
+    upd_tab_packs: "Pack changelog",
+    upd_tab_events_hint: "Seasonal & collab showcases — banners, cast, cinema",
+    upd_tab_packs_hint: "What files changed in the latest data pack(s)",
+    upd_tab_current: "Current view",
+    upd_count: "{n} events with showcase art",
+    patch_hdr: "Last {n} data pack(s)",
+    patch_note: "Unannounced content is intentionally omitted. This is only the pack file log — switch to the Events tab for seasonal / collab showcases.",
+    patch_plain_rows: "{n} path-only rows (no image)",
+    patch_plain_rows_hint: "Engine, data, and other files without a thumbnail — expand to list paths",
+    // per-event card chrome
+    upd_cast_featured: "Featured",
+    upd_cast_bonus: "Bonus / free units",
+    upd_cast_stage: "Stage cast",
+    upd_badge_skin: "skin",
+    upd_badge_artifact: "artifact",
+    upd_n_banner: "{n} banner",
+    upd_n_banners: "{n} banners",
+    upd_n_story: "{n} story",
+    upd_n_featured: "{n} featured",
+    upd_n_stage: "{n} stage",
+    upd_n_bonus: "{n} bonus",
+    upd_n_artifact: "{n} artifact",
+    upd_n_artifacts: "{n} artifacts",
+    upd_n_video: "{n} video",
+    upd_n_videos: "{n} videos",
+    upd_db_only: "DB only",
+    upd_no_assets: "no assets",
+    upd_play: "▶ play",
+    upd_chip_banner: "banner {id}",
+    upd_src_local: "local",
+    upd_src_cdn: "cdn",
     // emotes view
     emote_count: "{n} character groups · {files} emote files · {linked} linked to a unit page",
     emote_open: "open detail →", emote_nolink: "no unit page",
@@ -145,26 +222,42 @@ const E7 = (() => {
     return loadLang(l);
   }
 
-  // Chrome/UI string. Overlay override → inline English → the key itself.
+  // Chrome/UI string. Overlay override → inline English → caller fallback → key.
   // params interpolates {name} placeholders, e.g. t("hub_count",{n:12}).
+  // Empty / whitespace-only overlay values are ignored so a partial translation
+  // file never blanks a control or leaves a raw key on screen.
   function t(key, params, fallback) {
-    let s = (_overlay && _overlay.ui && _overlay.ui[key]) || CHROME_EN[key] || fallback || key;
+    const fromOverlay = _overlay && _overlay.ui && _overlay.ui[key];
+    let s = (typeof fromOverlay === "string" && fromOverlay.trim())
+      ? fromOverlay
+      : (CHROME_EN[key] || fallback || key);
     if (params) for (const k in params) s = s.split("{" + k + "}").join(params[k]);
     return s;
   }
   // Hero / artifact display name for a record. English (and any missing overlay
   // entry) falls back to the inline value already in units.json/artifacts.json.
+  // Always returns a string ("" if unknown) so callers can safely .toLowerCase()
+  // — NPCs/monsters often have no name and used to crash hub search.
   function gameName(rec, field) {
     field = field || "name";
-    if (_lang === "en" || !_overlay || !_overlay.names) return rec[field];
-    const nm = _overlay.names;
-    if (field === "hero_name") return nm[rec.base_id] || nm[rec.id] || rec[field];
-    return nm[rec.id] || rec[field];
+    if (!rec) return "";
+    let v;
+    if (_lang === "en" || !_overlay || !_overlay.names) {
+      v = rec[field];
+    } else {
+      const nm = _overlay.names;
+      if (field === "hero_name") v = nm[rec.base_id] || nm[rec.id] || rec[field];
+      else v = nm[rec.id] || rec[field];
+    }
+    return (v == null || v === "") ? "" : String(v);
   }
   // Artifact name by id (artifacts carry no per-record overlay hook otherwise).
   function artifactName(rec) {
-    if (_lang === "en" || !_overlay || !_overlay.artifacts) return rec.name;
-    return _overlay.artifacts[rec.id] || rec.name;
+    if (!rec) return "";
+    let v;
+    if (_lang === "en" || !_overlay || !_overlay.artifacts) v = rec.name;
+    else v = _overlay.artifacts[rec.id] || rec.name;
+    return (v == null || v === "") ? "" : String(v);
   }
   // Localized event/update title by codename (updates.json is keyed by en title).
   function eventTitle(codename, enTitle) {

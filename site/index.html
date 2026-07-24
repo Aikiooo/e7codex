@@ -98,11 +98,23 @@
   .wallpaper-cell .new-badge{left:auto;right:6px;top:6px}
   /* Emote rows aren't positioned cards — render NEW as an inline chip by the name. */
   .new-badge.inline{position:static;display:inline-block;margin-left:8px;vertical-align:middle;box-shadow:none}
+  /* ANNOUNCED — official kit/preview out, gacha not open yet. Violet so it
+     reads as "coming" rather than gold NEW (which activates after release). */
+  .ann-badge{position:absolute;top:8px;left:8px;z-index:3;background:linear-gradient(95deg,#9b7ed9,#c4a8f0);color:#16121f;font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;padding:3px 8px;border-radius:2px;text-transform:uppercase;box-shadow:0 2px 9px rgba(0,0,0,.45)}
+  .ann-badge.inline{position:static;display:inline-block;margin-left:8px;vertical-align:middle;box-shadow:none}
+  .card.is-ann .upd-badge{top:34px}
   /* UPDATED badge — existing unit changed recently (e.g. new intimacy art). Cool
      teal to distinguish from the gold NEW badge; stacks below NEW when both. */
   .upd-badge{position:absolute;top:8px;left:8px;z-index:3;background:linear-gradient(95deg,#5cb6c9,#93d6e2);color:#0c1418;font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;box-shadow:0 2px 9px rgba(0,0,0,.45)}
   .card.is-new .upd-badge{top:34px}
   .upd-badge.inline{position:static;display:inline-block;margin-left:8px;vertical-align:middle;box-shadow:none}
+  /* UNRELEASED — LOCAL-ONLY held-back units (datamined-ahead heroes). Rose, to
+     read as "hidden / not live", clearly apart from the gold NEW + teal UPDATED
+     badges. Dashed rose card outline reinforces "this never ships". */
+  .unrel-badge{position:absolute;top:8px;left:8px;z-index:4;background:linear-gradient(95deg,#d76e8f,#e29bb4);color:#1d1218;font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.1em;padding:3px 8px;border-radius:2px;text-transform:uppercase;box-shadow:0 2px 9px rgba(0,0,0,.45)}
+  .unrel-badge.inline{position:static;display:inline-block;margin-left:8px;vertical-align:middle;font-size:12px;box-shadow:none}
+  .card.is-unrel,.artifact-cell.is-unrel{outline:1px dashed rgba(215,110,143,.6);outline-offset:-1px}
+  .card.is-unrel .new-badge,.card.is-unrel .upd-badge{top:34px}
   .form-swap{position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:3px;justify-content:center;flex-wrap:wrap;opacity:1;transition:opacity .18s;pointer-events:auto}
   /* Devices that support real hover get a clean thumb until the user
      hovers; touch devices keep the pills visible so they're discoverable. */
@@ -148,20 +160,160 @@
   .filters .chip.el-dark.on{color:var(--dark);border-color:rgba(176,122,216,.55)}
   .filters .chip.rar{letter-spacing:-1px;font-size:13px;padding:3px 11px}
   .filters .chip.clear{color:var(--mut);font-size:10px}
+  /* Updates page: two distinct views (event gallery vs pack diff) */
+  .upd-intro{margin:0 0 16px}
+  .upd-intro h2{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:600;color:var(--gold);margin:0 0 6px;letter-spacing:.02em}
+  .upd-intro p{margin:0;font-size:13px;line-height:1.5;color:var(--mut);max-width:62ch}
+  .upd-subnav{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin:0 0 22px;
+    padding:0;
+  }
+  @media(max-width:560px){.upd-subnav{grid-template-columns:1fr}}
+  .upd-subnav .usub{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:4px;
+    padding:14px 16px 14px 18px;
+    text-decoration:none;
+    color:var(--mut);
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s, color .15s, box-shadow .15s;
+  }
+  .upd-subnav .usub:hover{border-color:var(--gold-dim);color:var(--gold-dim)}
+  .upd-subnav .usub.on{
+    color:var(--text);
+    border-color:var(--gold-dim);
+    background:rgba(216,176,106,.1);
+    box-shadow:inset 3px 0 0 var(--gold);
+  }
+  .upd-subnav .usub .usub-top{
+    display:flex;align-items:baseline;gap:10px;width:100%;
+    font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:.02em;line-height:1.15;
+  }
+  .upd-subnav .usub.on .usub-top{color:var(--gold)}
+  .upd-subnav .usub .n{
+    margin-left:auto;
+    font-family:'Spline Sans Mono',monospace;
+    font-size:11px;letter-spacing:.06em;font-weight:400;
+    color:var(--mut);
+    background:rgba(0,0,0,.2);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:2px 9px;
+  }
+  .upd-subnav .usub.on .n{color:var(--gold-dim);border-color:rgba(216,176,106,.35)}
+  .upd-subnav .usub .usub-desc{
+    font-size:12px;line-height:1.45;color:var(--mut);letter-spacing:0;
+    font-family:inherit;max-width:46ch;
+  }
+  .upd-subnav .usub.on .usub-desc{color:var(--text);opacity:.8}
+  .upd-subnav .usub .usub-state{
+    font-family:'Spline Sans Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+    color:transparent;margin-top:4px;height:1em;
+  }
+  .upd-subnav .usub.on .usub-state{color:var(--gold-dim)}
   .updates-list{display:grid;gap:32px}
   .upd-row{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
   .upd-head{display:flex;align-items:baseline;gap:18px;padding:18px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .upd-head h3{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--gold);font-weight:600}
   .upd-head .code{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--mut);letter-spacing:.14em;text-transform:uppercase}
   .upd-head .count{margin-left:auto}
-  .upd-banners{display:grid;gap:0;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
-  .upd-banners a{display:block;background:var(--ink-2);overflow:hidden;border:1px solid transparent}
-  .upd-banners a:hover{border-color:var(--gold-dim)}
-  .upd-banners img{width:100%;display:block;object-fit:cover}
-  .upd-story{display:grid;gap:0;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));border-top:1px solid var(--line)}
-  .upd-story a{display:block;background:var(--ink-2);overflow:hidden;border:1px solid transparent}
-  .upd-story a:hover{border-color:var(--gold-dim)}
-  .upd-story img{width:100%;display:block;object-fit:cover}
+  /* Masonry / tetris pack: each image keeps its natural aspect ratio; columns
+     stack them so leftover vertical gaps fill instead of equal-height crops
+     or sparse CSS-grid rows. */
+  .upd-media{
+    column-count:4;
+    column-gap:6px;
+    padding:8px;
+    background:rgba(0,0,0,.14);
+    border-bottom:1px solid var(--line);
+  }
+  .upd-media a{
+    break-inside:avoid;
+    -webkit-column-break-inside:avoid;
+    page-break-inside:avoid;
+    display:block;
+    width:100%;
+    margin:0 0 6px;
+    background:var(--ink-2);
+    overflow:hidden;
+    border:1px solid transparent;
+    border-radius:3px;
+    line-height:0;
+  }
+  .upd-media a:hover{border-color:var(--gold-dim)}
+  .upd-media img{
+    width:100%;
+    height:auto;
+    display:block;
+    vertical-align:top;
+  }
+  .upd-media a:only-child{max-width:min(100%,720px);margin-left:auto;margin-right:auto}
+  @media(max-width:1100px){.upd-media{column-count:3}}
+  @media(max-width:720px){.upd-media{column-count:2}}
+  @media(max-width:420px){.upd-media{column-count:1}}
+  /* DB-enriched cast strip (substory_main heroes) + meta chips */
+  .upd-cast-block{border-top:1px solid var(--line);background:rgba(0,0,0,.12);padding:12px 22px 14px}
+  .upd-cast-block + .upd-cast-block{padding-top:8px}
+  .upd-cast-block.bonus{background:rgba(0,0,0,.06)}
+  .upd-cast-lbl{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--gold-dim);letter-spacing:.12em;text-transform:uppercase;margin:0 0 10px}
+  .upd-cast-block.bonus .upd-cast-lbl{color:var(--mut)}
+  .upd-cast-lbl .n{color:var(--mut);margin-left:6px;letter-spacing:.06em}
+  .upd-cast{display:flex;flex-wrap:wrap;gap:10px}
+  .upd-cast a{display:flex;flex-direction:column;align-items:center;gap:5px;width:72px;text-decoration:none;color:inherit;transition:.15s;position:relative}
+  .upd-cast a.is-arti{width:76px}
+  .upd-cast a.is-arti .uc-pose{aspect-ratio:378/598;height:auto;min-height:72px;position:relative}
+  .upd-cast a:hover{transform:translateY(-2px)}
+  .upd-cast .uc-pose{width:64px;height:72px;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--ink-2);display:flex;align-items:center;justify-content:center}
+  .upd-cast a.is-arti .uc-pose{width:68px}
+  .upd-cast a:hover .uc-pose{border-color:var(--gold-dim)}
+  .upd-cast-block.bonus .uc-pose{opacity:.78}
+  .upd-cast .uc-pose img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+  .upd-cast .uc-pose.miss{font-family:'Spline Sans Mono',monospace;font-size:9px;color:var(--mut);padding:4px;text-align:center;word-break:break-all}
+  .upd-cast .uc-name{font-family:'Spline Sans Mono',monospace;font-size:9px;color:var(--gold-dim);letter-spacing:.04em;text-align:center;line-height:1.2;max-width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .upd-cast-block.bonus .uc-name{color:var(--mut)}
+  .upd-cast .uc-badge{position:absolute;top:-3px;right:2px;font-family:'Spline Sans Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;background:rgba(13,14,22,.9);border:1px solid var(--gold-dim);color:var(--gold);padding:1px 4px;border-radius:2px;line-height:1.2}
+  /* CeciliaBot pill on Featured artifact thumbs (same idea as Artifacts tab). */
+  .upd-cast a.is-arti .a-cb{position:absolute;bottom:4px;right:3px;left:auto;background:rgba(13,14,22,.88);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:8px;padding:2px 5px;border-radius:2px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);z-index:2;cursor:pointer;line-height:1.2;opacity:1}
+  .upd-cast a.is-arti .a-cb:hover{color:var(--gold);border-color:var(--gold-dim)}
+  /* Unit detail — signature EE strip (same owner map as Updates Featured). */
+  .sig-arti{display:flex;flex-wrap:wrap;gap:14px;margin:4px 0 8px}
+  .sig-arti a{display:flex;flex-direction:column;align-items:center;gap:6px;width:110px;text-decoration:none;color:inherit;position:relative;transition:.15s}
+  .sig-arti a:hover{transform:translateY(-2px)}
+  .sig-arti .sa-pose{width:100px;aspect-ratio:378/598;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--ink-2);position:relative}
+  .sig-arti a:hover .sa-pose{border-color:var(--gold-dim)}
+  .sig-arti .sa-pose img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+  .sig-arti .sa-name{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--gold-dim);letter-spacing:.04em;text-align:center;line-height:1.25;max-width:110px}
+  .sig-arti .sa-meta{display:block;font-size:9px;color:var(--mut);letter-spacing:.06em;margin-top:2px;text-transform:capitalize}
+  .sig-arti .sa-badge{position:absolute;top:4px;left:4px;font-family:'Spline Sans Mono',monospace;font-size:8px;letter-spacing:.06em;text-transform:uppercase;background:rgba(13,14,22,.9);border:1px solid var(--gold-dim);color:var(--gold);padding:2px 5px;border-radius:2px;z-index:2}
+  .sig-arti .a-cb{position:absolute;bottom:6px;right:6px;background:rgba(13,14,22,.88);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);z-index:2;cursor:pointer}
+  .sig-arti .a-cb:hover{color:var(--gold);border-color:var(--gold-dim)}
+  /* Artifacts grid — owner unit pill (button, not nested <a> inside the cell). */
+  .artifact-cell .a-owner{position:absolute;top:8px;right:8px;z-index:2;background:rgba(13,14,22,.88);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:9px;padding:3px 8px;border-radius:2px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+  .artifact-cell .a-owner:hover{color:var(--gold);border-color:var(--gold-dim)}
+  .artifact-cell.is-ann .a-owner,.artifact-cell.is-new .a-owner{top:34px}
+  .upd-meta{display:flex;flex-wrap:wrap;gap:8px;padding:10px 22px 14px;border-top:1px solid var(--line)}
+  .upd-meta .chip{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);border:1px solid var(--line);border-radius:3px;padding:3px 8px;letter-spacing:.06em}
+  .upd-meta .chip.db{color:var(--gold-dim);border-color:rgba(216,176,106,.35)}
+  .upd-row.db-only{border-style:dashed;border-color:rgba(216,176,106,.28)}
+  .upd-row.db-only .upd-head h3{opacity:.92}
+  /* Cinema sits directly under the card head (first content block). */
+  .upd-videos{display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:rgba(0,0,0,.22);border-bottom:1px solid var(--line)}
+  .upd-vid{flex:1 1 320px;max-width:100%;display:block;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#000;cursor:pointer;transition:.15s;text-decoration:none;color:inherit}
+  .upd-vid:hover{border-color:var(--gold-dim);transform:translateY(-1px)}
+  .upd-vid:only-child{flex-basis:min(100%,720px);max-width:720px}
+  .upd-vid video{width:100%;aspect-ratio:16/9;display:block;object-fit:contain;background:#000;pointer-events:none}
+  .upd-vid .uv-meta{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--panel);border-top:1px solid var(--line)}
+  .upd-vid .uv-play{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase}
+  .upd-vid .uv-label{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.04em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .patches{display:grid;gap:20px;margin-bottom:36px}
   .patch{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
   .patch-head{display:flex;align-items:baseline;gap:16px;padding:16px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -183,6 +335,14 @@
   .pg-label{display:block;font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--gold-dim);letter-spacing:.14em;text-transform:uppercase;margin:10px 0 7px}
   .pg-label .pg-n{color:var(--mut);margin-left:4px}
   .pg-items{display:grid;gap:3px}
+  /* Path-only rows (no thumbnail) — collapsed by default so the rollup stays scannable. */
+  .pg-plain{margin-top:6px;border:1px solid var(--line);border-radius:4px;background:rgba(0,0,0,.12)}
+  .pg-plain > summary{cursor:pointer;list-style:none;padding:8px 10px;font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.06em;user-select:none}
+  .pg-plain > summary::-webkit-details-marker{display:none}
+  .pg-plain > summary::before{content:"▸ ";color:var(--gold-dim)}
+  .pg-plain[open] > summary::before{content:"▾ "}
+  .pg-plain > summary:hover{color:var(--gold-dim)}
+  .pg-plain .pg-items{padding:0 8px 8px}
   .pe{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--text);display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
   .pe.has-prev{align-items:center}
   .pe code{font-size:11px;color:var(--mut)}
@@ -252,14 +412,157 @@
   .ext:hover{background:rgba(216,176,106,.08)}
   .ext.flat{border-color:var(--line);color:var(--mut);cursor:default}
   .ext.flat:hover{background:transparent}
+  /* Match <a class="ext"> — only strip UA button chrome. Do NOT set font:* here
+     (even font:inherit): .ext.as-btn is more specific than .ext and would undo
+     Spline Sans Mono / letter-spacing from the shared pill style. */
+  button.ext{-webkit-appearance:none;appearance:none;background:transparent;margin:0}
+  /* Profile frame compositor (TASKS #32) */
+  .frame-modal{position:fixed;inset:0;z-index:90;background:rgba(8,9,14,.82);display:none;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px)}
+  .frame-modal.open{display:flex}
+  .frame-panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;width:min(960px,100%);max-height:min(92vh,900px);display:flex;flex-direction:column;box-shadow:0 24px 60px -20px rgba(0,0,0,.85)}
+  .frame-head{display:flex;align-items:baseline;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .frame-head h3{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold);font-weight:600;letter-spacing:.03em}
+
+  .frame-close{margin-left:auto;background:none;border:1px solid var(--line);color:var(--mut);width:34px;height:34px;border-radius:3px;cursor:pointer;font-size:18px;line-height:1}
+  .frame-close:hover{color:var(--text);border-color:var(--gold-dim)}
+  .frame-body{display:grid;grid-template-columns:220px 1fr;gap:0;min-height:0;flex:1;overflow:hidden}
+  @media(max-width:720px){.frame-body{grid-template-columns:1fr;overflow:auto}}
+  .frame-preview-col{padding:18px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:14px;background:transparent}
+  @media(max-width:720px){.frame-preview-col{border-right:none;border-bottom:1px solid var(--line)}}
+  /* Transparent wrap so panel bg shows through face/frame alpha (no nested tint). */
+  .frame-canvas-wrap{width:168px;height:168px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--line);border-radius:4px;image-rendering:auto}
+  .frame-canvas-wrap canvas{width:148px;height:148px;display:block;background:transparent}
+  .frame-dl{width:100%;background:rgba(216,176,106,.12);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.1em;padding:10px 12px;border-radius:3px;cursor:pointer;text-transform:uppercase}
+  .frame-dl:hover{background:rgba(216,176,106,.2)}
+  .frame-dl:disabled{opacity:.4;cursor:default}
+  .frame-faces{width:100%}
+  .frame-faces .ps-label{display:block;margin-bottom:6px}
+  .frame-faces-row{display:flex;flex-wrap:wrap;gap:6px}
+  .frame-faces-row button{background:var(--ink-2);border:1px solid var(--line);padding:0;border-radius:3px;cursor:pointer;width:44px;height:44px;overflow:hidden}
+  .frame-faces-row button img{width:100%;height:100%;object-fit:cover;display:block}
+  .frame-faces-row button.on{border-color:var(--gold-dim);box-shadow:0 0 0 1px var(--gold-dim)}
+  .frame-pick-col{padding:14px 16px 18px;display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden}
+  .frame-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .frame-tools input{flex:1;min-width:140px;background:var(--ink-2);border:1px solid var(--line);color:var(--text);padding:8px 11px;border-radius:3px;font-family:'Spline Sans Mono',monospace;font-size:12px}
+  .frame-tools input:focus{outline:none;border-color:var(--gold-dim)}
+  .frame-cats{display:flex;flex-wrap:wrap;gap:5px}
+  .frame-cats button{background:var(--ink-2);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;padding:4px 9px;border-radius:2px;cursor:pointer;text-transform:uppercase}
+  .frame-cats button.on{color:var(--gold);border-color:var(--gold-dim)}
+  /* scrollbar-gutter + right pad so the bar never sits on the last column of thumbs */
+  .frame-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;overflow-x:hidden;overflow-y:auto;min-height:0;flex:1;padding:2px 14px 8px 2px;align-content:start;scrollbar-gutter:stable}
+  .frame-cell{background:var(--ink-2);border:1px solid var(--line);border-radius:3px;padding:8px 6px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+  .frame-cell:hover{border-color:var(--gold-dim)}
+  .frame-cell.on{border-color:var(--gold);background:rgba(216,176,106,.08)}
+  /* Stack face under border. Transparent bg — cell's ink-2 shows through PNG alpha
+     (nested gradient was a visible tint vs the cell). */
+  .frame-thumb{position:relative;width:64px;height:64px;flex:0 0 64px;background:transparent;border-radius:3px;overflow:hidden}
+  .frame-thumb .ft-face{position:absolute;left:12%;top:12%;width:76%;height:76%;object-fit:contain;display:block;pointer-events:none}
+  .frame-thumb .ft-border{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+  .frame-cell .fn{font-family:'Spline Sans Mono',monospace;font-size:9px;color:var(--mut);text-align:center;line-height:1.2;width:100%;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 0 auto}
+  .frame-cell.none-cell{justify-content:center;min-height:96px;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+  .frame-cell.none-cell .frame-thumb{display:flex;align-items:center;justify-content:center}
+  .frame-cell.none-cell .frame-thumb .ft-face{position:static;left:auto;top:auto;width:76%;height:76%;margin:0 auto}
+  /* Official kit preview — small YouTube embed (ANNOUNCED units), not a bare button. */
+  .ann-preview{margin:0 0 22px;max-width:min(360px,100%)}
+  .ann-preview .section-label{margin-top:0;margin-bottom:10px}
+  .ann-embed{position:relative;width:100%;aspect-ratio:16/9;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#000}
+  .ann-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+  .ann-yt-link{display:inline-block;margin-top:6px;font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--mut);text-decoration:none}
+  .ann-yt-link:hover{color:var(--gold)}
   .gallery{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
   .gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--ink-2)}
   .gallery a:hover{border-color:var(--gold-dim)}
   .gallery img{width:100%;display:block}
   .skill-gallery{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-  .skill-gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000}
+  .skill-gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000;position:relative}
   .skill-gallery a:hover{border-color:var(--gold-dim)}
   .skill-gallery img{width:100%;display:block}
+  /*
+   * Skill anim + signature artifact.
+   * When both exist (wide enough): artifact LEFT, skill RIGHT — same media
+   * height, tight gap (not stretched across the full detail column).
+   */
+  .skill-sig-row{display:flex;flex-direction:column;gap:14px;margin:0 0 8px}
+  .skill-sig-row .skill-col,.skill-sig-row .sig-col{min-width:0}
+  /* Both headers share one baseline; the row itself owns the section top rule. */
+  .skill-sig-row .skill-col .section-label,
+  .skill-sig-row .sig-col .section-label{
+    margin:0 0 10px;padding-top:0;border-top:none;
+  }
+  /* Section separator — same top rule as a normal .section-label. */
+  .skill-sig-row.has-both{
+    margin-top:30px;
+    padding-top:18px;
+    border-top:1px solid var(--line);
+  }
+  @media (min-width:640px){
+    .skill-sig-row.has-both{
+      flex-direction:row;
+      flex-wrap:wrap;
+      align-items:flex-start;
+      /* Side-by-side gap between signature art and skill anim. */
+      gap:12px 36px;
+    }
+    /* Shared media height so portrait + landscape read as one row. */
+    .skill-sig-row.has-both{
+      --ss-h: clamp(168px, 22vw, 220px);
+    }
+    .skill-sig-row.has-both .sig-col,
+    .skill-sig-row.has-both .skill-col{
+      display:flex;flex-direction:column;
+    }
+    .skill-sig-row.has-both .sig-col{
+      flex:0 0 auto;
+    }
+    .skill-sig-row.has-both .skill-col{
+      flex:0 1 auto; /* shrink-wrap — do NOT grow and leave a huge gap */
+      min-width:0;
+    }
+    /* Label row is fixed height so multi-line titles still keep media aligned. */
+    .skill-sig-row.has-both .sig-col > .section-label,
+    .skill-sig-row.has-both .skill-col > .section-label{
+      min-height:1.4em;
+      line-height:1.4;
+      margin:0 0 10px;
+    }
+    .skill-sig-row.has-both .sig-arti{
+      display:flex;flex-wrap:wrap;gap:10px;margin:0;
+    }
+    .skill-sig-row.has-both .sig-arti a{
+      width:auto;align-items:center;
+    }
+    .skill-sig-row.has-both .sig-arti .sa-pose{
+      width:auto;
+      height:var(--ss-h);
+      aspect-ratio:378/598;
+      min-height:0;
+    }
+    .skill-sig-row.has-both .sig-arti .sa-pose img{
+      width:100%;height:100%;object-fit:cover;object-position:top center;
+    }
+    .skill-sig-row.has-both .sig-arti .sa-name{
+      max-width:calc(var(--ss-h) * 378 / 598);
+    }
+    /* Skills sit in a tight flex row at the same height as the artifact. */
+    .skill-sig-row.has-both .skill-gallery{
+      display:flex;flex-wrap:wrap;gap:10px;
+      grid-template-columns:unset;
+    }
+    .skill-sig-row.has-both .skill-gallery a{
+      height:var(--ss-h);
+      width:auto;
+      max-width:min(420px, 55vw);
+    }
+    .skill-sig-row.has-both .skill-gallery img{
+      width:auto;height:100%;max-width:100%;
+      object-fit:contain;object-position:center;
+      display:block;
+    }
+  }
+  .full-badge{position:absolute;top:6px;right:6px;z-index:1;background:rgba(19,20,29,.85);
+    border:1px solid var(--gold-dim);color:var(--gold);border-radius:3px;
+    font-size:10px;letter-spacing:.08em;padding:3px 8px;cursor:pointer;font-family:inherit}
+  .full-badge:hover{background:var(--gold-dim);color:#13141d}
   .intimacy-gallery{margin-top:4px}
   .intimacy-gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000;max-width:760px}
   .intimacy-gallery a:hover{border-color:var(--gold-dim)}
@@ -320,6 +623,12 @@
   .lb-close:hover{color:var(--gold);border-color:var(--gold-dim)}
   .lb-download{position:absolute;top:14px;right:64px;background:rgba(13,14,22,.85);border:1px solid var(--line);color:var(--text);width:38px;height:38px;border-radius:3px;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;font-family:'Spline Sans Mono',monospace}
   .lb-download:hover{color:var(--gold);border-color:var(--gold-dim)}
+  /* Contextual actions around the open asset (e.g. artifact → CB / Artifacts tab).
+     Hidden when empty so ordinary zooms stay clean. */
+  .lb-actions{position:absolute;bottom:44px;left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:min(92vw,560px);z-index:2;cursor:default}
+  .lb-actions[hidden]{display:none!important}
+  .lb-act{display:inline-flex;align-items:center;gap:4px;background:rgba(13,14,22,.9);border:1px solid var(--line);color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;padding:7px 12px;border-radius:3px;cursor:pointer;white-space:nowrap;backdrop-filter:blur(3px)}
+  .lb-act:hover{color:var(--gold);border-color:var(--gold-dim)}
   .lb-caption{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:0 24px;word-break:break-all}
     /* ---- Story book (local only) ---- */
     .story-toc{display:flex;flex-direction:column;gap:34px}
@@ -410,7 +719,34 @@
   <img id="lbImage" alt="">
   <audio id="lbAudio" class="lb-audio" controls preload="auto"></audio>
   <video id="lbVideo" class="lb-video" loop muted playsinline controls preload="metadata"></video>
+  <div id="lbActions" class="lb-actions" hidden></div>
   <div id="lbCaption" class="lb-caption"></div>
+</div>
+<!-- Profile frame compositor (TASKS #32) — face_s + item/border. -->
+<div id="frameModal" class="frame-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="frameTitle">
+  <div class="frame-panel">
+    <div class="frame-head">
+      <h3 id="frameTitle">Profile frame</h3>
+      <button type="button" class="frame-close" id="frameClose" aria-label="close">×</button>
+    </div>
+    <div class="frame-body">
+      <div class="frame-preview-col">
+        <div class="frame-canvas-wrap"><canvas id="frameCanvas" width="148" height="148"></canvas></div>
+        <button type="button" class="frame-dl" id="frameDownload">Download PNG</button>
+        <div class="frame-faces" id="frameFaces" hidden>
+          <span class="ps-label" id="frameFaceLabel">face</span>
+          <div class="frame-faces-row" id="frameFacesRow"></div>
+        </div>
+      </div>
+      <div class="frame-pick-col">
+        <div class="frame-tools">
+          <input type="search" id="frameSearch" placeholder="filter frames…" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="frame-cats" id="frameCats"></div>
+        <div class="frame-grid" id="frameGrid"></div>
+      </div>
+    </div>
+  </div>
 </div>
 <script src="shared.js"></script>
 <script>
@@ -449,6 +785,11 @@ let kindF = "all", searchQ = "", currentVariant = "", wpCatF = "all";
 // units.json `released` (baked from timeline/timeline.json by build_index.py).
 let sortMode = "timeline";
 try { const s = localStorage.getItem("hub_sort"); if (s === "timeline" || s === "az") sortMode = s; } catch (_) {}
+// Skill-3 full-clip feature (TASKS #57) is WIP — kept LOCAL-ONLY by host gate:
+// the ▶ FULL S3 button renders only on localhost (E7.isLocal) or with ?s3=1,
+// never on production e7codex.com. Lets the committed code ship dormant, so no
+// index.html swap is needed at deploy time. Open the gate when the feature ships.
+const S3_DEV = E7.isLocal || /[?&]s3=1/.test(location.search);
 let artiRarityF = new Set(), artiRoleF = new Set(), artiSearchQ = "";
 let elementF = new Set(), rarityF = new Set(), roleF = new Set();
 // Units carry the canonical-id role values from HeroDatabase ("assassin",
@@ -490,6 +831,13 @@ function ensureVoices() {
 }
 
 async function load() {
+  // Mid-load keystroke capture: if the boot hash is the hub (or empty), mount
+  // the search bar immediately so typing during the units.json fetch is kept
+  // in searchQ and applied on the first real hub() render.
+  const bootHash = (location.hash || "").replace(/^#\/?/, "");
+  if (!bootHash || bootHash === "hub" || bootHash.startsWith("?")) {
+    showHubLoadingShell();
+  }
   try {
     // units.json gates everything; the rest load in parallel alongside it and
     // degrade independently to empty fallbacks. cache:"no-cache" (NOT
@@ -528,6 +876,25 @@ async function load() {
         updates:[], cecilia:"https://ceciliabot.github.io/#/hero/ravi" },
     ];
     UPDATES = {};
+  }
+  // LOCAL-ONLY: fold in held-back/unreleased units so hidden content is
+  // browsable on localhost. units_unreleased.json is never deployed (deploy.ps1
+  // holds it aside), but we ALSO gate on E7.isLocal so a stray prod copy can't
+  // surface. ?unreleased=1 forces it on (e.g. LAN preview), ?unreleased=0 off.
+  const showUnrel = /[?&]unreleased=1/.test(location.search) ||
+                    (E7.isLocal && !/[?&]unreleased=0/.test(location.search));
+  if (showUnrel && !demo) {
+    const unrel = await dataJson("data/units_unreleased.json", []);
+    if (Array.isArray(unrel) && unrel.length) {
+      for (const u of unrel) u.unreleased = true;
+      UNITS = UNITS.concat(unrel);
+    }
+    // Same treatment for held-back artifacts (artifacts_unreleased.json).
+    const unrelArti = await dataJson("data/artifacts_unreleased.json", []);
+    if (Array.isArray(unrelArti) && unrelArti.length) {
+      for (const a of unrelArti) a.unreleased = true;
+      ARTIFACTS = unrelArti.concat(ARTIFACTS);   // pin held art to the top
+    }
   }
   BY_BASE.clear();
   for (const u of UNITS) {
@@ -654,10 +1021,14 @@ function card(group) {
   const variantsN = group.length;
   const base = u.base_id || u.id;
   const isNew = group.some(x => x.new);
+  const isAnn = group.some(x => x.announced);
   const isMod = group.some(x => x.modified);
-  return `<a class="card${isNew ? ' is-new' : ''}${isMod ? ' is-upd' : ''}" href="#/u/${encodeURIComponent(base)}" data-base="${base}">
+  const isUnrel = group.some(x => x.unreleased);   // LOCAL-ONLY held-back unit
+  return `<a class="card${isNew ? ' is-new' : ''}${isAnn ? ' is-ann' : ''}${isMod ? ' is-upd' : ''}${isUnrel ? ' is-unrel' : ''}" href="#/u/${encodeURIComponent(base)}" data-base="${base}">
     ${thumb(u, group)}
-    ${isNew ? `<span class="new-badge">${E7.t('badge_new')}</span>` : ""}
+    ${isUnrel ? `<span class="unrel-badge">${E7.t('badge_unrel')}</span>` : ""}
+    ${isAnn ? `<span class="ann-badge" title="${escapeHtml(E7.t('badge_announced_t', {}, 'officially previewed — not in gacha yet'))}">${E7.t('badge_announced', {}, 'ANNOUNCED')}</span>` : ""}
+    ${isNew && !isAnn ? `<span class="new-badge">${E7.t('badge_new')}</span>` : ""}
     ${isMod ? `<span class="upd-badge">${E7.t('badge_updated')}</span>` : ""}
     ${variantsN > 1 ? `<span class="variant-badge">${E7.t('forms_n', {n: variantsN})}</span>` : ""}
     <div class="meta">
@@ -727,8 +1098,58 @@ function observeHubImages() {
 // local alias so the many call sites read the same.
 const escapeHtml = E7.escapeHtml;
 
-function hub() {
-  setNav("hub");
+/** Extract a YouTube video id from watch / youtu.be / embed URLs. */
+function youtubeId(url) {
+  if (!url || typeof url !== "string") return null;
+  try {
+    const u = new URL(url.trim());
+    const host = (u.hostname || "").replace(/^www\./, "").toLowerCase();
+    if (host === "youtu.be") {
+      const id = u.pathname.replace(/^\//, "").split("/")[0];
+      return id || null;
+    }
+    if (host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) {
+      const v = u.searchParams.get("v");
+      if (v) return v;
+      const m = u.pathname.match(/\/(?:embed|shorts|live)\/([^/?#]+)/);
+      if (m) return m[1];
+    }
+  } catch (_) {}
+  return null;
+}
+
+/** Small privacy-enhanced YouTube embed block for announce_video URLs. */
+function announceEmbedHtml(url) {
+  const id = youtubeId(url);
+  if (!id) {
+    // Non-YouTube (or unparseable) — keep a plain external link as last resort.
+    if (!url) return "";
+    return `<div class="extbar" style="margin-bottom:14px">
+      <a class="ext" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="${escapeHtml(E7.t('btn_announce_video_t', {}, 'official skill / hero preview'))}">${E7.t('btn_announce_video', {}, '▶ official preview')}</a>
+    </div>`;
+  }
+  const title = E7.t("btn_announce_video_t", {}, "official skill / hero preview");
+  const label = E7.t("hdr_official_preview", {}, "Official preview");
+  const openYt = E7.t("btn_open_youtube", {}, "↗ open on YouTube");
+  const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?rel=0`;
+  const watch = `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
+  return `<div class="ann-preview">
+    <p class="section-label first">${escapeHtml(label)}</p>
+    <div class="ann-embed">
+      <iframe src="${escapeHtml(src)}" title="${escapeHtml(title)}"
+        loading="lazy" allowfullscreen
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    </div>
+    <a class="ann-yt-link" href="${escapeHtml(watch)}" target="_blank" rel="noopener">${escapeHtml(openYt)}</a>
+  </div>`;
+}
+
+/** Filter + sort hub groups for the current search/filter/sort state. */
+function hubFilteredList() {
+  // Prefer the live input value so a soft re-render never races a pending key.
+  const live = document.getElementById("q");
+  if (live && document.activeElement === live) searchQ = live.value;
   const q = searchQ.toLowerCase().trim();
 
   // Build groups: one entry per base_id. The group's "kind" is its representative's kind.
@@ -746,22 +1167,30 @@ function hub() {
     if (rarityF.size  && !g.some(u => u.rarity    && rarityF.has(u.rarity)))    return false;
     if (roleF.size    && !g.some(u => roleOf(u)   && roleF.has(roleOf(u))))     return false;
     if (!q) return true;
+    // gameName always returns a string ("" for nameless NPCs/monsters). Never
+    // call .toLowerCase() on a bare gameName() — that used to throw and kill
+    // the entire hub filter (search "fully broken" on prod + local).
     return g.some(u =>
       (u.id || "").toLowerCase().includes(q) ||
       (u.name || "").toLowerCase().includes(q) ||
       (u.slug || "").toLowerCase().includes(q) ||
       (u.hero_name || "").toLowerCase().includes(q) ||
       // also match the localized name so e.g. a Korean user can search 한글 names
-      E7.gameName(u).toLowerCase().includes(q) ||
-      E7.gameName(u, "hero_name").toLowerCase().includes(q)
+      (E7.gameName(u) || "").toLowerCase().includes(q) ||
+      (E7.gameName(u, "hero_name") || "").toLowerCase().includes(q)
     );
   });
-  // Sort: NEW units pin to the very top, then UPDATED (recently-changed existing
-  // units), then the chosen sort mode within each tier:
+  // Sort: LOCAL-ONLY unreleased units pin above everything (they're what you're
+  // here to inspect, and they have no release date so they'd otherwise sink to
+  // the bottom), then ANNOUNCED (official preview, pre-banner), then NEW, then
+  // UPDATED (recently-changed existing units), then the chosen sort mode:
   //   "timeline" — by release date, NEWEST first (units with no timeline date
   //                fall to the bottom and tie-break alphabetically);
   //   "az"       — alphabetically by hero name, then by id.
-  const pinRank = g => g.some(x => x.new) ? 0 : g.some(x => x.modified) ? 1 : 2;
+  const pinRank = g => g.some(x => x.unreleased) ? 0
+                     : g.some(x => x.announced)  ? 1
+                     : g.some(x => x.new)        ? 2
+                     : g.some(x => x.modified)   ? 3 : 4;
   // A group's timeline key is the EARLIEST release date among its variants
   // (a hero debuts once; skins don't move the card). Null if none are dated.
   const dateOf = g => {
@@ -790,15 +1219,147 @@ function hub() {
     }
     return byName(a, b);
   });
+  return { list, groups, kindCounts, kinds };
+}
+
+function wireHubFormSwap() {
+  // Cards are real <a href="#/u/..."> anchors — gives native middle-click /
+  // right-click "Open in new tab" + Ctrl/Cmd-click without any extra JS.
+  // Form-swap pills inside thumbs: preview a sibling variant's pose without
+  // navigating. Visual-only — does NOT change the card's detail-page target.
+  // preventDefault is required because the pill is nested inside the card's
+  // <a>; stopPropagation alone isn't enough to block the anchor on some
+  // browsers when the click target is a descendant.
+  document.querySelectorAll(".form-swap button").forEach(b =>
+    b.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const img = b.closest(".thumb").querySelector("img");
+      if (!img) return;
+      img.removeAttribute("style");
+      const t = b.dataset.fsTrim;
+      if (t) img.dataset.trim = t; else delete img.dataset.trim;
+      img.dataset.fallbacks = b.dataset.fsFallbacks || "[]";
+      img.src = b.dataset.fsSrc;
+      // applyTrimCrop fires on the resulting onload; ensure it runs even when
+      // the image is already cached.
+      if (img.complete && img.naturalWidth) applyTrimCrop(img);
+      b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+      // Retarget the card's <a href> at the previewed variant so middle-/right-
+      // click "Open in new tab" lands on the form the user is actually looking at.
+      const cardEl = b.closest(".card");
+      if (cardEl) {
+        const base = cardEl.dataset.base;
+        const v = b.dataset.fsVariant || "";
+        cardEl.setAttribute("href", "#/u/" + encodeURIComponent(base) + (v ? "/" + encodeURIComponent(v) : ""));
+      }
+      // Drop focus so :focus-within doesn't pin .form-swap visible after the
+      // mouse leaves the card. Keyboard tab-focus is unaffected.
+      b.blur();
+    });
+}
+
+function wireHubSearchInput(i) {
+  if (!i) return;
+  // Debounced soft re-render: only the grid swaps — the focused <input> stays
+  // mounted so mobile IME / mid-type keystrokes are never destroyed.
+  i.oninput = (e) => {
+    searchQ = e.target.value;
+    clearTimeout(window._qDebounce);
+    window._qDebounce = setTimeout(() => hub({ soft: true }), 120);
+  };
+  // ABC/123 toggle. Mobile keyboards only pick up an inputmode change after
+  // blur + refocus, so swap the attribute then bounce focus to redraw the IME.
+  const qm = $("#qmode");
+  if (qm) qm.onclick = (e) => {
+    e.preventDefault();
+    qMode = qMode === "num" ? "text" : "num";
+    i.setAttribute("inputmode", qMode === "num" ? "numeric" : "search");
+    qm.textContent = qMode === "num" ? "ABC" : "123";
+    qm.classList.toggle("on", qMode === "num");
+    i.blur();
+    i.focus();
+    try { i.setSelectionRange(searchQ.length, searchQ.length); } catch (_) {}
+  };
+}
+
+/** Early hub chrome while units.json is still fetching — captures keystrokes. */
+function showHubLoadingShell() {
+  const app = $("#app");
+  if (!app) return;
+  app.innerHTML = `
+    <div class="bar" id="hubBar">
+      <div class="q-wrap">
+        <input id="q" placeholder="${escapeHtml(E7.t('hub_search_ph', {}, 'search name or id…'))}" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+        <button id="qmode" type="button" class="qmode${qMode==='num'?' on':''}" title="${escapeHtml(E7.t('kbd_toggle_t', {}, 'toggle text / numeric keyboard'))}">${qMode==='num'?'ABC':'123'}</button>
+      </div>
+      <span class="count" id="hubCount">…</span>
+    </div>
+    <p class="empty" id="hubLoading">${escapeHtml(E7.t('loading', {}, 'loading…'))}</p>
+    <div class="grid" id="hubGrid"></div>`;
+  const i = $("#q");
+  if (i) {
+    // Capture only — full filter runs once data arrives.
+    i.oninput = (e) => { searchQ = e.target.value; };
+    const qm = $("#qmode");
+    if (qm) qm.onclick = (e) => {
+      e.preventDefault();
+      qMode = qMode === "num" ? "text" : "num";
+      i.setAttribute("inputmode", qMode === "num" ? "numeric" : "search");
+      qm.textContent = qMode === "num" ? "ABC" : "123";
+      qm.classList.toggle("on", qMode === "num");
+      i.blur(); i.focus();
+    };
+  }
+}
+
+/**
+ * Hub view. opts.soft = true → only refresh #hubGrid + #hubCount (keep #q mounted).
+ * Used by the search debounce so mobile typing never loses characters mid-render.
+ */
+function hub(opts) {
+  opts = opts || {};
+  setNav("hub");
+  const { list, groups, kindCounts, kinds } = hubFilteredList();
+  const gridHtml = list.map(card).join("") || `<p class="empty">${escapeHtml(E7.t('hub_empty'))}</p>`;
+  const countTxt = `${list.length} / ${groups.length}`;
+
+  // Soft path: search / filter refresh without destroying the focused input.
+  // Critical on mobile — full innerHTML replace drops IME composition + keystrokes
+  // typed while the previous debounce was re-rendering the 600-card grid.
+  const gridEl = document.getElementById("hubGrid");
+  const countEl = document.getElementById("hubCount");
+  const qEl = document.getElementById("q");
+  if (opts.soft && gridEl && countEl && qEl) {
+    countEl.textContent = countTxt;
+    const loadMsg = document.getElementById("hubLoading");
+    if (loadMsg) loadMsg.remove();
+    gridEl.innerHTML = gridHtml;
+    wireHubFormSwap();
+    observeHubImages();
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".thumb img").forEach(img => {
+        if (img.complete && img.naturalWidth) applyTrimCrop(img);
+      });
+    });
+    return;
+  }
+
+  // Preserve focus + caret across a full rebuild (load→first paint, filter
+  // chip, kind tab). Soft path above already keeps the node mounted.
+  const prevQ = document.getElementById("q");
+  const keepFocus = prevQ && document.activeElement === prevQ;
+  let caret = searchQ.length;
+  try { if (keepFocus && typeof prevQ.selectionStart === "number") caret = prevQ.selectionStart; } catch (_) {}
 
   $("#app").innerHTML = `
     ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site</code> then reload.</div>` : ""}
-    <div class="bar">
+    <div class="bar" id="hubBar">
       <div class="q-wrap">
-        <input id="q" placeholder="${escapeHtml(E7.t('hub_search_ph'))}" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <input id="q" placeholder="${escapeHtml(E7.t('hub_search_ph'))}" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
         <button id="qmode" type="button" class="qmode${qMode==='num'?' on':''}" title="${escapeHtml(E7.t('kbd_toggle_t'))}">${qMode==='num'?'ABC':'123'}</button>
       </div>
-      <span class="count">${list.length} / ${groups.length}</span>
+      <span class="count" id="hubCount">${countTxt}</span>
       <div class="sort-toggle" role="group" aria-label="${escapeHtml(E7.t('hub_sort_aria'))}">
         <span class="sort-label">${escapeHtml(E7.t('hub_sort'))}</span>
         <button type="button" data-sort="timeline" class="${sortMode==='timeline'?'on':''}" title="${escapeHtml(E7.t('sort_timeline_t'))}">${escapeHtml(E7.t('sort_timeline'))}</button>
@@ -831,38 +1392,16 @@ function hub() {
       </div>
       ${(elementF.size || rarityF.size || roleF.size) ? `<button class="chip clear" data-clear="1">${escapeHtml(E7.t('filt_clear'))}</button>` : ""}
     </div>
-    <div class="grid">${list.map(card).join("") || `<p class="empty">${escapeHtml(E7.t('hub_empty'))}</p>`}</div>`;
+    <div class="grid" id="hubGrid">${gridHtml}</div>`;
 
   const i = $("#q");
-  // Debounced: hub() rebuilds the whole grid's DOM, which is far too heavy to
-  // run per keystroke on a 600-card list. 120 ms after the last key is
-  // imperceptible and collapses a fast-typed word into one render.
-  i.oninput = (e) => {
-    searchQ = e.target.value;
-    clearTimeout(window._qDebounce);
-    window._qDebounce = setTimeout(() => {
-      hub();
-      queueMicrotask(() => {
-        const n = $("#q");
-        if (!n) return;
-        n.focus();
-        n.setSelectionRange(searchQ.length, searchQ.length);
-      });
-    }, 120);
-  };
-  // ABC/123 toggle. Mobile keyboards only pick up an inputmode change after
-  // blur + refocus, so swap the attribute then bounce focus to redraw the IME.
-  const qm = $("#qmode");
-  if (qm) qm.onclick = (e) => {
-    e.preventDefault();
-    qMode = qMode === "num" ? "text" : "num";
-    i.setAttribute("inputmode", qMode === "num" ? "numeric" : "search");
-    qm.textContent = qMode === "num" ? "ABC" : "123";
-    qm.classList.toggle("on", qMode === "num");
-    i.blur();
-    i.focus();
-    i.setSelectionRange(searchQ.length, searchQ.length);
-  };
+  wireHubSearchInput(i);
+  if (keepFocus && i) {
+    queueMicrotask(() => {
+      i.focus();
+      try { i.setSelectionRange(caret, caret); } catch (_) {}
+    });
+  }
   document.querySelectorAll(".kinds button").forEach(b => b.onclick = () => { kindF = b.dataset.k; hub(); });
   document.querySelectorAll(".sort-toggle button").forEach(b => b.onclick = () => {
     if (b.dataset.sort === sortMode) return;
@@ -877,40 +1416,7 @@ function hub() {
     else if (b.dataset.role) { roleF.has(b.dataset.role) ? roleF.delete(b.dataset.role) : roleF.add(b.dataset.role); }
     hub();
   });
-  // Cards are real <a href="#/u/..."> anchors — gives native middle-click /
-  // right-click "Open in new tab" + Ctrl/Cmd-click without any extra JS.
-  // Form-swap pills inside thumbs: preview a sibling variant's pose without
-  // navigating. Visual-only — does NOT change the card's detail-page target.
-  // preventDefault is required because the pill is nested inside the card's
-  // <a>; stopPropagation alone isn't enough to block the anchor on some
-  // browsers when the click target is a descendant.
-  document.querySelectorAll(".form-swap button").forEach(b =>
-    b.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const img = b.closest(".thumb").querySelector("img");
-      if (!img) return;
-      img.removeAttribute("style");
-      const t = b.dataset.fsTrim;
-      if (t) img.dataset.trim = t; else delete img.dataset.trim;
-      img.dataset.fallbacks = b.dataset.fsFallbacks || "[]";
-      img.src = b.dataset.fsSrc;
-      // applyTrimCrop fires on the resulting onload; ensure it runs even when
-      // the image is already cached.
-      if (img.complete && img.naturalWidth) applyTrimCrop(img);
-      b.parentElement.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-      // Retarget the card's <a href> at the previewed variant so middle-/right-
-      // click "Open in new tab" lands on the form the user is actually looking at.
-      const card = b.closest(".card");
-      if (card) {
-        const base = card.dataset.base;
-        const v = b.dataset.fsVariant || "";
-        card.setAttribute("href", "#/u/" + encodeURIComponent(base) + (v ? "/" + encodeURIComponent(v) : ""));
-      }
-      // Drop focus so :focus-within doesn't pin .form-swap visible after the
-      // mouse leaves the card. Keyboard tab-focus is unaffected.
-      b.blur();
-    });
+  wireHubFormSwap();
   // Lazy-load: lifts data-src onto src as cards enter the viewport. Recreated
   // per render so detached nodes from the previous render don't accumulate.
   observeHubImages();
@@ -925,10 +1431,11 @@ function hub() {
 const PG_LABEL = { heroes: "Heroes", art: "Artwork", effects: "Effects", engine: "Engine / data", other: "Other" };
 const PG_ORDER = ["heroes", "art", "effects", "engine", "other"];
 const CHANGE_SYM = { added: "+", removed: "−", changed: "~" };
-// "update" is a derived kind: an `added` row for content that attaches to a
-// pre-existing unit (a skin/rig on an old hero) rather than a brand-new release.
-// It reuses the "+" glyph but gets a distinct yellow so the user can tell a
-// freshly-released entity (green +) from one that just gained content (yellow +).
+// "update" is a derived kind: an `added` row for a hero whose base group already
+// has a pre-existing (non-`new`) member — i.e. NEW CONTENT on an existing unit,
+// not a brand-new release. It reuses the "+" glyph but gets a distinct yellow so
+// the user can tell a freshly-released hero (green +) from one that just gained a
+// skin/rig (yellow +). Removed/changed keep their own glyph + colour.
 const KIND_SYM = { added: "+", update: "+", changed: "~", removed: "−" };
 // Sort weight for the thumbnail strip: new releases first, then updates, then
 // content changes, then removals.
@@ -1050,12 +1557,33 @@ function patchBlock(p) {
   // Text rollup per group. Each group's per-file rows are collapsed to one row
   // per unit/asset stem (a rig is ~5 files; without this a single change spams
   // model/x.atlas/.scsp/.sct/.timeline as separate lines).
+  // Within a group: rows with a preview thumbnail stay visible; path-only rows
+  // (engine bins, particles, nameless files) sit behind a closed <details> so
+  // casual browsing isn't a wall of code paths.
+  const plainSummary = (n) => escapeHtml(
+    E7.t("patch_plain_rows", { n }, "{n} path-only rows (no image)")
+  );
   const groupHtml = PG_ORDER.filter(g => (groups[g] || []).length).map(g => {
     const rows = dedupRollup(groups[g]);
+    const withImg = rows.filter(e => e.preview);
+    const plain = rows.filter(e => !e.preview);
+    const imgHtml = withImg.length
+      ? `<div class="pg-items">${withImg.map(patchEntryRow).join("")}</div>` : "";
+    // If a group is entirely path-only, the <details> IS the content (still
+    // closed by default). Count in the group label stays total rollup size.
+    const plainHtml = plain.length ? `
+      <details class="pg-plain">
+        <summary title="${escapeHtml(E7.t(
+          "patch_plain_rows_hint",
+          {},
+          "Engine, data, and other files without a thumbnail — expand to list paths"
+        ))}">${plainSummary(plain.length)}</summary>
+        <div class="pg-items">${plain.map(patchEntryRow).join("")}</div>
+      </details>` : "";
     return `
     <div class="patch-group">
       <span class="pg-label">${PG_LABEL[g]} <span class="pg-n">${rows.length}</span></span>
-      <div class="pg-items">${rows.map(patchEntryRow).join("")}</div>
+      ${imgHtml}${plainHtml}
     </div>`; }).join("");
 
   const c = p.counts || {};
@@ -1068,6 +1596,14 @@ function patchBlock(p) {
     ${thumbHtml}
     <details class="patch-raw"${thumbs.length ? "" : " open"}><summary>file changes by area</summary>${groupHtml}</details>
   </div>`;
+}
+
+function updatesPane() {
+  // #/updates          → event gallery (default — permanent showcase)
+  // #/updates/packs    → pack-to-pack patch diff (transient "what landed")
+  const h = location.hash || "#/updates";
+  if (h === "#/updates/packs" || h === "#/updates/patches" || h === "#/updates/diff") return "packs";
+  return "events";
 }
 
 function updates() {
@@ -1091,29 +1627,174 @@ function updates() {
     return yearOf(b) - yearOf(a) || a.localeCompare(b);
   });
 
-  const patchHtml = PATCHES.length ? `
-    <p class="section-label first">${escapeHtml(E7.t('patch_hdr', {n: PATCHES.length}))}</p>
-    <p class="patch-note">${escapeHtml(E7.t('patch_note'))}</p>
-    <div class="patches">${PATCHES.map(patchBlock).join("")}</div>` : "";
+  const pane = updatesPane();
+  const hasEvents = labels.length > 0;
+  const hasPacks = PATCHES.length > 0;
+  // If the chosen pane is empty, fall through to the other (e.g. no patches yet).
+  const show = (pane === "packs" && hasPacks) || (pane === "events" && !hasEvents && hasPacks)
+    ? "packs" : "events";
 
-  $("#app").innerHTML = `${patchHtml}
-    <p class="section-label${PATCHES.length?'':' first'}">${escapeHtml(E7.t('upd_count', {n: labels.length}))}</p>
+  // Fallbacks on every t() so a stale/partial lang overlay never paints raw keys.
+  const T = (k, fb, p) => E7.t(k, p || {}, fb);
+  const subnav = `
+    <div class="upd-intro">
+      <h2>${escapeHtml(T("upd_page_title", "Updates"))}</h2>
+      <p>${escapeHtml(T("upd_page_blurb", "Two different lists live here. Pick a tab — they are not the same content."))}</p>
+    </div>
+    <div class="upd-subnav" role="tablist" aria-label="${escapeHtml(T("upd_page_title", "Updates"))}">
+      <a class="usub${show === "events" ? " on" : ""}" role="tab" aria-selected="${show === "events"}"
+         href="#/updates" data-upd-pane="events"
+         title="${escapeHtml(T("upd_tab_events_hint", "Seasonal & collab showcases — banners, cast, cinema"))}">
+        <span class="usub-top">
+          <span>${escapeHtml(T("upd_tab_events", "Events"))}</span>
+          <span class="n">${labels.length || "—"}</span>
+        </span>
+        <span class="usub-desc">${escapeHtml(T("upd_tab_events_hint", "Seasonal & collab showcases — banners, cast, cinema"))}</span>
+        <span class="usub-state">${show === "events" ? escapeHtml(T("upd_tab_current", "Current view")) : ""}</span>
+      </a>
+      <a class="usub${show === "packs" ? " on" : ""}" role="tab" aria-selected="${show === "packs"}"
+         href="#/updates/packs" data-upd-pane="packs"
+         title="${escapeHtml(T("upd_tab_packs_hint", "What files changed in the latest data pack(s)"))}">
+        <span class="usub-top">
+          <span>${escapeHtml(T("upd_tab_packs", "Pack changelog"))}</span>
+          <span class="n">${PATCHES.length || "—"}</span>
+        </span>
+        <span class="usub-desc">${escapeHtml(T("upd_tab_packs_hint", "What files changed in the latest data pack(s)"))}</span>
+        <span class="usub-state">${show === "packs" ? escapeHtml(T("upd_tab_current", "Current view")) : ""}</span>
+      </a>
+    </div>`;
+
+  if (show === "packs") {
+    $("#app").innerHTML = `${subnav}
+      <p class="section-label first">${escapeHtml(T("patch_hdr", "Last {n} data pack(s)", { n: PATCHES.length }))}</p>
+      <p class="patch-note">${escapeHtml(T("patch_note", "Unannounced content is intentionally omitted. This is only the pack file log — switch to the Events tab for seasonal / collab showcases."))}</p>
+      <div class="patches">${PATCHES.map(patchBlock).join("")}</div>`;
+    return;
+  }
+
+  $("#app").innerHTML = `${subnav}
+    <p class="section-label first">${escapeHtml(T("upd_count", "{n} events with showcase art", { n: labels.length }))}</p>
     <div class="updates-list">${labels.map(label => {
       const u = UPDATES[label];
       const story = u.story || [];
+      // featured = event stars / new releases (+ event artifacts); bonus = free roster
+      const heroes = u.heroes || [];
+      const bonusHeroes = u.bonus_heroes || [];
+      const eventArts = u.artifacts || [];
       const title = E7.eventTitle(u.codename, label);   // localized event title
-      return `<div class="upd-row">
+      const bannerN = (u.banners || []).length;
+      const parts = [];
+      const videos = (u.videos || []).map(v => typeof v === "string"
+        ? { id: v, label: v.split("/").pop().replace(/\.mp4$/i,""), src: v, source: "ref" }
+        : v).filter(v => v && v.src);
+      if (bannerN) parts.push(T(bannerN === 1 ? "upd_n_banner" : "upd_n_banners",
+        bannerN === 1 ? "{n} banner" : "{n} banners", { n: bannerN }));
+      if (story.length) parts.push(T("upd_n_story", "{n} story", { n: story.length }));
+      if (heroes.length) {
+        const allRelated = heroes.every(h => h.role === "related");
+        parts.push(T(allRelated ? "upd_n_stage" : "upd_n_featured",
+          allRelated ? "{n} stage" : "{n} featured", { n: heroes.length }));
+      }
+      if (eventArts.length) parts.push(T(
+        eventArts.length === 1 ? "upd_n_artifact" : "upd_n_artifacts",
+        eventArts.length === 1 ? "{n} artifact" : "{n} artifacts",
+        { n: eventArts.length }));
+      if (bonusHeroes.length) parts.push(T("upd_n_bonus", "{n} bonus", { n: bonusHeroes.length }));
+      if ((u.related_heroes || []).length && heroes.some(h => h.role !== "related")) {
+        parts.push(T("upd_n_stage", "{n} stage", { n: u.related_heroes.length }));
+      }
+      if (videos.length) parts.push(T(videos.length === 1 ? "upd_n_video" : "upd_n_videos",
+        videos.length === 1 ? "{n} video" : "{n} videos", { n: videos.length }));
+      if (u.db_only) parts.push(T("upd_db_only", "DB only"));
+      const skinLbl = T("upd_badge_skin", "skin");
+      const artiLbl = T("upd_badge_artifact", "artifact");
+      const castCell = (h, badge) => {
+        const isArti = h.kind === "artifact" || (h.art_full && !h.pose && !h.thumb);
+        if (isArti) {
+          const img = h.art_full || h.art_lobby;
+          const name = (typeof E7.artifactName === "function" ? E7.artifactName(h) : null) || h.name || h.id;
+          const cb = h.cecilia || "";
+          // CB pill on the thumb (stopPropagation via global .a-cb handler) so
+          // Updates Featured can reach ceciliabot without opening the lightbox.
+          const cbBtn = cb
+            ? `<button class="a-cb" data-cb="${escapeHtml(cb)}" type="button" title="${escapeHtml(E7.t('arti_cb_t'))}">↗ cb</button>`
+            : "";
+          const pose = img
+            ? `<span class="uc-pose"><img loading="lazy" src="${escapeHtml(img)}" alt="">${cbBtn}</span>`
+            : `<span class="uc-pose miss">${escapeHtml(h.id)}</span>`;
+          const b = badge || artiLbl;
+          const badgeHtml = b ? `<span class="uc-badge">${escapeHtml(b)}</span>` : "";
+          // Zoom full art; data-cb / data-arti feed lightbox action buttons.
+          const href = img || "#/artifacts";
+          const zoom = img
+            ? ` data-zoom data-cap="${escapeHtml(name)}" data-arti="1"${cb ? ` data-cb="${escapeHtml(cb)}"` : ""}`
+            : "";
+          return `<a class="is-arti" href="${escapeHtml(href)}"${zoom} target="_blank" rel="noopener" title="${escapeHtml(name)} · ${escapeHtml(artiLbl)}">${badgeHtml}${pose}<span class="uc-name">${escapeHtml(name)}</span></a>`;
+        }
+        const base = h.base_id || h.id;
+        const img = h.thumb || h.pose;
+        const pose = img
+          ? `<span class="uc-pose"><img loading="lazy" src="${escapeHtml(img)}" alt=""></span>`
+          : `<span class="uc-pose miss">${escapeHtml(h.id)}</span>`;
+        const b = badge || "";
+        const badgeHtml = b ? `<span class="uc-badge">${escapeHtml(b)}</span>` : "";
+        return `<a href="#/u/${encodeURIComponent(base)}" title="${escapeHtml(h.name)}${b ? " · " + b : ""}">${badgeHtml}${pose}<span class="uc-name">${escapeHtml(h.name)}</span></a>`;
+      };
+      const castBlock = (list, kind, lbl) => {
+        if (!list.length) return "";
+        return `<div class="upd-cast-block ${kind}">
+          <p class="upd-cast-lbl">${escapeHtml(lbl)}<span class="n">${list.length}</span></p>
+          <div class="upd-cast">${list.map(h => castCell(h,
+            kind === "featured"
+              ? (h.kind === "artifact" ? artiLbl : (h.variant ? skinLbl : ""))
+              : "")).join("")}</div>
+        </div>`;
+      };
+      const relatedHeroes = u.related_heroes || [];
+      // Featured strip = hero stars + event artifacts (same row, artifact badge).
+      const featuredList = heroes.concat(eventArts);
+      const featLabel = heroes.length && heroes.every(h => h.role === "related") && !eventArts.length
+        ? T("upd_cast_stage", "Stage cast")
+        : T("upd_cast_featured", "Featured");
+      const castHtml = castBlock(featuredList, "featured", featLabel)
+        + castBlock(bonusHeroes, "bonus", T("upd_cast_bonus", "Bonus / free units"))
+        + castBlock(relatedHeroes, "bonus", T("upd_cast_stage", "Stage cast"));
+      const playLbl = T("upd_play", "▶ play");
+      const srcLbl = (src) => src === "local" ? T("upd_src_local", "local")
+        : src === "cdn" ? T("upd_src_cdn", "cdn") : src;
+      const videosHtml = videos.length ? `<div class="upd-videos">${videos.map(v => {
+        const cap = `${title} · ${v.label || "cinema"}`;
+        const src = v.source ? ` · ${srcLbl(v.source)}` : "";
+        return `<a class="upd-vid" href="${escapeHtml(v.src)}" data-cinema data-cap="${escapeHtml(cap)}" title="${escapeHtml(cap)}">
+          <video preload="metadata" muted playsinline src="${escapeHtml(v.src)}#t=0.1"></video>
+          <span class="uv-meta"><span class="uv-play">${escapeHtml(playLbl)}</span><span class="uv-label">${escapeHtml(v.label || v.id)}${escapeHtml(src)}</span></span>
+        </a>`;
+      }).join("")}</div>` : "";
+      const metaBits = [];
+      if (u.db_banner) metaBits.push(`<span class="chip db" title="substory_main banner stem">${escapeHtml(T("upd_chip_banner", "banner {id}", { id: u.db_banner }))}</span>`);
+      (u.items || []).slice(0, 6).forEach(it => metaBits.push(`<span class="chip" title="event item id">${escapeHtml(it)}</span>`));
+      const metaHtml = metaBits.length ? `<div class="upd-meta">${metaBits.join("")}</div>` : "";
+      // Banners + story in one flex strip so mixed sizes pack into rows tightly.
+      const mediaItems = [
+        ...(u.banners || []).map(b => ({ src: b, kind: "banner" })),
+        ...story.map(s => ({ src: s, kind: "story" })),
+      ];
+      const mediaHtml = mediaItems.length
+        ? `<div class="upd-media">${mediaItems.map(m =>
+            `<a href="${escapeHtml(m.src)}" data-zoom data-cap="${escapeHtml(title)} ${m.kind}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(m.src)}" alt="${escapeHtml(u.codename)} ${m.kind}"></a>`
+          ).join("")}</div>`
+        : "";
+      // Order: head → cinema (if any) → art → cast → meta chips
+      return `<div class="upd-row${u.db_only ? " db-only" : ""}">
         <div class="upd-head">
           <h3>${escapeHtml(title)}</h3>
           <span class="code">${u.codename}${u.year ? ` · ${u.year}` : ''}</span>
-          <span class="code count">${u.banners.length} banner${u.banners.length>1?'s':''}${story.length ? ` · ${story.length} story` : ''}</span>
+          <span class="code count">${parts.join(" · ") || escapeHtml(T("upd_no_assets", "no assets"))}</span>
         </div>
-        <div class="upd-banners">
-          ${u.banners.map(b => `<a href="${escapeHtml(b)}" data-zoom data-cap="${escapeHtml(title)} banner" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(b)}" alt="${escapeHtml(u.codename)}"></a>`).join("")}
-        </div>
-        ${story.length ? `<div class="upd-story">
-          ${story.map(s => `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(title)} story" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.codename)} story"></a>`).join("")}
-        </div>` : ''}
+        ${videosHtml}
+        ${mediaHtml}
+        ${castHtml}
+        ${metaHtml}
       </div>`;
     }).join("")}</div>`;
 }
@@ -1202,6 +1883,265 @@ function voiceSection(u) {
   return html;
 }
 
+// ===== Profile frame compositor (TASKS #32) ==================================
+// In-game profile faces are face/<id>_s.png (≈112×112), borders are 148×148.
+// _su / _l are wide list art and do NOT fit the profile frame; we only use _s.
+// Game UIUtil.getUserIcon stacks: face centered in 112 box inside 148 border.
+let FRAMES_META = null;   // { canvas, face_box, frames: [...] } | null after load fail
+let _framesPromise = null;
+// Arena = classic/seasonal PvP ranks; RTA = World Arena (ssN_rta*).
+const FRAME_CATS = ["all", "arena", "rta", "tournament", "clan", "abyss", "event", "other"];
+
+function unitProfileFaces(u) {
+  // Profile-icon faces only: face_<stem>_s.png staged under assets/<unit>/
+  const arts = u.artworks || [];
+  const out = [];
+  const seen = new Set();
+  for (const a of arts) {
+    const m = /(?:^|\/)(face_(.+)_s\.png)$/i.exec(a);
+    if (!m) continue;
+    if (seen.has(a)) continue;
+    seen.add(a);
+    out.push({ url: a, file: m[1], stem: m[2] });
+  }
+  // Prefer the unit's own slug face first (skin/base match)
+  out.sort((a, b) => {
+    const ap = a.stem === u.id ? 0 : 1;
+    const bp = b.stem === u.id ? 0 : 1;
+    return ap - bp || a.stem.localeCompare(b.stem);
+  });
+  return out;
+}
+
+function ensureFrames() {
+  if (FRAMES_META) return Promise.resolve(FRAMES_META);
+  if (_framesPromise) return _framesPromise;
+  _framesPromise = dataJson("data/frames.json", null).then(j => {
+    FRAMES_META = (j && Array.isArray(j.frames) && j.frames.length) ? j : null;
+    return FRAMES_META;
+  });
+  return _framesPromise;
+}
+
+const _frameImgCache = new Map();
+function loadImg(url) {
+  if (_frameImgCache.has(url)) return _frameImgCache.get(url);
+  const p = new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("img " + url));
+    im.src = url;
+  });
+  _frameImgCache.set(url, p);
+  return p;
+}
+
+let _frameState = null;  // active modal state
+
+function closeFrameComposer() {
+  const modal = document.getElementById("frameModal");
+  if (modal) {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  _frameState = null;
+}
+
+async function openFrameComposer(u) {
+  const faces = unitProfileFaces(u);
+  if (!faces.length) return;
+
+  const modal = document.getElementById("frameModal");
+  const canvas = document.getElementById("frameCanvas");
+  const grid = document.getElementById("frameGrid");
+  const catsEl = document.getElementById("frameCats");
+  const searchEl = document.getElementById("frameSearch");
+  const facesWrap = document.getElementById("frameFaces");
+  const facesRow = document.getElementById("frameFacesRow");
+  const dlBtn = document.getElementById("frameDownload");
+  if (!modal || !canvas || !grid) return;
+
+  // Localize chrome each open (lang may have changed).
+  document.getElementById("frameTitle").textContent = E7.t("frame_title");
+  document.getElementById("frameFaceLabel").textContent = E7.t("frame_face");
+  dlBtn.textContent = E7.t("frame_download");
+  searchEl.placeholder = E7.t("frame_search_ph");
+
+  const meta = await ensureFrames();
+  const canvasSize = (meta && meta.canvas) || 148;
+  const faceBox = (meta && meta.face_box) || 112;
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+
+  const frames = (meta && meta.frames) || [];
+  _frameState = {
+    u, faces, faceIdx: 0, frameId: null, cat: "all", q: "",
+    canvasSize, faceBox, frames, name: displayName(u) || u.id,
+  };
+
+  // Face picker (usually one; skins on same unit folder can have several)
+  if (faces.length > 1) {
+    facesWrap.hidden = false;
+    facesRow.innerHTML = faces.map((f, i) =>
+      `<button type="button" data-fi="${i}" class="${i === 0 ? "on" : ""}" title="${escapeHtml(f.stem)}">
+         <img src="${escapeHtml(f.url)}" alt="${escapeHtml(f.stem)}"></button>`
+    ).join("");
+    facesRow.querySelectorAll("button").forEach(b => {
+      b.onclick = () => {
+        _frameState.faceIdx = +b.dataset.fi;
+        facesRow.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+        renderFrameGrid();   // refresh face under each frame thumb
+        paintFramePreview();
+      };
+    });
+  } else {
+    facesWrap.hidden = true;
+    facesRow.innerHTML = "";
+  }
+
+  // Category chips
+  const present = new Set(frames.map(f => f.category));
+  catsEl.innerHTML = FRAME_CATS
+    .filter(c => c === "all" || present.has(c))
+    .map(c => `<button type="button" data-cat="${c}" class="${c === "all" ? "on" : ""}">${escapeHtml(E7.t("frame_cat_" + c, {}, c))}</button>`)
+    .join("");
+  catsEl.querySelectorAll("button").forEach(b => {
+    b.onclick = () => {
+      _frameState.cat = b.dataset.cat;
+      catsEl.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+      renderFrameGrid();
+    };
+  });
+
+  searchEl.value = "";
+  searchEl.oninput = () => {
+    _frameState.q = searchEl.value.trim().toLowerCase();
+    renderFrameGrid();
+  };
+
+  dlBtn.onclick = () => downloadFramePng();
+  renderFrameGrid();
+  await paintFramePreview();
+
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function renderFrameGrid() {
+  const st = _frameState;
+  const grid = document.getElementById("frameGrid");
+  if (!st || !grid) return;
+  const q = st.q;
+  const list = st.frames.filter(f => {
+    if (st.cat !== "all" && f.category !== st.cat) return false;
+    if (!q) return true;
+    return (f.label || "").toLowerCase().includes(q) ||
+           (f.id || "").toLowerCase().includes(q) ||
+           (f.file || "").toLowerCase().includes(q);
+  });
+
+  const noneOn = st.frameId === null;
+  const faceUrl = (st.faces[st.faceIdx] && st.faces[st.faceIdx].url) || "";
+  const faceImg = faceUrl
+    ? `<img class="ft-face" src="${escapeHtml(faceUrl)}" alt="" draggable="false">`
+    : "";
+  let html = `<button type="button" class="frame-cell none-cell${noneOn ? " on" : ""}" data-fid="" title="${escapeHtml(E7.t("frame_none"))}">
+      <span class="frame-thumb">${faceImg}</span>
+      <span class="fn">${escapeHtml(E7.t("frame_none"))}</span>
+    </button>`;
+  if (!st.frames.length) {
+    html = `<p class="empty" style="grid-column:1/-1;padding:12px 4px">${escapeHtml(E7.t("frame_empty"))}</p>`;
+  } else {
+    html += list.map(f =>
+      `<button type="button" class="frame-cell${st.frameId === f.id ? " on" : ""}" data-fid="${escapeHtml(f.id)}" title="${escapeHtml(f.label || f.id)}">
+         <span class="frame-thumb">${faceImg}<img class="ft-border" loading="lazy" src="${escapeHtml(f.path)}" alt="" draggable="false"></span>
+         <span class="fn">${escapeHtml(f.label || f.id)}</span>
+       </button>`
+    ).join("");
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll(".frame-cell").forEach(b => {
+    b.onclick = () => {
+      const id = b.dataset.fid;
+      st.frameId = id ? id : null;
+      renderFrameGrid();
+      paintFramePreview();
+    };
+  });
+}
+
+async function paintFramePreview() {
+  const st = _frameState;
+  const canvas = document.getElementById("frameCanvas");
+  const dlBtn = document.getElementById("frameDownload");
+  if (!st || !canvas) return;
+  const ctx = canvas.getContext("2d");
+  const S = st.canvasSize;
+  const box = st.faceBox;
+  // Fully transparent clear — page/panel color shows through in the UI, and
+  // downloads keep real alpha (no baked dark plate under the face).
+  ctx.clearRect(0, 0, S, S);
+  ctx.globalCompositeOperation = "source-over";
+
+  const face = st.faces[st.faceIdx];
+  if (!face) {
+    if (dlBtn) dlBtn.disabled = true;
+    return;
+  }
+  try {
+    const faceIm = await loadImg(face.url);
+    // Center face in the game's face box (typically 112 inside 148).
+    const scale = Math.min(box / faceIm.naturalWidth, box / faceIm.naturalHeight);
+    const dw = faceIm.naturalWidth * scale;
+    const dh = faceIm.naturalHeight * scale;
+    const dx = (S - dw) / 2;
+    const dy = (S - dh) / 2;
+    ctx.drawImage(faceIm, dx, dy, dw, dh);
+
+    if (st.frameId) {
+      const fr = st.frames.find(f => f.id === st.frameId);
+      if (fr) {
+        const frIm = await loadImg(fr.path);
+        ctx.drawImage(frIm, 0, 0, S, S);
+      }
+    }
+    if (dlBtn) dlBtn.disabled = false;
+  } catch (_) {
+    if (dlBtn) dlBtn.disabled = true;
+  }
+}
+
+function downloadFramePng() {
+  const st = _frameState;
+  const canvas = document.getElementById("frameCanvas");
+  if (!st || !canvas) return;
+  const face = st.faces[st.faceIdx];
+  const framePart = st.frameId || "noframe";
+  const stem = (face && face.stem) || st.u.id;
+  const name = `e7codex_${stem}_${framePart}.png`;
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }, "image/png");
+}
+
+// Modal dismiss: close button, backdrop click, Escape
+document.getElementById("frameClose").addEventListener("click", closeFrameComposer);
+document.getElementById("frameModal").addEventListener("click", e => {
+  if (e.target.id === "frameModal") closeFrameComposer();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.getElementById("frameModal").classList.contains("open")) {
+    closeFrameComposer();
+  }
+});
+
 function detail(baseId, variantSuf) {
   // Voice data is lazy-loaded (see ensureVoices). First detail visit renders
   // without the voice section, then re-routes once — route() re-derives the
@@ -1265,7 +2205,7 @@ function detail(baseId, variantSuf) {
       </div>
       <div>
         <div class="dt-head">
-          <h2>${escapeHtml(heroLabel)}${subTitle ? ` <span style="color:var(--mut);font-size:24px">— ${escapeHtml(subTitle)}</span>` : ''}${groupModified ? ` <span class="upd-badge inline">${E7.t('badge_updated')}</span>` : ''}</h2>
+          <h2>${escapeHtml(heroLabel)}${subTitle ? ` <span style="color:var(--mut);font-size:24px">— ${escapeHtml(subTitle)}</span>` : ''}${group.some(x => x.announced) ? ` <span class="ann-badge inline" title="${escapeHtml(E7.t('badge_announced_t', {}, 'officially previewed — not in gacha yet'))}">${E7.t('badge_announced', {}, 'ANNOUNCED')}</span>` : ''}${group.some(x => x.new) && !group.some(x => x.announced) ? ` <span class="new-badge inline">${E7.t('badge_new')}</span>` : ''}${groupModified ? ` <span class="upd-badge inline">${E7.t('badge_updated')}</span>` : ''}${u.unreleased ? ` <span class="unrel-badge inline" title="${escapeHtml(E7.t('badge_unrel_t'))}">${E7.t('badge_unrel_local')}</span>` : ''}</h2>
           <div class="ids">${u.id}${u.base_id && u.base_id !== u.id ? ` · ${escapeHtml(E7.t('detail_base_id', {id: u.base_id}))}` : ''}</div>
           <div class="meta-row">
             ${rarityStars(u)} ${attrPill(u)}
@@ -1303,16 +2243,82 @@ function detail(baseId, variantSuf) {
             `;
           })()}
           ${rigs.length && rigs[0].atlas ? `<a class="ext" href="${escapeHtml(rigs[0].atlas.replace('.atlas','.png'))}" data-zoom data-cap="${escapeHtml(u.id)} · texture atlas">${E7.t('btn_texture')}</a>` : ""}
+          ${unitProfileFaces(u).length ? `<button type="button" class="ext" id="btnFrame" title="${escapeHtml(E7.t('btn_frame_t'))}">${E7.t('btn_frame')}</button>` : ""}
           ${u.cecilia ? (() => { const cslug = u.hero_slug || u.slug; return `<a class="ext" href="${escapeHtml(u.cecilia)}" target="_blank" rel="noopener">↗ ceciliabot${cslug ? ' · '+escapeHtml(cslug) : ''}</a>`; })() : ""}
           ${(u.updates||[]).map(x => `<span class="ext flat">${escapeHtml(x)}</span>`).join("")}
         </div>
-        ${(u.skills||[]).length ? `
-          <p class="section-label first">${E7.t('hdr_skill_anim')}</p>
-          <div class="skill-gallery">${u.skills.map((s,i) => {
-            const lbl = u.skills.length > 1 ? `${E7.t('hdr_skill_anim')} ${i+1}` : E7.t('hdr_skill_anim');
-            return `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(u.id)} · ${lbl}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.id)} skill ${i+1}"></a>`;
-          }).join("")}</div>
-        ` : ''}
+        ${(() => {
+          // Official kit video — small embed under the action bar (not a button).
+          const annVid = (group.find(x => x.announce_video) || {}).announce_video || u.announce_video || "";
+          return annVid ? announceEmbedHtml(annVid) : "";
+        })()}
+        ${(() => {
+          // Skill anim + signature EE share a row when both exist (wide screens
+          // put the artifact beside the skills at roughly the same height).
+          const skills = u.skills || [];
+          const sigArts = (u.signature_artifacts && u.signature_artifacts.length)
+            ? u.signature_artifacts
+            : ((group.find(x => (x.signature_artifacts || []).length) || {}).signature_artifacts || []);
+          if (!skills.length && !sigArts.length) return "";
+          const skillHtml = skills.length ? (() => {
+            const gal = skills.map((s,i) => {
+              const lbl = skills.length > 1 ? `${E7.t('hdr_skill_anim')} ${i+1}` : E7.t('hdr_skill_anim');
+              // Full skill-3 clip (TASKS #57): our own bake of the COMPLETE
+              // chained S3 + composited FX (the shipped sk_*_3.webp is the
+              // game's own short cut-in). The card itself still opens the
+              // preview; ONLY the FULL S3 button opens the baked clip,
+              // lazy-loaded from R2 (combat/ is never on Pages). The badge is
+              // a <button>, not a nested <a> (browsers detach nested anchors —
+              // see the Lightbox modal notes in CLAUDE.md).
+              const full = (i === 0 && u.skill3_full && S3_DEV)
+                ? `${E7.spineBase}/${encodeURIComponent(u.id)}/combat/sk3_full.webp` : null;
+              const fullBtn = full ? `<button class="full-badge" data-full="${escapeHtml(full)}"
+                data-cap="${escapeHtml(displayName(u))} · full skill 3 (all phases + FX)">▶ FULL S3</button>` : "";
+              return `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(u.id)} · ${lbl}" target="_blank" rel="noopener">${fullBtn}<img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.id)} skill ${i+1}"></a>`;
+            }).join("");
+            // When paired with a signature art, skill sits on the RIGHT — no
+            // "first" top margin (sig column owns it). Solo skills keep first.
+            const first = sigArts.length ? "" : " first";
+            return `<div class="skill-col">
+              <p class="section-label${first}">${E7.t('hdr_skill_anim')}</p>
+              <div class="skill-gallery">${gal}</div>
+            </div>`;
+          })() : "";
+          const sigHtml = sigArts.length ? (() => {
+            // Signature EE from owners map / SIGNATURE_ARTIFACTS (build_index).
+            const hdr = sigArts.length === 1
+              ? E7.t("hdr_signature_artifact", {}, "Signature artifact")
+              : E7.t("hdr_signature_artifacts", {}, "Signature artifacts");
+            // Artifact is LEFT of skills when both exist → owns the section top.
+            const firstSec = " first";
+            const artiLbl = E7.t("upd_badge_artifact", {}, "artifact");
+            const cells = sigArts.map(a => {
+              const img = a.art_full || a.art_lobby;
+              if (!img) return "";
+              const name = (typeof E7.artifactName === "function" ? E7.artifactName(a) : null) || a.name || a.id;
+              const role = a.role ? E7.gameTerm("class", a.role) : "";
+              const rar = a.rarity ? `${a.rarity}★` : "";
+              const meta = [rar, role].filter(Boolean).join(" · ");
+              const cap = [name, meta].filter(Boolean).join(" · ");
+              const cb = a.cecilia || "";
+              const annVid = a.announce_video || "";
+              const cbBtn = cb
+                ? `<button class="a-cb" data-cb="${escapeHtml(cb)}" type="button" title="${escapeHtml(E7.t('arti_cb_t'))}">↗ cb</button>`
+                : "";
+              return `<a class="is-arti" href="${escapeHtml(img)}" data-zoom data-cap="${escapeHtml(cap)}" data-arti="1"${cb ? ` data-cb="${escapeHtml(cb)}"` : ""}${annVid ? ` data-ann-video="${escapeHtml(annVid)}"` : ""} target="_blank" rel="noopener" title="${escapeHtml(cap)}">
+                <span class="sa-pose"><span class="sa-badge">${escapeHtml(artiLbl)}</span><img loading="lazy" src="${escapeHtml(img)}" alt="">${cbBtn}</span>
+                <span class="sa-name">${escapeHtml(name)}${meta ? `<span class="sa-meta">${escapeHtml(meta)}</span>` : ""}</span>
+              </a>`;
+            }).join("");
+            return `<div class="sig-col">
+              <p class="section-label${firstSec}">${escapeHtml(hdr)}</p>
+              <div class="sig-arti">${cells}</div>
+            </div>`;
+          })() : "";
+          const both = skills.length && sigArts.length ? " has-both" : "";
+          // DOM order = visual order: signature LEFT, skill anim RIGHT.
+          return `<div class="skill-sig-row${both}">${sigHtml}${skillHtml}</div>`;
+        })()}
         ${intimUnit ? `
           <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">${E7.t('hdr_intimacy')}${intimUnit.modified && (intimUnit.modified_parts||[]).includes('intimacy') ? `<span class="upd-badge inline">${E7.t('badge_updated')}</span>` : ''}</p>
           <div class="intimacy-gallery">${intimUnit.intimacy.split('?')[0].endsWith('.webm') ? `
@@ -1346,6 +2352,10 @@ function detail(baseId, variantSuf) {
       const v = b.dataset.vs;
       location.hash = "#/u/" + baseId + (v ? "/" + v : "");
     });
+
+  // Profile frame compositor — opens a modal, not a new route.
+  const btnFrame = document.getElementById("btnFrame");
+  if (btnFrame) btnFrame.onclick = () => openFrameComposer(u);
 
   // Bundled artwork: the strip may live at the end of the info column (status
   // quo), in the pose column's dead space under the render, or as a full-width
@@ -1538,19 +2548,51 @@ const ARTI_ROLE_ALIAS = { "manauser": "soul-weaver", "theif": "thief", "assassin
 function artiRoleOf(a) { return ARTI_ROLE_ALIAS[a.role] || a.role || ""; }
 function artiRarityStars(r) { return r ? "★".repeat(r) : ""; }
 
-function artifacts() {
+function artifactCellsHtml(list) {
+  return list.map(a => {
+    const name = E7.artifactName(a) || a.id;
+    const role = artiRoleOf(a);
+    const roleCap = role ? E7.gameTerm("class", role) : "";
+    const rarity = a.rarity ? `${a.rarity}★` : "";
+    const meta = [rarity, roleCap].filter(Boolean).join(" · ");
+    const cap = [name, meta].filter(Boolean).join(" · ");
+    const cb = a.cecilia || "";
+    const annVid = a.announce_video || "";
+    const owners = a.owner_units || [];
+    const owner = owners[0] || null;
+    const ownerHref = owner ? (owner.href || `#/u/${encodeURIComponent(owner.base_id || owner.id)}`) : "";
+    const ownerName = owner ? (owner.name || owner.base_id || owner.id) : "";
+    // data-cb / data-arti / data-ann-video / data-owner-* → lightbox action bar.
+    // Thumb pills: ↗ cb + owner unit (stopPropagation via .a-cb / .a-owner).
+    return `
+      <a class="artifact-cell${a.new ? ' is-new' : ''}${a.announced ? ' is-ann' : ''}${a.unreleased ? ' is-unrel' : ''}" href="${escapeHtml(a.art_full)}" data-zoom data-cap="${escapeHtml(cap)}" data-arti="1"${cb ? ` data-cb="${escapeHtml(cb)}"` : ""}${annVid ? ` data-ann-video="${escapeHtml(annVid)}"` : ""}${ownerHref ? ` data-owner-href="${escapeHtml(ownerHref)}" data-owner-name="${escapeHtml(ownerName)}"` : ""} target="_blank" rel="noopener">
+        <img loading="lazy" src="${escapeHtml(a.art_full)}" alt="${escapeHtml(name)}">
+        ${a.unreleased ? `<span class="unrel-badge" title="${escapeHtml(E7.t('badge_unrel_t'))}">${E7.t('badge_unrel')}</span>` : ""}
+        ${a.announced ? `<span class="ann-badge" title="${escapeHtml(E7.t('badge_announced_t', {}, 'officially previewed — not in gacha yet'))}">${E7.t('badge_announced', {}, 'ANNOUNCED')}</span>` : ""}
+        ${a.new && !a.announced ? `<span class="new-badge">${E7.t('badge_new')}</span>` : ""}
+        ${ownerHref ? `<button class="a-owner" type="button" data-owner-href="${escapeHtml(ownerHref)}" title="${escapeHtml(E7.t('lb_owner_unit_t', {}, 'Open owner unit page'))}">${escapeHtml(ownerName)}</button>` : ""}
+        <span class="a-name">${escapeHtml(name)}${meta ? `<span class="a-meta">${escapeHtml(meta)}</span>` : ""}</span>
+        ${cb ? `<button class="a-cb" data-cb="${escapeHtml(cb)}" type="button" title="${escapeHtml(E7.t('arti_cb_t'))}">↗ cb</button>` : ""}
+      </a>`;
+  }).join("");
+}
+
+function artifacts(opts) {
+  opts = opts || {};
   setNav("artifacts");
   if (!ARTIFACTS.length) {
     $("#app").innerHTML = `<p class="empty">${E7.t('empty_artifacts')}</p>`;
     return;
   }
+  const live = document.getElementById("qArti");
+  if (live && document.activeElement === live) artiSearchQ = live.value;
   const q = artiSearchQ.trim().toLowerCase();
   const list = ARTIFACTS.filter(a => {
     if (artiRarityF.size && !artiRarityF.has(a.rarity)) return false;
     if (artiRoleF.size  && !artiRoleF.has(artiRoleOf(a))) return false;
     if (!q) return true;
     return (a.name && a.name.toLowerCase().includes(q))
-        || E7.artifactName(a).toLowerCase().includes(q)
+        || (E7.artifactName(a) || "").toLowerCase().includes(q)
         || a.id.toLowerCase().includes(q);
   });
   const rarities = [5, 4, 3, 2, 1];
@@ -1562,15 +2604,26 @@ function artifacts() {
     if (role) roleCounts[role] = (roleCounts[role]||0)+1;
   }
   const roleList = ARTI_ROLES.filter(r => roleCounts[r]);
+  const gridHtml = artifactCellsHtml(list);
+  const countHtml = escapeHtml(E7.t('arti_count', {n: list.length, total: ARTIFACTS.length}));
+
+  // Soft path: keep #qArti mounted (same mobile keystroke fix as hub).
+  const gridEl = document.getElementById("artiGrid");
+  const countEl = document.getElementById("artiCount");
+  if (opts.soft && gridEl && countEl && live) {
+    countEl.textContent = E7.t('arti_count', {n: list.length, total: ARTIFACTS.length});
+    gridEl.innerHTML = gridHtml;
+    return;
+  }
 
   $("#app").innerHTML = `
     <div class="bar">
       <div class="q-wrap">
         <input id="qArti" placeholder="${escapeHtml(E7.t('arti_search_ph'))}"
-               value="${escapeHtml(artiSearchQ)}" inputmode="search">
+               value="${escapeHtml(artiSearchQ)}" inputmode="search" enterkeyhint="search" autocapitalize="off" autocorrect="off" spellcheck="false">
       </div>
     </div>
-    <p class="section-label first">${escapeHtml(E7.t('arti_count', {n: list.length, total: ARTIFACTS.length}))}</p>
+    <p class="section-label first" id="artiCount">${countHtml}</p>
     <div class="kinds" id="artiRarity">
       ${rarities.filter(r => rarityCounts[r]).map(r => `
         <button data-r="${r}" class="${artiRarityF.has(r)?'on':''}">${artiRarityStars(r)}<span class="n">${rarityCounts[r]}</span></button>`).join("")}
@@ -1579,31 +2632,8 @@ function artifacts() {
       ${roleList.map(r => `
         <button data-role="${r}" class="${artiRoleF.has(r)?'on':''}">${escapeHtml(E7.gameTerm("class", r))}<span class="n">${roleCounts[r]}</span></button>`).join("")}
     </div>
-    <div class="artifact-grid">${list.map(a => {
-      const name = E7.artifactName(a) || a.id;
-      const role = artiRoleOf(a);
-      const roleCap = role ? E7.gameTerm("class", role) : "";
-      const rarity = a.rarity ? `${a.rarity}★` : "";
-      const meta = [rarity, roleCap].filter(Boolean).join(" · ");
-      const cap = [name, meta].filter(Boolean).join(" · ");
-      const cb = a.cecilia || "";
-      return `
-      <a class="artifact-cell${a.new ? ' is-new' : ''}" href="${escapeHtml(a.art_full)}" data-zoom data-cap="${escapeHtml(cap)}" target="_blank" rel="noopener">
-        <img loading="lazy" src="${escapeHtml(a.art_full)}" alt="${escapeHtml(name)}">
-        ${a.new ? `<span class="new-badge">${E7.t('badge_new')}</span>` : ""}
-        <span class="a-name">${escapeHtml(name)}${meta ? `<span class="a-meta">${escapeHtml(meta)}</span>` : ""}</span>
-        ${cb ? `<button class="a-cb" data-cb="${escapeHtml(cb)}" type="button" title="${escapeHtml(E7.t('arti_cb_t'))}">↗ cb</button>` : ""}
-      </a>`;
-    }).join("")}</div>`;
+    <div class="artifact-grid" id="artiGrid">${gridHtml}</div>`;
 
-  document.querySelectorAll(".a-cb").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const url = btn.dataset.cb;
-      if (url) window.open(url, "_blank", "noopener");
-    });
-  });
   document.querySelectorAll("#artiRarity button").forEach(b => b.onclick = () => {
     const r = +b.dataset.r;
     artiRarityF.has(r) ? artiRarityF.delete(r) : artiRarityF.add(r);
@@ -1615,19 +2645,11 @@ function artifacts() {
     artifacts();
   });
   const qEl = document.getElementById("qArti");
-  // Debounced for the same reason as the hub search (full-grid re-render).
+  // Debounced soft re-render — never destroy the focused input mid-type.
   if (qEl) qEl.oninput = (e) => {
     artiSearchQ = e.target.value;
     clearTimeout(window._qArtiDebounce);
-    window._qArtiDebounce = setTimeout(() => {
-      artifacts();
-      queueMicrotask(() => {
-        const n = document.getElementById("qArti");
-        if (!n) return;
-        n.focus();
-        n.setSelectionRange(artiSearchQ.length, artiSearchQ.length);
-      });
-    }, 120);
+    window._qArtiDebounce = setTimeout(() => artifacts({ soft: true }), 120);
   };
 }
 
@@ -1874,7 +2896,7 @@ function renderStoryChapter(cid, meta, flat, idx, beats) {
 
 function route() {
   const h = location.hash;
-  const isHub = !(h.startsWith("#/u/") || h.startsWith("#/story") || h === "#/updates" || h === "#/emotes" || h === "#/wallpapers" || h === "#/artifacts" || h === "#/about");
+  const isHub = !(h.startsWith("#/u/") || h.startsWith("#/story") || h.startsWith("#/updates") || h === "#/emotes" || h === "#/wallpapers" || h === "#/artifacts" || h === "#/about");
   // Release IntersectionObserver references to the previous hub render before
   // any view swaps in — otherwise the detached <img> nodes stay pinned.
   if (!isHub && _hubImgObs) { _hubImgObs.disconnect(); _hubImgObs = null; }
@@ -1884,7 +2906,7 @@ function route() {
     detail(base, vsuf || "");
   } else if (h.startsWith("#/story/")) storyChapter(decodeURIComponent(h.slice(8)));
   else   if (h === "#/story")       story();
-  else   if (h === "#/updates")    updates();
+  else   if (h === "#/updates" || h.startsWith("#/updates/")) updates();
   else   if (h === "#/emotes")     emotes();
   else   if (h === "#/wallpapers") wallpapers();
   else   if (h === "#/artifacts")  artifacts();
@@ -1928,13 +2950,75 @@ document.querySelectorAll("nav button").forEach(b =>
 // rendered after page-load (gallery, emotes, wallpapers, …) without needing
 // per-route wiring. Right-click / middle-click still hit the link's href so
 // "open in new tab" keeps working.
+// Optional per-link actions (artifacts): data-cb → ceciliabot, data-arti →
+// Artifacts tab — rendered as pills under the open image so Updates Featured
+// (and the Artifacts grid) can still reach CB after zooming.
 const LB        = document.getElementById("lightbox");
 const LB_IMG    = document.getElementById("lbImage");
 const LB_AUDIO  = document.getElementById("lbAudio");
 const LB_VIDEO  = document.getElementById("lbVideo");
 const LB_DL     = document.getElementById("lbDownload");
 const LB_CAP    = document.getElementById("lbCaption");
-function openLightbox(src, caption) {
+const LB_ACT    = document.getElementById("lbActions");
+function setLbActions(actions) {
+  if (!LB_ACT) return;
+  if (!actions || !actions.length) {
+    LB_ACT.innerHTML = "";
+    LB_ACT.hidden = true;
+    return;
+  }
+  LB_ACT.hidden = false;
+  LB_ACT.innerHTML = actions.map(a => {
+    const label = escapeHtml(a.label || "");
+    const title = escapeHtml(a.title || a.label || "");
+    const href = escapeHtml(a.href || "#");
+    if (a.external) {
+      return `<a class="lb-act" href="${href}" target="_blank" rel="noopener" title="${title}">${label}</a>`;
+    }
+    // In-site hash routes: close lightbox so the destination is usable.
+    return `<a class="lb-act lb-act-local" href="${href}" title="${title}">${label}</a>`;
+  }).join("");
+}
+function actionsFromZoomAnchor(a) {
+  if (!a || !a.dataset) return [];
+  const out = [];
+  if (a.dataset.annVideo) {
+    out.push({
+      href: a.dataset.annVideo,
+      label: E7.t("btn_announce_video", {}, "▶ official preview"),
+      title: E7.t("btn_announce_video_t", {}, "official skill / hero preview"),
+      external: true,
+    });
+  }
+  if (a.dataset.cb) {
+    out.push({
+      href: a.dataset.cb,
+      label: E7.t("lb_cb", {}, "↗ cb"),
+      title: E7.t("arti_cb_t", {}, "open on ceciliabot"),
+      external: true,
+    });
+  }
+  // Signature owner unit (artifact → hero page). data-owner-href="#/u/c####"
+  if (a.dataset.ownerHref) {
+    const lab = a.dataset.ownerName || E7.t("lb_owner_unit", {}, "Unit");
+    out.push({
+      href: a.dataset.ownerHref,
+      label: lab,
+      title: E7.t("lb_owner_unit_t", {}, "Open owner unit page"),
+      external: false,
+    });
+  }
+  if (a.dataset.arti === "1" || a.dataset.arti === "true") {
+    out.push({
+      href: "#/artifacts",
+      label: E7.t("nav_artifacts", {}, "Artifacts"),
+      title: E7.t("lb_artifacts_t", {}, "Open the Artifacts tab"),
+      external: false,
+    });
+  }
+  return out;
+}
+function openLightbox(src, caption, actions) {
   LB.classList.remove("audio", "video");
   LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
   LB_VIDEO.pause(); LB_VIDEO.removeAttribute("src");
@@ -1943,6 +3027,7 @@ function openLightbox(src, caption) {
   LB_DL.href = src;
   LB_DL.download = decodeURIComponent(src.split("/").pop() || "asset");
   LB_CAP.textContent = caption || "";
+  setLbActions(actions || []);
   LB.classList.add("open");
   LB.setAttribute("aria-hidden", "false");
 }
@@ -1954,6 +3039,7 @@ function openLightboxAudio(src, caption) {
   LB_DL.href = src;
   LB_DL.download = decodeURIComponent(src.split("/").pop() || "clip") ;
   LB_CAP.textContent = caption || "";
+  setLbActions([]);
   LB.classList.add("open");
   LB.setAttribute("aria-hidden", "false");
   LB_AUDIO.play().catch(() => {}); // autoplay; ignore if blocked
@@ -1966,6 +3052,7 @@ function openLightboxVideo(src, caption) {
   LB_DL.href = src;
   LB_DL.download = decodeURIComponent(src.split("/").pop() || "illustration");
   LB_CAP.textContent = caption || "";
+  setLbActions([]);
   LB.classList.add("open");
   LB.setAttribute("aria-hidden", "false");
   LB_VIDEO.play().catch(() => {}); // autoplay; ignore if blocked
@@ -1976,10 +3063,31 @@ function closeLightbox() {
   LB_IMG.src = "";
   LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
   LB_VIDEO.pause(); LB_VIDEO.removeAttribute("src");
+  setLbActions([]);
 }
 document.addEventListener("click", (e) => {
   // Modifier-click / non-primary buttons preserve the native link behaviour.
   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+  // Artifact "↗ cb" pill (Artifacts grid + Updates Featured) — open CB without
+  // triggering the parent data-zoom lightbox.
+  const cbBtn = e.target.closest(".a-cb");
+  if (cbBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = cbBtn.dataset.cb;
+    if (url) window.open(url, "_blank", "noopener");
+    return;
+  }
+  // Artifact owner-unit pill — go to unit page without opening the zoom.
+  const ownBtn = e.target.closest(".a-owner");
+  if (ownBtn) {
+    e.preventDefault();
+    e.stopPropagation();
+    const href = ownBtn.dataset.ownerHref || "";
+    // href is "#/u/<base>" — assign hash route (with leading #).
+    if (href) location.hash = href.startsWith("#") ? href : ("#" + href);
+    return;
+  }
   // Inline story-voice play button (reader + theater replay).
   const bvBtn = e.target.closest(".beat-voice");
   if (bvBtn) { e.preventDefault(); e.stopPropagation(); playStoryVoice(bvBtn.dataset.v); return; }
@@ -2008,18 +3116,40 @@ document.addEventListener("click", (e) => {
     }
     return;
   }
+  // FULL S3 badge on a skill card → open the baked full clip; the card's own
+  // anchor keeps opening the short preview (button click must not bubble).
+  const fb = e.target.closest(".full-badge");
+  if (fb) { e.preventDefault(); e.stopPropagation(); openLightbox(fb.dataset.full, fb.dataset.cap || ""); return; }
   // Inline intimacy illustration video → enlarge in the video lightbox.
   const iv = e.target.closest(".intimacy-vid");
   if (iv) { e.preventDefault(); openLightboxVideo(iv.getAttribute("src"), iv.dataset.cap || ""); return; }
   // Intimacy reaction thumbnail → play the clip in the video lightbox.
   const ir = e.target.closest(".intim-react");
   if (ir) { e.preventDefault(); openLightboxVideo(ir.dataset.reactSrc, ir.dataset.cap || ""); return; }
+  // Updates cinema clip (event movie) → video lightbox with sound allowed.
+  const cin = e.target.closest("a[data-cinema]");
+  if (cin) {
+    e.preventDefault();
+    openLightboxVideo(cin.getAttribute("href"), cin.dataset.cap || "");
+    // Event cinematics are voiced — unmute after open (browser may still require a gesture; we are inside one).
+    try { LB_VIDEO.muted = false; } catch (_) {}
+    return;
+  }
   const a = e.target.closest("a[data-zoom]");
   if (!a) return;
   e.preventDefault();
-  openLightbox(a.getAttribute("href"), a.dataset.cap || "");
+  openLightbox(a.getAttribute("href"), a.dataset.cap || "", actionsFromZoomAnchor(a));
 });
 LB.addEventListener("click", (e) => {
+  // In-site action (e.g. Artifacts tab) — close so the destination is visible.
+  const localAct = e.target.closest(".lb-act-local");
+  if (localAct) {
+    closeLightbox();
+    // Let the hash link navigate; no preventDefault.
+    return;
+  }
+  // External action (CB) — leave lightbox open; don't treat as backdrop close.
+  if (e.target.closest(".lb-act") || e.target.closest(".lb-actions")) return;
   // Clicks on backdrop close; clicks on the image / audio / video / download / close don't.
   if (e.target === LB_IMG || e.target === LB_AUDIO || e.target === LB_VIDEO ||
       e.target.closest(".lb-download") || e.target.closest(".lb-audio") ||
