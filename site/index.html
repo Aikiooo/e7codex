@@ -1890,7 +1890,8 @@ function voiceSection(u) {
 let FRAMES_META = null;   // { canvas, face_box, frames: [...] } | null after load fail
 let _framesPromise = null;
 // Arena = classic/seasonal PvP ranks; RTA = World Arena (ssN_rta*).
-const FRAME_CATS = ["all", "arena", "rta", "tournament", "clan", "abyss", "event", "other"];
+// ui = battle hero_s rings + legacy device frames (not unlockable profile borders).
+const FRAME_CATS = ["all", "arena", "rta", "tournament", "clan", "abyss", "event", "ui", "other"];
 
 function unitProfileFaces(u) {
   // Profile-icon faces only: face_<stem>_s.png staged under assets/<unit>/

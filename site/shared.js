@@ -105,6 +105,7 @@ const E7 = (() => {
     frame_cat_clan: "clan",
     frame_cat_abyss: "abyss",
     frame_cat_event: "event",
+    frame_cat_ui: "UI",
     frame_cat_other: "other",
     frame_empty: "no frames loaded — run python tools/build_frames.py",
     frame_no_face: "no profile face (_s) for this unit",
