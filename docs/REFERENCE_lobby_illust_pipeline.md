@@ -193,7 +193,7 @@ Default for `pipeline_illust.py bake` / `run_batch_bake.py` = packs with
 | `vae2aa1` | Aespa multi-layer | (vae2aa2–5 single-layer optional later) |
 | `vt41aa_1` | lang=en | |
 | `vms03c_1` | | |
-| `epma_04` | Episode main | |
+| `epma_04` | Episode main (Salome) | variants: **Idle** + **Story** (`epma_04_story`, deferred bake) |
 | `imgsa_1_1` | 5th anniv group (9 layers) | |
 | `vfr5aa_3` | Frieren event art | |
 | `lobby_prequel_1/2` | Victorica prequel lobbies | |
@@ -272,24 +272,30 @@ Shipped sizes today (all **under** Pages 25 MiB):
 
 ---
 
-## Site: Wallpapers → Animated section
+## Site: Wallpapers → Animated (tab) + unit Illustration
 
-`#/wallpapers` shows a **separate** block under static wallpapers:
+`#/wallpapers` is a **tabbed** page (Animated | Static), same subnav pattern as Updates:
 
-- Data: `site/data/lobby_anims.json`
-- Posters: `site/assets/_illust/posters/*.jpg` (Pages; ~100–200 KB each)
-- Videos: **R2 only** → `https://assets.e7codex.com/illust/<id>.webm`
-- **No auto-load**: poster + “▶ Play · ~N MB” only; click opens the existing video lightbox and then fetches the WebM
-- Unit chips: `units: ["c…"]` → links to `#/u/<slug>` (fill remaining mappings by hand)
+- **Data:** `site/data/lobby_anims.json` (private repo / deploy only — not public GitHub)
+- **Posters:** `site/assets/_illust/posters/*.jpg` (Pages; ~100–200 KB each)
+- **Videos:** **R2 only** → `https://assets.e7codex.com/illust/<stem>.webm`
+- **No auto-load:** poster + “▶ Play · duration · ~N MB”; click opens the video lightbox
+- **Clip variants** (e.g. Salome Idle / Story): `variants[]` on one catalog card — Idle/Story
+  tabs like cosmetic pose pills; Play uses the selected stem (`epma_04` vs `epma_04_story`)
+- **Unit page:** same packs under Illustration (with intimacy), via `units: ["c…"]`
+- **Nav pastille:** gold blink-dot on Wallpapers for ~14 days after a `new_since` wave;
+  clears on first open (`localStorage e7_wp_nav_seen`). Card **NEW** badge is separate
+  (e.g. Aube); do not conflate the two.
 
 Publish videos:
 
 ```powershell
-python tools/_illust_spike/publish_lobby_anims.py           # plan
+python tools/_illust_spike/publish_lobby_anims.py           # hardlink locals
 python tools/_illust_spike/publish_lobby_anims.py --upload  # rclone → r2:e7codex-spine/illust/
 ```
 
 Posters ship with normal Pages deploy (`deploy.ps1`). Videos are never on Pages (25 MiB limit).
+Partial upload is OK if a deferred sibling (e.g. story) is still baking.
 
 ---
 

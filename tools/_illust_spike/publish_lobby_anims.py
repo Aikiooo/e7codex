@@ -125,7 +125,7 @@ def main() -> int:
     if missing:
         print(f"\n{len(missing)} WebM(s) missing from scratch — bake first.")
         if args.upload:
-            return 1
+            print("  Continuing upload for the masters that are present.")
 
     if not args.upload:
         print(

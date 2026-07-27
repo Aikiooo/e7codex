@@ -62,10 +62,26 @@ _archive/
 _combat_backup_*/
 ml_candidate_map.txt
 
-# Lobby/illust bake spike: keep code; never ship staged frames / recipes with paths
+# Lobby/illust bake spike: pipeline code only (no recipes/frames/probes/assets)
 tools/_illust_spike/*
 !tools/_illust_spike/*.py
 !tools/_illust_spike/*.js
 !tools/_illust_spike/*.html
 !tools/_illust_spike/*.md
+# Re-ignore diagnostics even when *.js is allow-listed
+tools/_illust_spike/probe_*.js
+tools/_illust_spike/_probe_*.js
+tools/_illust_spike/*shot.js
+tools/_illust_spike/flowerseq.*
+tools/_illust_spike/v38.html
+tools/_illust_spike/v4.html
+tools/_illust_spike/v42.html
+tools/_illust_spike/bake_D_still.js
+tools/_illust_spike/*.webm
+tools/_illust_spike/*.png
+tools/_illust_spike/_frames*/
+tools/_illust_spike/_r2_illust_stage/
+# Generated lobby posters/videos (local publish + R2; never GitHub)
 site/assets/_illust/
+# Catalog is local/private deploy data (unit slugs + event titles)
+site/data/lobby_anims.json
