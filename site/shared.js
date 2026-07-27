@@ -114,7 +114,11 @@ const E7 = (() => {
     hdr_voice: "Voice", hdr_artwork: "Bundled artwork", hdr_skill_anim: "Skill animation",
     hdr_signature_artifact: "Signature artifact",
     hdr_signature_artifacts: "Signature artifacts",
-    hdr_intimacy: "Intimacy illustration", render_spine: "static render · spine {ver}",
+    hdr_intimacy: "Intimacy illustration",
+    hdr_illustration: "Illustration",
+    badge_intimacy_wallpaper: "Intimacy wallpaper",
+    badge_event_wallpaper: "Event wallpaper",
+    render_spine: "static render · spine {ver}",
     voice_hint: "click a line to play",
     vcat_battle: "Battle", vcat_skill: "Skill", vcat_camping: "Camping", vcat_misc: "Other",
     vgrp_skills: "Skills", vgrp_combat: "Combat", vgrp_status: "Status", vgrp_other: "Idle & misc",
@@ -166,6 +170,22 @@ const E7 = (() => {
     // wallpapers view
     wp_count: "{n} wallpapers · click any to open full-size",
     wp_lobby: "Lobby BG", wp_event: "Event splash", wp_episode: "Episode art", wp_story: "Story bg",
+    wp_page_title: "Wallpapers",
+    wp_page_blurb: "Animated lobby loops and static gallery art — pick a tab.",
+    wp_tab_anim: "Animated",
+    wp_tab_anim_hint: "Lobby / event Spine loops · large WebMs, load on play",
+    wp_tab_static: "Static",
+    wp_tab_static_hint: "Lobby, event, episode, and story stills",
+    wp_anim_hdr: "Animated lobby / event art",
+    wp_anim_blurb:
+      "Full multi-layer Spine loops (HQ WebM). Posters only until you press play — files are large (often 20–180 MB) and load on demand.",
+    wp_anim_play: "▶ Play",
+    wp_anim_size: "~{mb} MB",
+    wp_anim_variants: "Clip variant",
+    wp_anim_unit: "unit page",
+    wp_anim_open_gallery: "Wallpapers",
+    wp_anim_open_gallery_t: "Open in Wallpapers → Animated",
+    wp_anim_none: "No animated lobby packs indexed yet.",
     // errors / empty
     loading: "loading…",
     err_load: "couldn’t load the codex data — check your connection.",
@@ -309,6 +329,7 @@ const E7 = (() => {
 
   return {
     isLocal,
+    CDN,
     spineBase: isLocal ? "assets" : CDN,
     voiceBase: isLocal ? "voice" : CDN + "/voice",
     escapeHtml,

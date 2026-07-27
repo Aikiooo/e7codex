@@ -61,3 +61,11 @@ _archive/
 .spike/
 _combat_backup_*/
 ml_candidate_map.txt
+
+# Lobby/illust bake spike: keep code; never ship staged frames / recipes with paths
+tools/_illust_spike/*
+!tools/_illust_spike/*.py
+!tools/_illust_spike/*.js
+!tools/_illust_spike/*.html
+!tools/_illust_spike/*.md
+site/assets/_illust/

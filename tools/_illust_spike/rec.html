@@ -1,0 +1,472 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="spine-player.css">
+<style>
+  html,body{margin:0;background:#13141d}
+  /* output crop box: the illustration's framed rectangle, set via ?w/&h */
+  #wrap{position:relative;overflow:hidden}
+  .layer{position:absolute;left:0;top:0}
+  .layer .spine-player{background:transparent!important}
+  .layer canvas{background:transparent!important}
+  #rec{position:absolute;left:0;top:0;display:none}
+</style></head><body>
+<div id="wrap"></div>
+<canvas id="rec"></canvas>
+<script src="spine-player.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const base   = params.get("base") || "c1153";
+const order  = (params.get("order") || "").split(",").filter(Boolean);
+const W      = parseInt(params.get("w") || "1200", 10);
+const H      = parseInt(params.get("h") || "1500", 10);
+// premultipliedAlpha differs per layer: character-art atlases (a/b) are authored
+// premultiplied (pma=true → normal-blend details at correct opacity), while the
+// FX atlases (bg/sphere/f) are straight alpha (pma=false → additive ray/glow
+// quads don't show a hard square boundary). `pma=0` forces all false; `pmaoff`
+// is a comma-list of stem substrings that should be pma=false (rest true).
+const PMA    = params.get("pma") !== "0";
+const PMAOFF = (params.get("pmaoff") || "").split(",").filter(Boolean);
+// Slot-name substrings to force-hide across all layers (stray FX quads whose
+// sprite edge is visible, e.g. a rectangular light-leak `rgb_tex_03`). Applied
+// every frame after the animation is sampled, so a color/alpha timeline can't
+// re-show them.
+const EHIDE  = (params.get("ehide") || "").split(",").filter(Boolean);
+// Optional action animation (e.g. `c_04_touch_en`): layers that carry it play it
+// (the character a/b), the rest fall back to their idle loop (see pickIdleAnim).
+// Empty = the idle loop on every layer.
+const ACTANIM = params.get("actanim") || "";
+// Preferred idle/story clip for every layer that has it (e.g. story_en on a
+// multi-layer story stack). Tears/FX on companion layers are authored against
+// this timeline; using short `animation` on char layers while FX play story_*
+// desyncs attachments (tears leave the eyes). Empty → pickIdleAnim per layer.
+const WANTANIM = params.get("anim") || "";
+// Rank-2 CFX primitive `scale` per stem (stem:scale,stem:scale). EffectPlay
+// multiplies node scale by this on top of scaleFactor=BASE_SCALE. world0 framing
+// is DESIGN/BASE_SCALE; without CFX scale the panel sits small with dark FX
+// overscan margins (letterbox). Omitted / 1.0 = identity.
+const SCALES = (() => {
+  const m = Object.create(null);
+  const raw = params.get("scales") || "";
+  for (const part of raw.split(",")) {
+    if (!part) continue;
+    const i = part.lastIndexOf(":");
+    if (i < 0) continue;
+    const stem = part.slice(0, i);
+    const sc = parseFloat(part.slice(i + 1));
+    if (stem && sc > 0 && isFinite(sc)) m[stem] = sc;
+  }
+  return m;
+})();
+// Optional pre-rendered image-sequence layer (e.g. the Spine 4.2.43 flower field,
+// which renders through a different runtime and is baked to PNGs by flowerseq.js).
+// preDir=<dir>&preN=<count>&preDur=<sec>&preZ=<insertPos>. Frames f%04d.png are at the
+// final output WxH already, so no reframe math — just blit the time-indexed frame.
+const PRE_DIR = params.get("preDir") || "";
+const PRE_N   = parseInt(params.get("preN") || "0", 10);
+const PRE_DUR = parseFloat(params.get("preDur") || "0");
+const PRE_Z   = parseInt(params.get("preZ") || "0", 10);  // insert position in `order`
+let preCanvas = null, preImgs = [], preReady = false;
+// Spine layers get z = index*2 so a pre-seq layer can slot at an odd z between two.
+function spineZ(i) { return PRE_DIR ? i * 2 + (i >= PRE_Z ? 2 : 0) : i; }
+const preZpx = PRE_Z * 2 + 1;  // odd z: between order[PRE_Z-1]*2 and order[PRE_Z]*2+2
+function pmaFor(stem) {
+  if (!PMA) return false;
+  return PMAOFF.some((t) => stem.includes(t)) ? false : true;
+}
+/** Prefer common idle names; many event UI stacks lack literal `animation`. */
+function pickIdleAnim(anims) {
+  if (!anims || !anims.length) return null;
+  const names = anims.map((a) => (typeof a === "string" ? a : a.name));
+  // Explicit recipe/URL preference first (story stacks: story_en).
+  if (WANTANIM && names.includes(WANTANIM)) return WANTANIM;
+  // Prefer story_* over short `animation` when both exist — multi-layer story
+  // FX (tears) are timed to story_*, not the 3s idle loop.
+  const story = names.find((n) => /^story_(en|ja|ko|zhs)$/i.test(n));
+  if (story) {
+    // Prefer en, then any story_*.
+    if (names.includes("story_en")) return "story_en";
+    return story;
+  }
+  const prefer = ["animation", "loop", "off_loop", "on", "idle", "normal"];
+  for (const n of prefer) if (names.includes(n)) return n;
+  const loopish = names.find((n) => /loop/i.test(n) && !/intro|enter|touch|end/i.test(n));
+  if (loopish) return loopish;
+  // Avoid one-shots if something longer-lived exists.
+  const nonShot = names.find((n) => !/intro|enter|touch|end|delay/i.test(n));
+  return nonShot || names[0];
+}
+const baseStem = "uieff_illust_" + base;
+const wrap = document.getElementById("wrap");
+wrap.style.width = W + "px"; wrap.style.height = H + "px";
+window.__ready = false; window.__err = []; window.__players = [];
+
+function mk(stem, z, viewport) {
+  return new Promise((res) => {
+    const div = document.createElement("div");
+    div.className = "layer"; div.style.zIndex = z; div.id = "L_" + stem;
+    div.style.width = W + "px"; div.style.height = H + "px";
+    div.dataset.stem = stem;
+    wrap.appendChild(div);
+    // Do not hardcode animation:"animation" — some UI stacks only ship loop/on/off.
+    // SpinePlayer picks animations[0] if omitted; we re-select idle in success.
+    const cfg = {
+      jsonUrl: `${base}/${stem}.json`, atlasUrl: `${base}/${stem}.atlas`,
+      premultipliedAlpha: pmaFor(stem), alpha: true,
+      backgroundColor: "#00000000", showControls: false,
+      success: (p) => {
+        p.__stem = stem;
+        const idle = pickIdleAnim(p.skeleton.data.animations);
+        if (idle) {
+          try {
+            p.animationState.setAnimation(0, idle, true);
+            p.animationState.apply(p.skeleton);
+          } catch (e) {
+            window.__err.push(stem + " idle anim: " + e);
+          }
+        }
+        // Rank-2 CFX scale: grow mesh in spine units under fixed world0 camera.
+        const sc = SCALES[stem];
+        if (sc && sc !== 1) {
+          p.skeleton.scaleX = sc;
+          p.skeleton.scaleY = sc;
+          p.skeleton.updateWorldTransform();
+        }
+        window.__players.push(p);
+        res(p);
+      },
+      error: (p, e) => { window.__err.push(stem + ": " + e); res(null); },
+    };
+    if (viewport) cfg.viewport = { x: viewport.x, y: viewport.y,
+      width: viewport.width, height: viewport.height,
+      padLeft: 0, padRight: 0, padTop: 0, padBottom: 0 };
+    new spine.SpinePlayer(div, cfg);
+  });
+}
+
+async function setupPreLayer() {
+  if (!PRE_DIR) return;
+  const div = document.createElement("div");
+  div.className = "layer"; div.style.zIndex = preZpx; div.id = "L_pre";
+  div.style.width = W + "px"; div.style.height = H + "px";
+  preCanvas = document.createElement("canvas");
+  preCanvas.width = W; preCanvas.height = H;
+  preCanvas.style.width = W + "px"; preCanvas.style.height = H + "px";
+  div.appendChild(preCanvas); wrap.appendChild(div);
+  preImgs = await Promise.all(Array.from({ length: PRE_N }, (_, i) => new Promise((res) => {
+    const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null);
+    im.src = `${PRE_DIR}/f${String(i).padStart(4, "0")}.png`;
+  })));
+  preReady = true;
+}
+function drawPre(t) {
+  if (!preReady || !preCanvas) return;
+  const idx = ((Math.round((((t % PRE_DUR) + PRE_DUR) % PRE_DUR) / PRE_DUR * PRE_N)) % PRE_N + PRE_N) % PRE_N;
+  const im = preImgs[idx]; const cx = preCanvas.getContext("2d");
+  cx.clearRect(0, 0, preCanvas.width, preCanvas.height);
+  if (im) cx.drawImage(im, 0, 0, preCanvas.width, preCanvas.height);
+}
+
+(async () => {
+  // Load every layer in back-to-front order; viewport is set later via
+  // __reframe(anchorSlotAABB), so no base auto-fit anchor is needed.
+  for (let i = 0; i < order.length; i++) await mk(order[i], spineZ(i), null);
+  await setupPreLayer();
+  // Halt each player's internal requestAnimationFrame loop. We drive rendering
+  // explicitly via drawFrame(false) in __seek, so leaving the loops running just
+  // burns GPU/memory on every layer every frame — with heavy rigs (Notos's 247
+  // fire-particle slots x 5 layers) that exhausts Chromium and crashes the tab
+  // mid-bake (Target closed). Stopping them is also a big speedup.
+  for (const p of window.__players) p.stopRequestAnimationFrame = true;
+  // Switch the character layers onto the requested action animation; FX layers
+  // that don't carry it keep their idle track (pickIdleAnim — not always "animation").
+  if (ACTANIM) {
+    for (const p of window.__players) {
+      const has = p.skeleton.data.animations.some((a) => a.name === ACTANIM);
+      const name = has ? ACTANIM : pickIdleAnim(p.skeleton.data.animations);
+      if (name) {
+        p.animationState.setAnimation(0, name, !has);
+        p.animationState.apply(p.skeleton);
+      }
+    }
+  }
+  window.__ready = true;
+})();
+
+// Deterministic seek: pause every player, set its track time, apply + draw.
+// Decouples output fps from (slow, software-GL) render speed and yields a
+// seamless loop. Returns the loop duration (max across layers).
+//
+// Phase-lock (shared master clock = max layer duration).
+// Independent per-layer `t % layerDur` restarts shorter clips mid-body-cycle
+// (Luluca waves 6s vs body float 8s → waves re-loop while she is still mid-bob).
+// Threshold is shared with __phaseReport / bake logs / pipeline audit-sync.
+const PHASE_NEAR_RATIO = 0.5;
+// Policy under master time mt:
+//   • near-length ambient (dur >= PHASE_NEAR_RATIO * master): time-warp into
+//     the master period so continuous FX keep moving and complete one cycle
+//     per float (stretch 6s waves over 8s — no freeze, no early restart).
+//   • much shorter ambient (stars, particles): keep looping under the shared
+//     clock (`mt % dur`) so they don't crawl-slow over a long story clip.
+//   • zero-duration / missing: follow mt.
+window.__masterDur = function () {
+  let d = 0;
+  for (const p of window.__players) {
+    const tr = p.animationState.getCurrent(0);
+    if (tr && tr.animation && tr.animation.duration > d) d = tr.animation.duration;
+  }
+  return d;
+};
+window.__dur = function () {
+  // For an action clip the loop length is the action's own duration (a one-shot
+  // reaction), not the longer ambient FX idle — return the action-bearing layer's
+  // track. For the idle loop, use the max across layers.
+  if (ACTANIM) {
+    for (const p of window.__players) {
+      const tr = p.animationState.getCurrent(0);
+      if (tr && tr.animation && tr.animation.name === ACTANIM) return tr.animation.duration;
+    }
+  }
+  return window.__masterDur();
+};
+/** How each layer is mapped onto the master period (for bake logs / audits). */
+window.__phaseReport = function () {
+  const master = window.__masterDur() || 0;
+  const layers = [];
+  for (const p of window.__players) {
+    const tr = p.animationState && p.animationState.getCurrent(0);
+    const a = tr && tr.animation;
+    const stem = p.__stem || "?";
+    if (!a) {
+      layers.push({ stem, anim: null, dur: null, policy: "none" });
+      continue;
+    }
+    const dur = a.duration;
+    let policy = "follow";
+    if (dur > 0 && master > 0) {
+      if (Math.abs(dur - master) < 1e-3) policy = "master";
+      else if (dur >= master * PHASE_NEAR_RATIO) policy = "near-stretch";
+      else policy = "short-loop";
+    } else if (dur > 0) {
+      policy = "short-loop";
+    }
+    layers.push({ stem, anim: a.name, dur, policy });
+  }
+  return { master, nearRatio: PHASE_NEAR_RATIO, layers };
+};
+window.__seek = function (t) {
+  const master = window.__masterDur() || 0;
+  const mt = master > 0 ? ((t % master) + master) % master : t;
+  for (const p of window.__players) {
+    p.paused = true;
+    const tr = p.animationState.getCurrent(0);
+    if (tr && tr.animation) {
+      const dur = tr.animation.duration;
+      if (dur > 0 && master > 0) {
+        if (dur >= master * PHASE_NEAR_RATIO) {
+          // Near-length: stretch/compress so body + ambient restart together
+          // and continuous motion (float/waves) stays phase-locked.
+          tr.trackTime = (mt / master) * dur;
+        } else {
+          // Short ambient under a long master: keep looping on the shared clock.
+          tr.trackTime = mt % dur;
+        }
+      } else if (dur > 0) {
+        tr.trackTime = mt % dur;
+      } else {
+        tr.trackTime = mt;
+      }
+    }
+    p.animationState.apply(p.skeleton);
+    if (EHIDE.length) {
+      for (const slot of p.skeleton.slots) {
+        if (EHIDE.some((tok) => slot.data.name.includes(tok))) slot.color.a = 0;
+      }
+    }
+    p.skeleton.updateWorldTransform();
+    p.drawFrame(false);
+  }
+  drawPre(t);
+};
+
+// World-space AABB of a named slot's region/mesh attachment (setup pose),
+// across all loaded players. Used to anchor the crop on the picture frame.
+window.__aabb = function (slotName) {
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9, found = false;
+  for (const p of window.__players) {
+    const sk = p.skeleton; if (!sk) continue;
+    const slot = sk.findSlot(slotName); if (!slot) continue;
+    const att = slot.getAttachment(); if (!att) continue;
+    sk.updateWorldTransform();
+    let wv;
+    if (typeof att.worldVerticesLength === "number") {  // mesh
+      const n = att.worldVerticesLength; wv = new Array(n);
+      att.computeWorldVertices(slot, 0, n, wv, 0, 2);
+    } else {                                            // region
+      wv = new Array(8);
+      att.computeWorldVertices(slot.bone, wv, 0, 2);
+    }
+    for (let i = 0; i < wv.length; i += 2) {
+      minX = Math.min(minX, wv[i]); maxX = Math.max(maxX, wv[i]);
+      minY = Math.min(minY, wv[i + 1]); maxY = Math.max(maxY, wv[i + 1]);
+    }
+    found = true;
+  }
+  return found ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2,
+                   width: maxX - minX, height: maxY - minY } : null;
+};
+
+// Rank-1 engine ortho for CompositiveEffect2D / EffectPlay defaults:
+//   BASE_SCALE = (DESIGN_H / MODEL_DESIGN_HEIGHT) * 0.4
+//   WORLD_W0   = DESIGN_W / BASE_SCALE
+//   WORLD_H0   = DESIGN_H / BASE_SCALE
+// EffectPlay: scaleFactor defaults to BASE_SCALE, scale to 1; node at screen
+// center ⇒ spine ortho is WORLD_W0 x WORLD_H0 about the skeleton origin (0,0).
+// Provenance: s3_exact/docs/layout_constants.json + BATTLE_LAYOUT.md (LuaJIT).
+window.__world0_aabb = function (designW, designH) {
+  designW = designW || 1920;
+  designH = designH || 1080;
+  const MODEL_DESIGN_HEIGHT = 640;
+  const BASE_SCALE = (designH / MODEL_DESIGN_HEIGHT) * 0.4;
+  return {
+    x: 0,
+    y: 0,
+    width: designW / BASE_SCALE,
+    height: designH / BASE_SCALE,
+    baseScale: BASE_SCALE,
+  };
+};
+
+// Rank-2 char skeleton framing: spine JSON skeleton.width/height of the
+// primary character layer, centered on that layer's runtime mesh AABB center.
+// Primary = player whose JSON stem has no CFX suffix (_b / _bg_b / _bg_f / _f),
+// else the widest authored skeleton (hands span). Used when slot anchors (e.g.
+// `bg`) are FX mats wider than the character composition (lobby illust packs).
+window.__char_skel_aabb = function () {
+  function stemOf(p) {
+    try {
+      const u = (p.jsonUrl || p.config && p.config.jsonUrl || "") + "";
+      const base = u.split("/").pop() || "";
+      return base.replace(/\.json$/i, "");
+    } catch (e) { return ""; }
+  }
+  function isPrimaryStem(s) {
+    if (!s) return false;
+    return !/_(bg_[bf]|b|f)$/i.test(s);
+  }
+  const scored = [];
+  for (const p of window.__players) {
+    const sk = p.skeleton; if (!sk || !sk.data) continue;
+    const sw = sk.data.width || 0, sh = sk.data.height || 0;
+    if (sw <= 0 || sh <= 0) continue;
+    const stem = stemOf(p);
+    sk.updateWorldTransform();
+    let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9, n = 0;
+    for (const slot of sk.slots) {
+      const att = slot.getAttachment && slot.getAttachment();
+      if (!att) continue;
+      let wv;
+      try {
+        if (typeof att.worldVerticesLength === "number") {
+          const nv = att.worldVerticesLength; wv = new Array(nv);
+          att.computeWorldVertices(slot, 0, nv, wv, 0, 2);
+        } else {
+          wv = new Array(8);
+          att.computeWorldVertices(slot.bone, wv, 0, 2);
+        }
+      } catch (e) { continue; }
+      for (let i = 0; i < wv.length; i += 2) {
+        minX = Math.min(minX, wv[i]); maxX = Math.max(maxX, wv[i]);
+        minY = Math.min(minY, wv[i + 1]); maxY = Math.max(maxY, wv[i + 1]);
+        n++;
+      }
+    }
+    scored.push({
+      stem, primary: isPrimaryStem(stem), sw, sh,
+      x: n ? (minX + maxX) / 2 : 0,
+      y: n ? (minY + maxY) / 2 : 0,
+    });
+  }
+  if (!scored.length) return null;
+  // Prefer primary stem; among equals, prefer wider skeleton.
+  scored.sort((a, b) => {
+    if (a.primary !== b.primary) return a.primary ? -1 : 1;
+    return b.sw - a.sw;
+  });
+  const best = scored[0];
+  return { x: best.x, y: best.y, width: best.sw, height: best.sh };
+};
+
+// Resize the crop box + every layer to newW x newH and pin all players to the
+// given world AABB (optionally padded by `pad` fraction), so the output frames
+// exactly the picture rectangle with the outer effects clipped away.
+// crop = {t,b,l,r} fractions of the rectangle to trim from each edge.
+window.__reframe = function (aabb, newW, newH, pad, crop) {
+  pad = pad || 0; crop = crop || {};
+  const ct = crop.t || 0, cb = crop.b || 0, cl = crop.l || 0, cr = crop.r || 0;
+  const fullW = aabb.width * (1 + pad), fullH = aabb.height * (1 + pad);
+  // full rectangle edges (spine Y is up: top = cy + h/2)
+  const left = aabb.x - fullW / 2, right = aabb.x + fullW / 2;
+  const bottom = aabb.y - fullH / 2, top = aabb.y + fullH / 2;
+  // trimmed edges
+  const L = left + fullW * cl, R = right - fullW * cr;
+  const B = bottom + fullH * cb, T = top - fullH * ct;
+  const vw = R - L, vh = T - B;
+  const vx = L, vy = B;
+  wrap.style.width = newW + "px"; wrap.style.height = newH + "px";
+  for (const el of document.querySelectorAll(".layer")) {
+    el.style.width = newW + "px"; el.style.height = newH + "px";
+  }
+  // The pre-rendered seq is baked at the final output size; match the canvas buffer.
+  if (preCanvas) {
+    preCanvas.width = newW; preCanvas.height = newH;
+    preCanvas.style.width = newW + "px"; preCanvas.style.height = newH + "px";
+  }
+  for (const p of window.__players) {
+    p.currentViewport = { x: vx, y: vy, width: vw, height: vh,
+      padLeft: 0, padRight: 0, padTop: 0, padBottom: 0 };
+    p.previousViewport = null;
+    p.drawFrame(false);
+  }
+};
+
+// Composite all layer canvases (in DOM/z order) onto #rec each frame and
+// record a WebM via MediaRecorder. Returns a base64 string.
+window.__record = function (durationMs, fps, bg) {
+  return new Promise((resolve) => {
+    const rec = document.getElementById("rec");
+    rec.width = W; rec.height = H;
+    const ctx = rec.getContext("2d");
+    // gather layer canvases sorted by z-index ascending (back to front)
+    const layers = [...document.querySelectorAll(".layer")].sort(
+      (a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0));
+    const canvasOf = (el) => el.querySelector("canvas");
+    let raf;
+    function draw() {
+      ctx.fillStyle = bg || "#13141d";
+      ctx.fillRect(0, 0, W, H);
+      for (const el of layers) {
+        const c = canvasOf(el);
+        if (c) try { ctx.drawImage(c, 0, 0, W, H); } catch (e) {}
+      }
+      raf = requestAnimationFrame(draw);
+    }
+    draw();
+    const stream = rec.captureStream(fps);
+    const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+      ? "video/webm;codecs=vp9" : "video/webm;codecs=vp8";
+    const br = Math.min(50e6, Math.max(4e6, W * H * fps * 0.05));
+    const mr = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: br });
+    const chunks = [];
+    mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    mr.onstop = async () => {
+      cancelAnimationFrame(raf);
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const buf = await blob.arrayBuffer();
+      let bin = ""; const u8 = new Uint8Array(buf);
+      for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+      resolve(btoa(bin));
+    };
+    mr.start();
+    setTimeout(() => mr.stop(), durationMs);
+  });
+};
+</script></body></html>

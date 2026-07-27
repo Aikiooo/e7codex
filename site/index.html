@@ -55,9 +55,23 @@
   .brand:hover{color:var(--text)}
   .brand small{display:block;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.32em;color:var(--mut);text-transform:uppercase;margin-top:2px}
   nav{display:flex;gap:4px;margin-left:auto}
-  nav button{background:none;border:1px solid transparent;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:9px 16px;cursor:pointer;border-radius:2px;transition:.2s;flex:0 0 auto}
+  nav button{background:none;border:1px solid transparent;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:9px 16px;cursor:pointer;border-radius:2px;transition:.2s;flex:0 0 auto;display:inline-flex;align-items:center;gap:7px}
   nav button:hover{color:var(--text)}
   nav button.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.06)}
+  /* Small gold dot on Wallpapers nav — dismisses after first open, max ~2 weeks */
+  nav button .nav-pastille{
+    width:7px;height:7px;border-radius:50%;flex:0 0 auto;
+    background:linear-gradient(145deg,#f3d79a,#e6b86e);
+    box-shadow:0 0 0 1px rgba(13,14,22,.45),0 0 8px rgba(230,184,110,.45);
+    animation:nav-pastille-blink 1.6s ease-in-out infinite;
+  }
+  @keyframes nav-pastille-blink{
+    0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 1px rgba(13,14,22,.45),0 0 8px rgba(230,184,110,.45)}
+    50%{opacity:.35;transform:scale(.88);box-shadow:0 0 0 1px rgba(13,14,22,.45),0 0 3px rgba(230,184,110,.2)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    nav button .nav-pastille{animation:none}
+  }
   .lang-sel{background:rgba(255,255,255,.02);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.08em;padding:8px 10px;margin-left:6px;border-radius:2px;cursor:pointer;flex:0 0 auto;align-self:center}
   .lang-sel:hover{color:var(--text)}
   .lang-sel option{background:var(--ink,#14151d);color:var(--text)}
@@ -96,6 +110,10 @@
   .new-badge{position:absolute;top:8px;left:8px;z-index:3;background:linear-gradient(95deg,#e6b86e,#f3d79a);color:#13141d;font-family:'Spline Sans Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.12em;padding:3px 8px;border-radius:2px;text-transform:uppercase;box-shadow:0 2px 9px rgba(0,0,0,.45)}
   /* Wallpaper cells already carry a category chip at top-left — push NEW to the right. */
   .wallpaper-cell .new-badge{left:auto;right:6px;top:6px}
+  /* Animated lobby cards: top-left of poster */
+  .wp-anim-card .new-badge{top:6px;left:6px}
+  /* Unit Illustration event wallpaper: Event badge is top-left → NEW top-right */
+  .illust-card > .new-badge{left:auto;right:6px;top:6px}
   /* Emote rows aren't positioned cards — render NEW as an inline chip by the name. */
   .new-badge.inline{position:static;display:inline-block;margin-left:8px;vertical-align:middle;box-shadow:none}
   /* ANNOUNCED — official kit/preview out, gacha not open yet. Violet so it
@@ -372,6 +390,25 @@
   .wallpaper-cell img{width:100%;height:100%;display:block;object-fit:cover}
   .wallpaper-cell .wp-name{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(13,14,22,.92) 10%,transparent 90%);padding:14px 14px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
   .wallpaper-cell .wp-cat{position:absolute;top:6px;left:6px;background:rgba(13,14,22,.78);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;letter-spacing:.1em;text-transform:uppercase}
+  /* Animated lobby section — equal-height posters; unit links only in lightbox */
+  .wp-anim-block{margin:0 0 8px}
+  .wp-anim-block .section-label{margin-bottom:6px}
+  .wp-anim-blurb{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);line-height:1.45;max-width:62ch;margin:0 0 16px}
+  .wp-anim-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+  .wp-anim-card{position:relative;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--ink-2);aspect-ratio:16/9}
+  .wp-anim-card:hover{border-color:var(--gold-dim)}
+  .wp-anim-poster{position:absolute;inset:0;background:#000;cursor:pointer;border:0;padding:0;display:block;width:100%;height:100%}
+  .wp-anim-poster img{width:100%;height:100%;display:block;object-fit:cover}
+  .wp-anim-poster .wp-anim-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,9,14,.35);transition:.15s}
+  .wp-anim-poster:hover .wp-anim-play{background:rgba(8,9,14,.5)}
+  .wp-anim-poster .wp-anim-play span{font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);background:rgba(13,14,22,.88);border:1px solid var(--gold-dim);padding:8px 14px;border-radius:3px;white-space:nowrap}
+  /* Idle / Story (etc.) — same pattern as unit cosmetic pose-switch */
+  .wp-anim-variants{position:absolute;left:8px;right:8px;bottom:8px;z-index:2;display:flex;flex-wrap:wrap;gap:5px;justify-content:center;pointer-events:none}
+  .wp-anim-variants button{pointer-events:auto;background:rgba(13,14,22,.88);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;padding:4px 10px;border-radius:2px;cursor:pointer;text-transform:uppercase;backdrop-filter:blur(3px)}
+  .wp-anim-variants button:hover{color:var(--text);border-color:var(--gold-dim)}
+  .wp-anim-variants button.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.12)}
+  /* Unit illustration cards: tabs sit above the bottom title strip */
+  .illust-card > .wp-anim-variants{left:6px;right:6px;bottom:28px}
   .artifact-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
   .artifact-cell{position:relative;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--ink-2);transition:.2s;cursor:pointer;aspect-ratio:378/598;display:block}
   .artifact-cell:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
@@ -416,52 +453,79 @@
      (even font:inherit): .ext.as-btn is more specific than .ext and would undo
      Spline Sans Mono / letter-spacing from the shared pill style. */
   button.ext{-webkit-appearance:none;appearance:none;background:transparent;margin:0}
-  /* Profile frame compositor (TASKS #32) */
-  .frame-modal{position:fixed;inset:0;z-index:90;background:rgba(8,9,14,.82);display:none;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px)}
+  /* Profile frame compositor (TASKS #32)
+     Default: fixed panel, two regions — preview (optional scroll) + frame grid scroll.
+     Only very short viewports fall back to whole-panel scroll. */
+  .frame-modal{position:fixed;inset:0;z-index:90;background:rgba(8,9,14,.82);display:none;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);overscroll-behavior:contain}
   .frame-modal.open{display:flex}
-  .frame-panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;width:min(960px,100%);max-height:min(92vh,900px);display:flex;flex-direction:column;box-shadow:0 24px 60px -20px rgba(0,0,0,.85)}
-  .frame-head{display:flex;align-items:baseline;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .frame-panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;width:min(960px,100%);max-height:min(92vh,900px);height:min(92vh,900px);display:flex;flex-direction:column;min-height:0;overflow:hidden;box-shadow:0 24px 60px -20px rgba(0,0,0,.85)}
+  .frame-head{display:flex;align-items:baseline;gap:12px;padding:16px 18px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap;flex:0 0 auto;background:var(--panel)}
   .frame-head h3{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold);font-weight:600;letter-spacing:.03em}
 
   .frame-close{margin-left:auto;background:none;border:1px solid var(--line);color:var(--mut);width:34px;height:34px;border-radius:3px;cursor:pointer;font-size:18px;line-height:1}
   .frame-close:hover{color:var(--text);border-color:var(--gold-dim)}
-  .frame-body{display:grid;grid-template-columns:220px 1fr;gap:0;min-height:0;flex:1;overflow:hidden}
-  @media(max-width:720px){.frame-body{grid-template-columns:1fr;overflow:auto}}
-  .frame-preview-col{padding:18px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:14px;background:transparent}
-  @media(max-width:720px){.frame-preview-col{border-right:none;border-bottom:1px solid var(--line)}}
-  /* Transparent wrap so panel bg shows through face/frame alpha (no nested tint). */
-  .frame-canvas-wrap{width:168px;height:168px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--line);border-radius:4px;image-rendering:auto}
+  .frame-body{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:0;min-height:0;flex:1 1 auto;overflow:hidden}
+  /* Region 1 — preview column (scrolls only if face picker overflows) */
+  .frame-preview-col{padding:18px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:14px;background:transparent;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  /* Fixed preview box — every frame is 148×148 (official + UI). No jump when switching. */
+  .frame-canvas-wrap{width:168px;height:168px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--line);border-radius:4px;image-rendering:auto}
   .frame-canvas-wrap canvas{width:148px;height:148px;display:block;background:transparent}
-  .frame-dl{width:100%;background:rgba(216,176,106,.12);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.1em;padding:10px 12px;border-radius:3px;cursor:pointer;text-transform:uppercase}
+  .frame-dl{width:100%;flex:0 0 auto;background:rgba(216,176,106,.12);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.1em;padding:10px 12px;border-radius:3px;cursor:pointer;text-transform:uppercase}
   .frame-dl:hover{background:rgba(216,176,106,.2)}
   .frame-dl:disabled{opacity:.4;cursor:default}
-  .frame-faces{width:100%}
+  .frame-faces{width:100%;flex:0 0 auto}
   .frame-faces .ps-label{display:block;margin-bottom:6px}
   .frame-faces-row{display:flex;flex-wrap:wrap;gap:6px}
   .frame-faces-row button{background:var(--ink-2);border:1px solid var(--line);padding:0;border-radius:3px;cursor:pointer;width:44px;height:44px;overflow:hidden}
   .frame-faces-row button img{width:100%;height:100%;object-fit:cover;display:block}
   .frame-faces-row button.on{border-color:var(--gold-dim);box-shadow:0 0 0 1px var(--gold-dim)}
+  /* Region 2 — tools/cats fixed; grid is the main scroll region */
   .frame-pick-col{padding:14px 16px 18px;display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden}
-  .frame-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .frame-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:0 0 auto}
   .frame-tools input{flex:1;min-width:140px;background:var(--ink-2);border:1px solid var(--line);color:var(--text);padding:8px 11px;border-radius:3px;font-family:'Spline Sans Mono',monospace;font-size:12px}
   .frame-tools input:focus{outline:none;border-color:var(--gold-dim)}
-  .frame-cats{display:flex;flex-wrap:wrap;gap:5px}
+  .frame-cats{display:flex;flex-wrap:wrap;gap:5px;flex:0 0 auto}
   .frame-cats button{background:var(--ink-2);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;padding:4px 9px;border-radius:2px;cursor:pointer;text-transform:uppercase}
   .frame-cats button.on{color:var(--gold);border-color:var(--gold-dim)}
-  /* scrollbar-gutter + right pad so the bar never sits on the last column of thumbs */
-  .frame-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;overflow-x:hidden;overflow-y:auto;min-height:0;flex:1;padding:2px 14px 8px 2px;align-content:start;scrollbar-gutter:stable}
-  .frame-cell{background:var(--ink-2);border:1px solid var(--line);border-radius:3px;padding:8px 6px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+  .frame-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;overflow-x:hidden;overflow-y:auto;min-height:0;flex:1 1 auto;padding:2px 14px 8px 2px;align-content:start;scrollbar-gutter:stable;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
+  .frame-cell{background:var(--ink-2);border:1px solid var(--line);border-radius:3px;padding:8px 6px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;-webkit-tap-highlight-color:transparent}
   .frame-cell:hover{border-color:var(--gold-dim)}
   .frame-cell.on{border-color:var(--gold);background:rgba(216,176,106,.08)}
-  /* Stack face under border. Transparent bg — cell's ink-2 shows through PNG alpha
-     (nested gradient was a visible tint vs the cell). */
+  /* Stack face under border. Transparent bg — cell's ink-2 shows through PNG alpha.
+     Face inset set in JS (112/148 ≈ 76% for all). UI faces get border-radius. */
   .frame-thumb{position:relative;width:64px;height:64px;flex:0 0 64px;background:transparent;border-radius:3px;overflow:hidden}
-  .frame-thumb .ft-face{position:absolute;left:12%;top:12%;width:76%;height:76%;object-fit:contain;display:block;pointer-events:none}
+  .frame-thumb .ft-face{position:absolute;object-fit:contain;display:block;pointer-events:none}
+  .frame-thumb .ft-face.ft-ui{border-radius:50%} /* UI rings are thin; square corners bleed */
   .frame-thumb .ft-border{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
   .frame-cell .fn{font-family:'Spline Sans Mono',monospace;font-size:9px;color:var(--mut);text-align:center;line-height:1.2;width:100%;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 0 auto}
   .frame-cell.none-cell{justify-content:center;min-height:96px;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
-  .frame-cell.none-cell .frame-thumb{display:flex;align-items:center;justify-content:center}
-  .frame-cell.none-cell .frame-thumb .ft-face{position:static;left:auto;top:auto;width:76%;height:76%;margin:0 auto}
+  .frame-cell.none-cell .frame-thumb{/* same absolute face layout as other cells */}
+  /* Narrow phones: stack columns, but still pin list height so only the grid scrolls */
+  @media(max-width:720px){
+    .frame-modal{padding:8px;align-items:stretch}
+    .frame-panel{width:100%;max-height:100%;height:100%;border-radius:4px}
+    .frame-head{padding:12px 14px 10px}
+    .frame-head h3{font-size:20px}
+    .frame-body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+    .frame-preview-col{border-right:none;border-bottom:1px solid var(--line);padding:12px 14px;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 14px;overflow:visible;flex:0 0 auto}
+    .frame-canvas-wrap{width:120px;height:120px}
+    .frame-canvas-wrap canvas{width:104px;height:104px}
+    .frame-dl{width:auto;flex:1 1 140px;min-width:120px;padding:10px 12px}
+    .frame-faces{width:100%}
+    .frame-pick-col{padding:10px 12px 12px;min-height:0}
+    .frame-grid{grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px;padding:2px 10px 12px 2px}
+    .frame-thumb{width:56px;height:56px;flex-basis:56px}
+  }
+  /* Very short viewports (landscape phones, split-screen): whole panel scrolls —
+     nested list regions are too tight to use. */
+  @media(max-height:520px){
+    .frame-panel{height:auto;max-height:min(96vh,100%);overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
+    .frame-head{position:sticky;top:0;z-index:2}
+    .frame-body{flex:0 0 auto;overflow:visible;grid-template-rows:none}
+    .frame-preview-col{overflow:visible}
+    .frame-pick-col{overflow:visible}
+    .frame-grid{overflow:visible;flex:none;max-height:none}
+  }
   /* Official kit preview — small YouTube embed (ANNOUNCED units), not a bare button. */
   .ann-preview{margin:0 0 22px;max-width:min(360px,100%)}
   .ann-preview .section-label{margin-top:0;margin-bottom:10px}
@@ -563,20 +627,32 @@
     border:1px solid var(--gold-dim);color:var(--gold);border-radius:3px;
     font-size:10px;letter-spacing:.08em;padding:3px 8px;cursor:pointer;font-family:inherit}
   .full-badge:hover{background:var(--gold-dim);color:#13141d}
-  .intimacy-gallery{margin-top:4px}
-  .intimacy-gallery a{display:block;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000;max-width:760px}
-  .intimacy-gallery a:hover{border-color:var(--gold-dim)}
+  /* Unit illustration stack: intimacy + event/lobby wallpapers under one header. */
+  .illust-stack{display:flex;flex-direction:column;gap:10px;margin-top:4px;max-width:760px}
+  .illust-card{position:relative;display:block;width:100%;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000}
+  .illust-card:hover{border-color:var(--gold-dim)}
+  .illust-card .il-badge{position:absolute;top:6px;left:6px;z-index:1;background:rgba(13,14,22,.78);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;letter-spacing:.1em;text-transform:uppercase;pointer-events:none}
+  .intimacy-gallery{position:relative;margin:0}
+  .intimacy-gallery a{display:block;border:0;border-radius:0;overflow:hidden;background:#000;max-width:none}
+  .intimacy-gallery a:hover{border-color:transparent}
   .intimacy-gallery img{width:100%;display:block}
-  .intimacy-vid{display:block;width:100%;max-width:760px;border:1px solid var(--line);border-radius:3px;background:#000;cursor:zoom-in}
-  .intimacy-vid:hover{border-color:var(--gold-dim)}
+  .intimacy-vid{display:block;width:100%;border:0;border-radius:0;background:#000;cursor:zoom-in}
+  .intimacy-vid:hover{border-color:transparent}
   /* Reaction clips: poster thumbnails that open the clip in the video lightbox. */
-  .intim-reacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;max-width:760px}
+  .intim-reacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:0;max-width:760px}
   .intim-react{position:relative;flex:0 0 auto;width:148px;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000;cursor:zoom-in;text-decoration:none}
   .intim-react:hover{border-color:var(--gold-dim)}
   .intim-react img{display:block;width:148px;height:75px;object-fit:cover}
   .intim-react .ir-label{position:absolute;left:0;right:0;bottom:0;padding:2px 6px;font-size:11px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.75))}
   .intim-react .ir-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;pointer-events:none}
   .intim-react .ir-play::before{content:"";border-style:solid;border-width:6px 0 6px 10px;border-color:transparent transparent transparent #fff;margin-left:2px}
+  /* Event/lobby wallpapers (same WebM as Wallpapers → Animated). */
+  .intim-lobby-card{position:relative;display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:0;overflow:hidden;background:#000;cursor:pointer;padding:0;font:inherit;text-align:left}
+  .intim-lobby-card img{display:block;width:100%;height:100%;object-fit:cover}
+  .intim-lobby-card .il-scrim{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,9,14,.32);transition:.15s;pointer-events:none}
+  .intim-lobby-card:hover .il-scrim{background:rgba(8,9,14,.48)}
+  .intim-lobby-card .il-play{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);background:rgba(13,14,22,.88);border:1px solid var(--gold-dim);padding:7px 12px;border-radius:3px;white-space:nowrap}
+  .intim-lobby-card .il-label{position:absolute;left:0;right:0;bottom:0;padding:18px 12px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--gold);background:linear-gradient(0deg,rgba(13,14,22,.92) 12%,transparent 100%);pointer-events:none}
   .voice-actors{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 16px}
   .voice-actors .va{display:flex;gap:7px;align-items:baseline;font-size:14px}
   .voice-actors .va .lang{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--mut);min-width:22px}
@@ -598,7 +674,16 @@
   .lightbox.audio{cursor:default}
   .lightbox.audio .lb-audio{display:block;width:min(440px,90vw)}
   .lb-video{display:none}
-  .lightbox.video .lb-video{display:block;max-width:100%;max-height:100%;object-fit:contain;cursor:default;box-shadow:0 8px 40px rgba(0,0,0,.7);background:rgba(20,21,30,.5)}
+  /* Video lightbox: cap height so the WebM never sits under unit actions /
+     caption (or native controls overlapping those pills on tall displays). */
+  .lightbox.video .lb-video{
+    display:block;
+    max-width:min(100%,calc(100vw - 48px));
+    max-height:calc(100vh - var(--lb-top-chrome) - var(--lb-bottom-chrome));
+    width:auto;height:auto;
+    object-fit:contain;cursor:default;
+    box-shadow:0 8px 40px rgba(0,0,0,.7);background:rgba(20,21,30,.5)
+  }
   .section-label{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--mut);margin:30px 0 14px;border-top:1px solid var(--line);padding-top:18px}
   .section-label.first{border-top:none;margin-top:0;padding-top:0}
   .back{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--mut);cursor:pointer;letter-spacing:.12em;margin-bottom:20px;display:inline-block}
@@ -616,8 +701,18 @@
      and shows the asset at max viewport size with a download button. Falls
      back gracefully: links keep their href so right-click → "open in new tab"
      and middle-click still work. */
-  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:none;align-items:center;justify-content:center;padding:64px 24px;cursor:zoom-out;backdrop-filter:blur(4px)}
+  .lightbox{
+    --lb-top-chrome:64px;
+    --lb-bottom-chrome:56px; /* caption only */
+    position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:none;
+    align-items:center;justify-content:center;
+    padding:var(--lb-top-chrome) 24px var(--lb-bottom-chrome);
+    cursor:zoom-out;backdrop-filter:blur(4px)
+  }
   .lightbox.open{display:flex}
+  /* Extra floor when unit/action pills sit above the caption (lobby WebMs). */
+  .lightbox.video{--lb-bottom-chrome:112px}
+  .lightbox.video.has-actions{--lb-bottom-chrome:128px}
   .lightbox img{max-width:100%;max-height:100%;object-fit:contain;cursor:default;box-shadow:0 8px 40px rgba(0,0,0,.7);background:rgba(20,21,30,.5)}
   .lb-close{position:absolute;top:14px;right:18px;background:rgba(13,14,22,.85);border:1px solid var(--line);color:var(--text);width:38px;height:38px;border-radius:3px;font-size:22px;cursor:pointer;line-height:1;font-family:'Spline Sans Mono',monospace}
   .lb-close:hover{color:var(--gold);border-color:var(--gold-dim)}
@@ -629,7 +724,7 @@
   .lb-actions[hidden]{display:none!important}
   .lb-act{display:inline-flex;align-items:center;gap:4px;background:rgba(13,14,22,.9);border:1px solid var(--line);color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;text-transform:uppercase;text-decoration:none;padding:7px 12px;border-radius:3px;cursor:pointer;white-space:nowrap;backdrop-filter:blur(3px)}
   .lb-act:hover{color:var(--gold);border-color:var(--gold-dim)}
-  .lb-caption{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:0 24px;word-break:break-all}
+  .lb-caption{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:0 24px;word-break:break-all;z-index:2}
     /* ---- Story book (local only) ---- */
     .story-toc{display:flex;flex-direction:column;gap:34px}
     .story-ep-h{font-size:20px;color:var(--gold);margin:0 0 14px;font-weight:600}
@@ -709,7 +804,7 @@
        <button data-v="artifacts" data-i18n="nav_artifacts">Artifacts</button>
        <button data-v="updates" data-i18n="nav_updates">Updates</button>
        <button data-v="emotes" data-i18n="nav_emotes">Emotes</button>
-       <button data-v="wallpapers" data-i18n="nav_wallpapers">Wallpapers</button>
+       <button data-v="wallpapers"><span data-i18n="nav_wallpapers">Wallpapers</span></button>
        <button data-v="about" data-i18n="nav_about">About</button></nav>
 </header>
 <main id="app"><p class="empty">loading…</p></main>
@@ -768,7 +863,7 @@ const VARIANT_LABELS = {
   "1":     { tab:"Alt 1",    tagline:"alt model" },
 };
 
-let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], ARTIFACTS = [], PATCHES = [], VOICES = {}, VOICE_CLIPS = {}, BY_BASE = new Map(), demo = false;
+let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], LOBBY_ANIMS = [], ARTIFACTS = [], PATCHES = [], VOICES = {}, VOICE_CLIPS = {}, BY_BASE = new Map(), demo = false;
 // Story book (LOCAL ONLY — story_index.json is gitignored + held aside on deploy,
 // so this stays null in production and the Story tab never appears).
 let STORY_INDEX = null, storyLang = "en", STORY_CHAPTERS = {};
@@ -844,13 +939,14 @@ async function load() {
     // no-store) — the browser revalidates against the server (ETag → 304)
     // instead of re-downloading the full body on every visit, while a fresh
     // deploy still propagates immediately.
-    [UNITS, UPDATES, EMOTES, WALLPAPERS, ARTIFACTS, PATCHES, STORY_INDEX, VOICE_STORY] =
+    [UNITS, UPDATES, EMOTES, WALLPAPERS, LOBBY_ANIMS, ARTIFACTS, PATCHES, STORY_INDEX, VOICE_STORY] =
       await Promise.all([
         fetch("data/units.json", { cache: "no-cache" })
           .then(r => { if (!r.ok) throw new Error("units.json missing"); return r.json(); }),
         dataJson("data/updates.json", {}),
         dataJson("data/emotes.json", []),
         dataJson("data/wallpapers.json", []),
+        dataJson("data/lobby_anims.json", []),
         dataJson("data/artifacts.json", []),
         dataJson("data/patches.json", []),
         dataJson("data/story_index.json", null),
@@ -916,6 +1012,62 @@ function applyStaticChrome() {
   E7.applyI18n(document);   // sweep all [data-i18n] / [data-i18n-attr] chrome
   const ls = document.getElementById("langSel");
   if (ls) ls.value = E7.lang.get();
+  updateWallpapersNavBadge();
+}
+
+/** Card/sub-tab NEW chips — separate from the nav pastille. */
+function lobbyAnimsHasNew() {
+  return (LOBBY_ANIMS || []).some((a) => a.new);
+}
+/** Newest `new_since` among flagged wallpapers / lobby packs (ISO date wave id). */
+function wallpapersNavWaveId() {
+  let best = "";
+  for (const w of WALLPAPERS || []) {
+    if (w.new && w.new_since && w.new_since > best) best = w.new_since;
+  }
+  for (const a of LOBBY_ANIMS || []) {
+    if (a.new && a.new_since && a.new_since > best) best = a.new_since;
+  }
+  return best;
+}
+const WP_NAV_PASTILLE_DAYS = 14;
+const WP_NAV_SEEN_KEY = "e7_wp_nav_seen";
+/** Dot on Wallpapers nav: only while a wave is ≤2 weeks old and not yet opened. */
+function wallpapersNavPastilleActive() {
+  const wave = wallpapersNavWaveId();
+  if (!wave) return false;
+  const t0 = Date.parse(wave + "T00:00:00");
+  if (Number.isNaN(t0)) return false;
+  if (Date.now() - t0 > WP_NAV_PASTILLE_DAYS * 864e5) return false;
+  try {
+    if (localStorage.getItem(WP_NAV_SEEN_KEY) === wave) return false;
+  } catch (_) {}
+  return true;
+}
+function markWallpapersNavSeen() {
+  const wave = wallpapersNavWaveId();
+  if (!wave) return;
+  try { localStorage.setItem(WP_NAV_SEEN_KEY, wave); } catch (_) {}
+  updateWallpapersNavBadge();
+}
+/**
+ * Gold dot on Wallpapers nav (not the full NEW chip).
+ * Label stays in a child [data-i18n] span so applyI18n does not wipe the pastille.
+ */
+function updateWallpapersNavBadge() {
+  const btn = document.querySelector('nav button[data-v="wallpapers"]');
+  if (!btn) return;
+  let pill = btn.querySelector(":scope > .nav-pastille");
+  if (!wallpapersNavPastilleActive()) {
+    if (pill) pill.remove();
+    return;
+  }
+  if (!pill) {
+    pill = document.createElement("span");
+    pill.className = "nav-pastille";
+    pill.setAttribute("aria-hidden", "true");
+    btn.appendChild(pill);
+  }
 }
 
 const $ = (s) => document.querySelector(s);
@@ -1353,7 +1505,7 @@ function hub(opts) {
   try { if (keepFocus && typeof prevQ.selectionStart === "number") caret = prevQ.selectionStart; } catch (_) {}
 
   $("#app").innerHTML = `
-    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site</code> then reload.</div>` : ""}
+    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img /path/to/img_output --raw /path/to/output --out ./site</code> then reload.</div>` : ""}
     <div class="bar" id="hubBar">
       <div class="q-wrap">
         <input id="q" placeholder="${escapeHtml(E7.t('hub_search_ph'))}" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
@@ -1884,14 +2036,38 @@ function voiceSection(u) {
 }
 
 // ===== Profile frame compositor (TASKS #32) ==================================
-// In-game profile faces are face/<id>_s.png (≈112×112), borders are 148×148.
+// All frames (official + UI): face_box 112 on canvas 148 (UIUtil.getUserIcon).
+// Official borders: bit-exact RE art. UI/legacy: staged onto 148 with hole-match
+// when the ornament fits, else contain. UI faces are circle-masked so square
+// corners don't bleed past thin rings. Preview box is fixed — never resizes.
 // _su / _l are wide list art and do NOT fit the profile frame; we only use _s.
-// Game UIUtil.getUserIcon stacks: face centered in 112 box inside 148 border.
 let FRAMES_META = null;   // { canvas, face_box, frames: [...] } | null after load fail
 let _framesPromise = null;
 // Arena = classic/seasonal PvP ranks; RTA = World Arena (ssN_rta*).
 // ui = battle hero_s rings + legacy device frames (not unlockable profile borders).
 const FRAME_CATS = ["all", "arena", "rta", "tournament", "clan", "abyss", "event", "ui", "other"];
+
+/** Per-frame face box: guide uses mapped 96-slot; others use meta 112. */
+function frameFaceBoxFor(fr, metaFaceBox) {
+  if (fr && typeof fr.face_box === "number" && fr.face_box > 0) return fr.face_box;
+  return metaFaceBox || 112;
+}
+
+/** Thumb face CSS. UI gets circle clip. Off-center plates use face_cx/cy %. */
+function frameThumbFaceStyle(fr, metaFaceBox, metaCanvas) {
+  const S = (fr && fr.size) || metaCanvas || 148;
+  const box = frameFaceBoxFor(fr, metaFaceBox);
+  const pct = Math.min(100, Math.max(8, (box / S) * 100));
+  const fcx = (fr && typeof fr.face_cx === "number") ? fr.face_cx : S / 2;
+  const fcy = (fr && typeof fr.face_cy === "number") ? fr.face_cy : S / 2;
+  const left = (fcx / S) * 100 - pct / 2;
+  const top = (fcy / S) * 100 - pct / 2;
+  const ui = !!(fr && (fr.fit === "ui" || fr.category === "ui"));
+  return {
+    css: `left:${left}%;top:${top}%;width:${pct}%;height:${pct}%`,
+    ui,
+  };
+}
 
 function unitProfileFaces(u) {
   // Profile-icon faces only: face_<stem>_s.png staged under assets/<unit>/
@@ -1946,6 +2122,9 @@ function closeFrameComposer() {
     modal.setAttribute("aria-hidden", "true");
   }
   _frameState = null;
+  // Restore page scroll (locked while the modal is open on small devices).
+  document.documentElement.style.overflow = "";
+  document.body.style.overflow = "";
 }
 
 async function openFrameComposer(u) {
@@ -2026,6 +2205,9 @@ async function openFrameComposer(u) {
 
   modal.classList.add("open");
   modal.setAttribute("aria-hidden", "false");
+  // Prevent background page scroll while the list is being dragged on mobile.
+  document.documentElement.style.overflow = "hidden";
+  document.body.style.overflow = "hidden";
 }
 
 function renderFrameGrid() {
@@ -2043,22 +2225,33 @@ function renderFrameGrid() {
 
   const noneOn = st.frameId === null;
   const faceUrl = (st.faces[st.faceIdx] && st.faces[st.faceIdx].url) || "";
-  const faceImg = faceUrl
-    ? `<img class="ft-face" src="${escapeHtml(faceUrl)}" alt="" draggable="false">`
+  // Face is always face_box (112); thumbs only change frame scale/canvas.
+  const noneStyle = frameThumbFaceStyle(null, st.faceBox, st.canvasSize);
+  const noneFace = faceUrl
+    ? `<img class="ft-face" style="${noneStyle.css}" src="${escapeHtml(faceUrl)}" alt="" draggable="false">`
     : "";
   let html = `<button type="button" class="frame-cell none-cell${noneOn ? " on" : ""}" data-fid="" title="${escapeHtml(E7.t("frame_none"))}">
-      <span class="frame-thumb">${faceImg}</span>
+      <span class="frame-thumb">${noneFace}</span>
       <span class="fn">${escapeHtml(E7.t("frame_none"))}</span>
     </button>`;
   if (!st.frames.length) {
     html = `<p class="empty" style="grid-column:1/-1;padding:12px 4px">${escapeHtml(E7.t("frame_empty"))}</p>`;
   } else {
-    html += list.map(f =>
-      `<button type="button" class="frame-cell${st.frameId === f.id ? " on" : ""}" data-fid="${escapeHtml(f.id)}" title="${escapeHtml(f.label || f.id)}">
-         <span class="frame-thumb">${faceImg}<img class="ft-border" loading="lazy" src="${escapeHtml(f.path)}" alt="" draggable="false"></span>
+    html += list.map(f => {
+      const ts = frameThumbFaceStyle(f, st.faceBox, st.canvasSize);
+      const faceCls = ts.ui ? "ft-face ft-ui" : "ft-face";
+      const faceImg = faceUrl
+        ? `<img class="${faceCls}" style="${ts.css}" src="${escapeHtml(faceUrl)}" alt="" draggable="false">`
+        : "";
+      // Cache-bust UI PNGs when catalog version changes (same path, new pixels).
+      const frSrc = (ts.ui && FRAMES_META && FRAMES_META.version)
+        ? `${f.path}?v=${FRAMES_META.version}`
+        : f.path;
+      return `<button type="button" class="frame-cell${st.frameId === f.id ? " on" : ""}" data-fid="${escapeHtml(f.id)}" title="${escapeHtml(f.label || f.id)}">
+         <span class="frame-thumb">${faceImg}<img class="ft-border" loading="lazy" src="${escapeHtml(frSrc)}" alt="" draggable="false"></span>
          <span class="fn">${escapeHtml(f.label || f.id)}</span>
-       </button>`
-    ).join("");
+       </button>`;
+    }).join("");
   }
   grid.innerHTML = html;
   grid.querySelectorAll(".frame-cell").forEach(b => {
@@ -2077,12 +2270,9 @@ async function paintFramePreview() {
   const dlBtn = document.getElementById("frameDownload");
   if (!st || !canvas) return;
   const ctx = canvas.getContext("2d");
-  const S = st.canvasSize;
-  const box = st.faceBox;
-  // Fully transparent clear — page/panel color shows through in the UI, and
-  // downloads keep real alpha (no baked dark plate under the face).
-  ctx.clearRect(0, 0, S, S);
-  ctx.globalCompositeOperation = "source-over";
+  // Official: 148/112. Guide (and any native plate): per-frame size + face center.
+  const metaFace = st.faceBox || 112;
+  const metaCanvas = st.canvasSize || 148;
 
   const face = st.faces[st.faceIdx];
   if (!face) {
@@ -2091,20 +2281,64 @@ async function paintFramePreview() {
   }
   try {
     const faceIm = await loadImg(face.url);
-    // Center face in the game's face box (typically 112 inside 148).
-    const scale = Math.min(box / faceIm.naturalWidth, box / faceIm.naturalHeight);
+    let frIm = null;
+    let fr = null;
+    let isUi = false;
+    if (st.frameId) {
+      fr = st.frames.find(f => f.id === st.frameId) || null;
+      if (fr) {
+        isUi = fr.fit === "ui" || fr.category === "ui";
+        const frUrl = isUi && FRAMES_META && FRAMES_META.version
+          ? `${fr.path}?v=${FRAMES_META.version}`
+          : fr.path;
+        frIm = await loadImg(frUrl);
+      }
+    }
+
+    // Bitmap size: official 148; guide native 160; etc.
+    let S = metaCanvas;
+    if (frIm) {
+      S = frIm.naturalWidth || metaCanvas;
+      if (fr && typeof fr.size === "number" && fr.size > 0) S = fr.size;
+    }
+    const faceBox = frameFaceBoxFor(fr, metaFace);
+    // Plate center in frame coords (guide red plate is off-mid at 79,78).
+    const fcx = (fr && typeof fr.face_cx === "number") ? fr.face_cx : S / 2;
+    const fcy = (fr && typeof fr.face_cy === "number") ? fr.face_cy : S / 2;
+
+    canvas.width = S;
+    canvas.height = S;
+    // Fixed CSS display size so the preview box doesn't jump (bitmap may be 160).
+    canvas.style.width = "148px";
+    canvas.style.height = "148px";
+    ctx.clearRect(0, 0, S, S);
+    ctx.globalCompositeOperation = "source-over";
+
+    const scale = Math.min(faceBox / faceIm.naturalWidth, faceBox / faceIm.naturalHeight);
     const dw = faceIm.naturalWidth * scale;
     const dh = faceIm.naturalHeight * scale;
-    const dx = (S - dw) / 2;
-    const dy = (S - dh) / 2;
-    ctx.drawImage(faceIm, dx, dy, dw, dh);
+    const dx = fcx - dw / 2;
+    const dy = fcy - dh / 2;
 
-    if (st.frameId) {
-      const fr = st.frames.find(f => f.id === st.frameId);
-      if (fr) {
-        const frIm = await loadImg(fr.path);
-        ctx.drawImage(frIm, 0, 0, S, S);
+    if (isUi) {
+      // Circle-mask to the face plate (guide: r=48 on the red 96 plate).
+      let maskR = faceBox / 2;
+      if (fr && typeof fr.mask_r === "number" && fr.mask_r > 0) {
+        maskR = fr.mask_r;
       }
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(fcx, fcy, maskR, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(faceIm, dx, dy, dw, dh);
+      ctx.restore();
+    } else {
+      ctx.drawImage(faceIm, dx, dy, dw, dh);
+    }
+
+    if (frIm) {
+      ctx.drawImage(frIm, 0, 0, S, S);
     }
     if (dlBtn) dlBtn.disabled = false;
   } catch (_) {
@@ -2171,6 +2405,8 @@ function detail(baseId, variantSuf) {
   // in the group (usually the base), so resolve it (and its UPDATED state) from
   // any variant that owns one, preferring this variant's own if it has its own.
   const intimUnit = u.intimacy ? u : (group.find(x => x.intimacy) || null);
+  // Lobby / event WebMs linked in lobby_anims.json — same files as Wallpapers → Animated.
+  const unitLobbyAnims = lobbyAnimsForUnit(u, group);
   const groupModified = group.some(x => x.modified);
 
   $("#app").innerHTML = `
@@ -2320,21 +2556,28 @@ function detail(baseId, variantSuf) {
           // DOM order = visual order: signature LEFT, skill anim RIGHT.
           return `<div class="skill-sig-row${both}">${sigHtml}${skillHtml}</div>`;
         })()}
-        ${intimUnit ? `
-          <p class="section-label${!(u.skills||[]).length ? ' first' : ''}">${E7.t('hdr_intimacy')}${intimUnit.modified && (intimUnit.modified_parts||[]).includes('intimacy') ? `<span class="upd-badge inline">${E7.t('badge_updated')}</span>` : ''}</p>
-          <div class="intimacy-gallery">${intimUnit.intimacy.split('?')[0].endsWith('.webm') ? `
-            <video class="intimacy-vid" src="${escapeHtml(intimUnit.intimacy)}" autoplay loop muted playsinline preload="metadata" data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" title="click to enlarge" aria-label="${escapeHtml(u.id)} intimacy illustration"></video>
-          ` : `
-            <a href="${escapeHtml(intimUnit.intimacy)}" data-zoom data-cap="${escapeHtml(displayName(u))} · Intimacy illustration" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(intimUnit.intimacy)}" alt="${escapeHtml(u.id)} intimacy illustration"></a>
-          `}</div>
-          ${(intimUnit.intimacy_reactions||[]).length ? `
-          <div class="intim-reacts">${intimUnit.intimacy_reactions.map(r => `
-            <a class="intim-react" href="${escapeHtml(r.webm)}" data-react-src="${escapeHtml(r.webm)}" data-cap="${escapeHtml(displayName(u))} · ${escapeHtml(r.label)}" target="_blank" rel="noopener" title="${escapeHtml(r.label)}">
-              ${r.poster ? `<img loading="lazy" src="${escapeHtml(r.poster)}" alt="${escapeHtml(r.label)}">` : `<img loading="lazy" src="${escapeHtml(r.webm)}" alt="${escapeHtml(r.label)}">`}
-              <span class="ir-play"></span><span class="ir-label">${escapeHtml(r.label)}</span>
-            </a>`).join("")}</div>
-          ` : ''}
-        ` : ''}
+        ${intimUnit || unitLobbyAnims.length ? (() => {
+          const illFirst = !(u.skills||[]).length && !((u.signature_artifacts||[]).length || (group.find(x => (x.signature_artifacts||[]).length)||{}).signature_artifacts);
+          const intimBadge = E7.t("badge_intimacy_wallpaper", {}, "Intimacy wallpaper");
+          const intimCap = `${displayName(u)} · ${intimBadge}`;
+          const intimMedia = intimUnit ? (intimUnit.intimacy.split("?")[0].endsWith(".webm")
+            ? `<video class="intimacy-vid" src="${escapeHtml(intimUnit.intimacy)}" autoplay loop muted playsinline preload="metadata" data-cap="${escapeHtml(intimCap)}" title="click to enlarge" aria-label="${escapeHtml(u.id)} intimacy illustration"></video>`
+            : `<a href="${escapeHtml(intimUnit.intimacy)}" data-zoom data-cap="${escapeHtml(intimCap)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(intimUnit.intimacy)}" alt="${escapeHtml(u.id)} intimacy illustration"></a>`) : "";
+          const reacts = intimUnit && (intimUnit.intimacy_reactions||[]).length
+            ? `<div class="intim-reacts">${intimUnit.intimacy_reactions.map(r => `
+              <a class="intim-react" href="${escapeHtml(r.webm)}" data-react-src="${escapeHtml(r.webm)}" data-cap="${escapeHtml(displayName(u))} · ${escapeHtml(r.label)}" target="_blank" rel="noopener" title="${escapeHtml(r.label)}">
+                ${r.poster ? `<img loading="lazy" src="${escapeHtml(r.poster)}" alt="${escapeHtml(r.label)}">` : `<img loading="lazy" src="${escapeHtml(r.webm)}" alt="${escapeHtml(r.label)}">`}
+                <span class="ir-play"></span><span class="ir-label">${escapeHtml(r.label)}</span>
+              </a>`).join("")}</div>`
+            : "";
+          return `
+          <p class="section-label${illFirst ? " first" : ""}">${E7.t("hdr_illustration", {}, "Illustration")}${intimUnit && intimUnit.modified && (intimUnit.modified_parts||[]).includes("intimacy") ? `<span class="upd-badge inline">${E7.t("badge_updated")}</span>` : ""}</p>
+          <div class="illust-stack">
+            ${intimUnit ? `<div class="illust-card intimacy-gallery"><span class="il-badge">${escapeHtml(intimBadge)}</span>${intimMedia}</div>` : ""}
+            ${reacts}
+            ${unitLobbyAnims.length ? unitLobbyCardsHtml(unitLobbyAnims) : ""}
+          </div>`;
+        })() : ""}
         ${voiceSection(u)}
         <div class="art-sec">
         <p class="section-label">${E7.t('hdr_artwork')}</p>
@@ -2353,6 +2596,9 @@ function detail(baseId, variantSuf) {
       const v = b.dataset.vs;
       location.hash = "#/u/" + baseId + (v ? "/" + v : "");
     });
+
+  // Lobby anim Idle/Story (etc.) switcher on Illustration cards.
+  wireLobbyAnimVariantUi(document.getElementById("app"));
 
   // Profile frame compositor — opens a modal, not a new route.
   const btnFrame = document.getElementById("btnFrame");
@@ -2506,32 +2752,359 @@ function emotes() {
 }
 
 const WP_CAT_LABEL = { lobby:"Lobby BG", event:"Event splash", episode:"Episode art", story:"Story bg" };
+
+/**
+ * Video URL for a lobby anim (optional clip variant). Never auto-fetched until Play.
+ * - Local: assets/_illust/videos/<stem>.webm (hardlinked masters; not on Pages)
+ * - Prod:  R2 CDN https://assets.e7codex.com/illust/<stem>.webm
+ */
+function lobbyAnimVariants(a) {
+  if (a && Array.isArray(a.variants) && a.variants.length) return a.variants;
+  return [{
+    id: "default",
+    label: "",
+    video: a && a.video,
+    bytes: a && a.bytes,
+    duration_s: a && a.duration_s,
+    default: true,
+  }];
+}
+function lobbyAnimActiveVariant(a, varId) {
+  const vars = lobbyAnimVariants(a);
+  if (varId) {
+    const hit = vars.find((v) => v.id === varId);
+    if (hit) return hit;
+  }
+  return vars.find((v) => v.default) || vars[0];
+}
+/** File stem used for local hardlink / CDN object (epma_04, epma_04_story). */
+function lobbyAnimVideoStem(a, variant) {
+  const v = variant || lobbyAnimActiveVariant(a);
+  const path = ((v && v.video) || (a && a.video) || "").replace(/^\//, "");
+  const m = path.match(/([^/]+)\.webm$/i);
+  if (m) return m[1];
+  const base = (a && a.id) || "clip";
+  if (v && v.id && v.id !== "default" && !v.default) return `${base}_${v.id}`;
+  return base;
+}
+function lobbyAnimVideoUrl(a, variant) {
+  const v = variant || lobbyAnimActiveVariant(a);
+  const stem = lobbyAnimVideoStem(a, v);
+  if (E7.isLocal) {
+    return `assets/_illust/videos/${encodeURIComponent(stem)}.webm`;
+  }
+  const path = ((v && v.video) || (a && a.video) || `illust/${stem}.webm`).replace(/^\//, "");
+  return `${E7.CDN || "https://assets.e7codex.com"}/${path}`;
+}
+function lobbyAnimPlayLabel(a, variant) {
+  const v = variant || lobbyAnimActiveVariant(a);
+  const bits = [E7.t("wp_anim_play", {}, "▶ Play")];
+  const dur = formatDur(v.duration_s != null ? v.duration_s : a.duration_s);
+  if (dur) bits.push(dur);
+  bits.push(`~${formatMb(v.bytes != null ? v.bytes : a.bytes)} MB`);
+  return bits.join(" · ");
+}
+function lobbyAnimVariantTabsHtml(a, selectedId) {
+  const vars = lobbyAnimVariants(a);
+  if (vars.length < 2) return "";
+  const sel = selectedId || (lobbyAnimActiveVariant(a).id);
+  return `<div class="wp-anim-variants" role="tablist" aria-label="${escapeHtml(E7.t("wp_anim_variants", {}, "Clip variant"))}">
+    ${vars.map((v) => {
+      const lab = v.label || v.id || "clip";
+      const on = v.id === sel ? " on" : "";
+      return `<button type="button" role="tab" data-anim-var="${escapeHtml(v.id)}"
+        class="${on}" aria-selected="${v.id === sel}">${escapeHtml(lab)}</button>`;
+    }).join("")}
+  </div>`;
+}
+/** Slugs that identify a unit across variants for lobby_anims.units matching. */
+function unitLobbyIdSet(u, group) {
+  const ids = new Set();
+  for (const m of group && group.length ? group : [u]) {
+    if (!m) continue;
+    for (const k of [m.id, m.base_id, m.base]) {
+      if (k) ids.add(k);
+    }
+  }
+  return ids;
+}
+/** Lobby / event packs linked to this unit (or any skin in its group). */
+function lobbyAnimsForUnit(u, group) {
+  const ids = unitLobbyIdSet(u, group);
+  if (!ids.size) return [];
+  return (LOBBY_ANIMS || []).filter((a) =>
+    (a.units || []).some((slug) => ids.has(slug))
+  );
+}
+/** Same open path as Wallpapers → Animated (lightbox + unit actions). */
+function openLobbyAnim(a, varId) {
+  if (!a) return;
+  const variant = lobbyAnimActiveVariant(a, varId);
+  const src = lobbyAnimVideoUrl(a, variant);
+  const mb = formatMb(variant.bytes != null ? variant.bytes : a.bytes);
+  const dur = formatDur(variant.duration_s != null ? variant.duration_s : a.duration_s);
+  const vLab = variant.label && lobbyAnimVariants(a).length > 1 ? variant.label : "";
+  const cap = [a.title || a.id, vLab, dur, `~${mb} MB`].filter(Boolean).join(" · ");
+  const T = (k, fb, p) => E7.t(k, p || {}, fb);
+  const actions = (a.units || []).map((slug) => {
+    const { name, href } = unitResolve(slug);
+    return {
+      label: name,
+      title: T("wp_anim_unit", "unit page"),
+      href,
+      external: false,
+    };
+  });
+  actions.push({
+    label: T("wp_anim_open_gallery", "Wallpapers"),
+    title: T("wp_anim_open_gallery_t", "Open in Wallpapers → Animated"),
+    href: "#/wallpapers",
+    external: false,
+  });
+  openLightboxVideo(src, cap, actions);
+}
+function wireLobbyAnimVariantUi(root) {
+  const scope = root || document;
+  scope.querySelectorAll("[data-anim-id]").forEach((card) => {
+    const packId = card.dataset.animId;
+    if (!packId) return;
+    const a = (LOBBY_ANIMS || []).find((x) => x.id === packId);
+    if (!a || lobbyAnimVariants(a).length < 2) return;
+    const playBtn = card.querySelector("[data-anim-play], [data-lobby-play]");
+    const playSpan = card.querySelector(".wp-anim-play span, .il-play");
+    // Only wire the tablist buttons — not the play control that also carries data-anim-var.
+    card.querySelectorAll(".wp-anim-variants [data-anim-var]").forEach((b) => {
+      b.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        card.querySelectorAll(".wp-anim-variants [data-anim-var]").forEach((x) => {
+          const on = x === b;
+          x.classList.toggle("on", on);
+          x.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        const varId = b.dataset.animVar;
+        card.dataset.animVar = varId;
+        if (playBtn) {
+          playBtn.dataset.animVar = varId;
+          const lab = lobbyAnimPlayLabel(a, lobbyAnimActiveVariant(a, varId));
+          if (playSpan) playSpan.textContent = lab;
+          const title = a.title || a.id;
+          playBtn.setAttribute("aria-label", title ? `${lab} — ${title}` : lab);
+        }
+      };
+    });
+  });
+}
+/** Event wallpaper cards under unit Illustration — poster only until Play. */
+function unitLobbyCardsHtml(list) {
+  if (!list || !list.length) return "";
+  const T = (k, fb, p) => E7.t(k, p || {}, fb);
+  const badge = T("badge_event_wallpaper", "Event wallpaper");
+  return list.map((a) => {
+    const def = lobbyAnimActiveVariant(a);
+    const btnLab = lobbyAnimPlayLabel(a, def);
+    const title = a.title || a.id;
+    const aria = `${btnLab} — ${title}`;
+    // Variant tabs are siblings of the play button (not nested) — same pattern as
+    // Wallpapers → Animated and unit cosmetic pose tabs.
+    const vars = lobbyAnimVariantTabsHtml(a, def.id);
+    const newBadge = a.new
+      ? `<span class="new-badge">${escapeHtml(E7.t("badge_new"))}</span>`
+      : "";
+    return `<div class="illust-card" data-anim-id="${escapeHtml(a.id)}" data-anim-var="${escapeHtml(def.id || "")}">
+      ${newBadge}
+      <button type="button" class="intim-lobby-card" data-lobby-play="${escapeHtml(a.id)}"
+        data-anim-var="${escapeHtml(def.id || "")}"
+        aria-label="${escapeHtml(aria)}" title="${escapeHtml(title)}">
+        <img loading="lazy" src="${escapeHtml(a.poster)}" alt="" width="1280" height="720">
+        <span class="il-badge">${escapeHtml(badge)}</span>
+        <span class="il-scrim"><span class="il-play">${escapeHtml(btnLab)}</span></span>
+        <span class="il-label">${escapeHtml(title)}</span>
+      </button>
+      ${vars}
+    </div>`;
+  }).join("");
+}
+function formatMb(bytes) {
+  if (!bytes || bytes <= 0) return "?";
+  const mb = bytes / (1024 * 1024);
+  return mb >= 10 ? String(Math.round(mb)) : mb.toFixed(1);
+}
+/** e.g. 114 → "1:54", 20 → "0:20", 6.7 → "0:07" */
+function formatDur(sec) {
+  if (sec == null || !(sec > 0)) return null;
+  const s = Math.round(sec);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+function unitResolve(slug) {
+  let u = (UNITS || []).find(x => x.id === slug || x.base === slug);
+  if (!u && BY_BASE && BY_BASE.get) {
+    const g = BY_BASE.get(slug);
+    u = Array.isArray(g) ? g[0] : g;
+  }
+  const name = u ? displayName(u) : slug;
+  const hrefSlug = (u && (u.base || u.id)) || slug;
+  return { name, href: `#/u/${hrefSlug}` };
+}
+/** Newest `released` (YYYY-MM-DD) among linked units; empty → sort last. */
+function lobbyAnimSortKey(a) {
+  let best = "";
+  for (const slug of a.units || []) {
+    let u = (UNITS || []).find(x => x.id === slug || x.base_id === slug || x.base === slug);
+    if (!u && BY_BASE && BY_BASE.get) {
+      const g = BY_BASE.get(slug);
+      if (Array.isArray(g) && g.length) {
+        for (const m of g) {
+          const d = m && m.released;
+          if (d && d > best) best = d;
+        }
+        continue;
+      }
+      u = g;
+    }
+    const d = u && u.released;
+    if (d && d > best) best = d;
+  }
+  return best;
+}
+function lobbyAnimsSorted(list) {
+  // NEW packs first, then newest unit release; multi-link packs use max date.
+  return (list || []).slice().sort((a, b) => {
+    const na = a.new ? 0 : 1;
+    const nb = b.new ? 0 : 1;
+    if (na !== nb) return na - nb;
+    const da = lobbyAnimSortKey(a);
+    const db = lobbyAnimSortKey(b);
+    if (da && db) return db.localeCompare(da);
+    if (da) return -1;
+    if (db) return 1;
+    return (a.id || "").localeCompare(b.id || "");
+  });
+}
+function lobbyAnimCardsHtml(list) {
+  if (!list.length) {
+    return `<p class="empty" style="margin:0">${E7.t("wp_anim_none", {}, "No animated lobby packs indexed yet.")}</p>`;
+  }
+  const ordered = lobbyAnimsSorted(list);
+  return `<div class="wp-anim-grid">${ordered.map(a => {
+    const def = lobbyAnimActiveVariant(a);
+    const btnLab = lobbyAnimPlayLabel(a, def);
+    const aria = a.title ? `${btnLab} — ${a.title}` : btnLab;
+    const vars = lobbyAnimVariantTabsHtml(a, def.id);
+    const newBadge = a.new
+      ? `<span class="new-badge">${escapeHtml(E7.t("badge_new"))}</span>`
+      : "";
+    return `<article class="wp-anim-card" data-anim-id="${escapeHtml(a.id)}" data-anim-var="${escapeHtml(def.id || "")}">
+      ${newBadge}
+      <button type="button" class="wp-anim-poster" data-anim-play="${escapeHtml(a.id)}"
+        data-anim-var="${escapeHtml(def.id || "")}"
+        aria-label="${escapeHtml(aria)}">
+        <img loading="lazy" src="${escapeHtml(a.poster)}" alt="" width="1280" height="720">
+        <div class="wp-anim-play"><span>${escapeHtml(btnLab)}</span></div>
+      </button>
+      ${vars}
+    </article>`;
+  }).join("")}</div>`;
+}
+function wallpapersPane() {
+  // #/wallpapers          → animated (default when any exist)
+  // #/wallpapers/anim     → animated
+  // #/wallpapers/static   → static stills gallery
+  const h = location.hash || "#/wallpapers";
+  if (h === "#/wallpapers/static" || h === "#/wallpapers/stills") return "static";
+  if (h === "#/wallpapers/anim" || h === "#/wallpapers/animated") return "anim";
+  return "anim";
+}
+
 function wallpapers() {
   setNav("wallpapers");
-  if (!WALLPAPERS.length) {
-    $("#app").innerHTML = `<p class="empty">${E7.t('empty_wallpapers')}</p>`;
+  // First open of this content wave dismisses the nav pastille.
+  markWallpapersNavSeen();
+  const anims = LOBBY_ANIMS || [];
+  const hasAnim = anims.length > 0;
+  const hasStatic = WALLPAPERS.length > 0;
+  if (!hasAnim && !hasStatic) {
+    $("#app").innerHTML = `<p class="empty">${E7.t("empty_wallpapers")}</p>`;
     return;
   }
-  const catCounts = {};
-  WALLPAPERS.forEach(w => { catCounts[w.category] = (catCounts[w.category]||0)+1; });
-  const cats = ["all", ...Object.keys(catCounts).sort((a,b)=>catCounts[b]-catCounts[a])];
-  // Stable sort floats NEW wallpapers to the top while keeping the rest in their
-  // category insertion order.
-  const list = WALLPAPERS.filter(w => wpCatF === "all" || w.category === wpCatF)
-                         .slice().sort((a, b) => (a.new ? 0 : 1) - (b.new ? 0 : 1));
+  const pane = wallpapersPane();
+  // Fall through if the chosen pane is empty.
+  const show = (pane === "static" && hasStatic) || (pane === "anim" && !hasAnim && hasStatic)
+    ? "static"
+    : (hasAnim ? "anim" : "static");
 
-  $("#app").innerHTML = `
-    <p class="section-label first">${escapeHtml(E7.t('wp_count', {n: WALLPAPERS.length}))}</p>
+  const T = (k, fb, p) => E7.t(k, p || {}, fb);
+  const subnav = `
+    <div class="upd-intro">
+      <h2>${escapeHtml(T("wp_page_title", "Wallpapers"))}</h2>
+      <p>${escapeHtml(T("wp_page_blurb", "Animated lobby loops and static gallery art — pick a tab."))}</p>
+    </div>
+    <div class="upd-subnav" role="tablist" aria-label="${escapeHtml(T("wp_page_title", "Wallpapers"))}">
+      <a class="usub${show === "anim" ? " on" : ""}" role="tab" aria-selected="${show === "anim"}"
+         href="#/wallpapers" data-wp-pane="anim"
+         title="${escapeHtml(T("wp_tab_anim_hint", "Lobby / event Spine loops · large WebMs, load on play"))}">
+        <span class="usub-top">
+          <span>${escapeHtml(T("wp_tab_anim", "Animated"))}${lobbyAnimsHasNew() ? ` <span class="new-badge inline">${escapeHtml(E7.t("badge_new"))}</span>` : ""}</span>
+          <span class="n">${anims.length || "—"}</span>
+        </span>
+        <span class="usub-desc">${escapeHtml(T("wp_tab_anim_hint", "Lobby / event Spine loops · large WebMs, load on play"))}</span>
+        <span class="usub-state">${show === "anim" ? escapeHtml(T("upd_tab_current", "Current view")) : ""}</span>
+      </a>
+      <a class="usub${show === "static" ? " on" : ""}" role="tab" aria-selected="${show === "static"}"
+         href="#/wallpapers/static" data-wp-pane="static"
+         title="${escapeHtml(T("wp_tab_static_hint", "Lobby, event, episode, and story stills"))}">
+        <span class="usub-top">
+          <span>${escapeHtml(T("wp_tab_static", "Static"))}${(WALLPAPERS || []).some((w) => w.new) ? ` <span class="new-badge inline">${escapeHtml(E7.t("badge_new"))}</span>` : ""}</span>
+          <span class="n">${WALLPAPERS.length || "—"}</span>
+        </span>
+        <span class="usub-desc">${escapeHtml(T("wp_tab_static_hint", "Lobby, event, episode, and story stills"))}</span>
+        <span class="usub-state">${show === "static" ? escapeHtml(T("upd_tab_current", "Current view")) : ""}</span>
+      </a>
+    </div>`;
+
+  if (show === "anim") {
+    $("#app").innerHTML = `${subnav}
+      <p class="section-label first">${escapeHtml(T("wp_anim_hdr", "Animated lobby / event art"))}</p>
+      <p class="wp-anim-blurb">${escapeHtml(T("wp_anim_blurb",
+        "Full multi-layer Spine loops (HQ WebM). Posters only until you press play — files are large and load on demand."))}</p>
+      ${lobbyAnimCardsHtml(anims)}`;
+
+    document.querySelectorAll("[data-anim-play]").forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const a = anims.find(x => x.id === btn.dataset.animPlay);
+        if (!a) return;
+        const card = btn.closest("[data-anim-id]");
+        const varId = btn.dataset.animVar || (card && card.dataset.animVar) || "";
+        openLobbyAnim(a, varId);
+      };
+    });
+    wireLobbyAnimVariantUi(document.getElementById("app"));
+    return;
+  }
+
+  // Static stills gallery
+  const catCounts = {};
+  WALLPAPERS.forEach(w => { catCounts[w.category] = (catCounts[w.category] || 0) + 1; });
+  const cats = ["all", ...Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a])];
+  const list = WALLPAPERS.filter(w => wpCatF === "all" || w.category === wpCatF)
+    .slice()
+    .sort((a, b) => (a.new ? 0 : 1) - (b.new ? 0 : 1));
+
+  $("#app").innerHTML = `${subnav}
+    <p class="section-label first">${escapeHtml(T("wp_count", "{n} wallpapers · click any to open full-size", { n: WALLPAPERS.length }))}</p>
     <div class="kinds">${cats.map(c => {
-      const label = c === "all" ? E7.t("kind_all") : E7.t('wp_'+c, {}, WP_CAT_LABEL[c]||c).toUpperCase();
-      const n = c === "all" ? WALLPAPERS.length : (catCounts[c]||0);
-      return `<button data-c="${c}" class="${c===wpCatF?'on':''}">${escapeHtml(label)}<span class="n">${n}</span></button>`;
+      const label = c === "all" ? E7.t("kind_all") : E7.t("wp_" + c, {}, WP_CAT_LABEL[c] || c).toUpperCase();
+      const n = c === "all" ? WALLPAPERS.length : (catCounts[c] || 0);
+      return `<button data-c="${c}" class="${c === wpCatF ? "on" : ""}">${escapeHtml(label)}<span class="n">${n}</span></button>`;
     }).join("")}</div>
     <div class="wallpaper-grid">${list.map(w => `
-      <a class="wallpaper-cell${w.new ? ' is-new' : ''}" href="${escapeHtml(w.file)}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(E7.t('wp_'+w.category, {}, WP_CAT_LABEL[w.category]||w.category))}" target="_blank" rel="noopener">
+      <a class="wallpaper-cell${w.new ? " is-new" : ""}" href="${escapeHtml(w.file)}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(E7.t("wp_" + w.category, {}, WP_CAT_LABEL[w.category] || w.category))}" target="_blank" rel="noopener">
         <img loading="lazy" src="${escapeHtml(w.file)}" alt="${escapeHtml(w.name)}">
-        ${w.new ? `<span class="new-badge">${E7.t('badge_new')}</span>` : ""}
-        <span class="wp-cat">${escapeHtml(E7.t('wp_'+w.category, {}, WP_CAT_LABEL[w.category]||w.category))}</span>
+        ${w.new ? `<span class="new-badge">${E7.t("badge_new")}</span>` : ""}
+        <span class="wp-cat">${escapeHtml(E7.t("wp_" + w.category, {}, WP_CAT_LABEL[w.category] || w.category))}</span>
         <span class="wp-name">${escapeHtml(w.name)}</span>
       </a>`).join("")}</div>`;
 
@@ -2897,7 +3470,7 @@ function renderStoryChapter(cid, meta, flat, idx, beats) {
 
 function route() {
   const h = location.hash;
-  const isHub = !(h.startsWith("#/u/") || h.startsWith("#/story") || h.startsWith("#/updates") || h === "#/emotes" || h === "#/wallpapers" || h === "#/artifacts" || h === "#/about");
+  const isHub = !(h.startsWith("#/u/") || h.startsWith("#/story") || h.startsWith("#/updates") || h === "#/emotes" || h.startsWith("#/wallpapers") || h === "#/artifacts" || h === "#/about");
   // Release IntersectionObserver references to the previous hub render before
   // any view swaps in — otherwise the detached <img> nodes stay pinned.
   if (!isHub && _hubImgObs) { _hubImgObs.disconnect(); _hubImgObs = null; }
@@ -2909,7 +3482,7 @@ function route() {
   else   if (h === "#/story")       story();
   else   if (h === "#/updates" || h.startsWith("#/updates/")) updates();
   else   if (h === "#/emotes")     emotes();
-  else   if (h === "#/wallpapers") wallpapers();
+  else   if (h === "#/wallpapers" || h.startsWith("#/wallpapers/")) wallpapers();
   else   if (h === "#/artifacts")  artifacts();
   else   if (h === "#/about")      about();
   else                              hub();
@@ -2966,9 +3539,11 @@ function setLbActions(actions) {
   if (!actions || !actions.length) {
     LB_ACT.innerHTML = "";
     LB_ACT.hidden = true;
+    LB.classList.remove("has-actions");
     return;
   }
   LB_ACT.hidden = false;
+  LB.classList.add("has-actions");
   LB_ACT.innerHTML = actions.map(a => {
     const label = escapeHtml(a.label || "");
     const title = escapeHtml(a.title || a.label || "");
@@ -3045,7 +3620,7 @@ function openLightboxAudio(src, caption) {
   LB.setAttribute("aria-hidden", "false");
   LB_AUDIO.play().catch(() => {}); // autoplay; ignore if blocked
 }
-function openLightboxVideo(src, caption) {
+function openLightboxVideo(src, caption, actions) {
   LB.classList.add("video"); LB.classList.remove("audio");
   LB_IMG.style.display = "none"; LB_IMG.src = "";
   LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
@@ -3053,13 +3628,13 @@ function openLightboxVideo(src, caption) {
   LB_DL.href = src;
   LB_DL.download = decodeURIComponent(src.split("/").pop() || "illustration");
   LB_CAP.textContent = caption || "";
-  setLbActions([]);
+  setLbActions(actions || []);
   LB.classList.add("open");
   LB.setAttribute("aria-hidden", "false");
   LB_VIDEO.play().catch(() => {}); // autoplay; ignore if blocked
 }
 function closeLightbox() {
-  LB.classList.remove("open", "audio", "video");
+  LB.classList.remove("open", "audio", "video", "has-actions");
   LB.setAttribute("aria-hidden", "true");
   LB_IMG.src = "";
   LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
@@ -3127,6 +3702,19 @@ document.addEventListener("click", (e) => {
   // Intimacy reaction thumbnail → play the clip in the video lightbox.
   const ir = e.target.closest(".intim-react");
   if (ir) { e.preventDefault(); openLightboxVideo(ir.dataset.reactSrc, ir.dataset.cap || ""); return; }
+  // Unit-page event wallpaper (lobby_anims link) → same open as Wallpapers → Animated.
+  // Ignore clicks that originated on Idle/Story tabs (siblings of the play button).
+  if (e.target.closest(".wp-anim-variants")) return;
+  const lob = e.target.closest("[data-lobby-play]");
+  if (lob) {
+    e.preventDefault();
+    const a = (LOBBY_ANIMS || []).find((x) => x.id === lob.dataset.lobbyPlay);
+    if (!a) return;
+    const card = lob.closest("[data-anim-id]");
+    const varId = lob.dataset.animVar || (card && card.dataset.animVar) || "";
+    openLobbyAnim(a, varId);
+    return;
+  }
   // Updates cinema clip (event movie) → video lightbox with sound allowed.
   const cin = e.target.closest("a[data-cinema]");
   if (cin) {
