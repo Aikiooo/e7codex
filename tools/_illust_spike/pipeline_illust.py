@@ -90,6 +90,21 @@ def scales_csv(pack: dict) -> str:
     return ",".join(parts)
 
 
+def anims_csv(pack: dict) -> str:
+    """Rank-2 CFX primitive `ani` map: stem:anim pairs for rec.html LAYER_ANIMS.
+
+    First primitive per source wins (merge_order dedupe) — for intro CFX that
+    chain intro_1_en then delayed animation_intro, the enter clip is kept.
+    Empty when no CFX ani fields (idle packs leave clip selection to recipe).
+    """
+    parts: list[str] = []
+    for r in resolve_order(pack):
+        ani = r.get("ani")
+        if ani:
+            parts.append(f"{r['source']}:{ani}")
+    return ",".join(parts)
+
+
 def stems_of(pack: dict) -> list[str]:
     return [r["source"] for r in resolve_order(pack)]
 
@@ -522,10 +537,23 @@ def _bake_env(p: dict, extra: dict | None = None) -> dict:
     if anim:
         env["E7_LAYER_ANIM"] = anim
     # One-shot enter/touch: layers that carry the clip play it once (no loop);
-    # others keep their idle (rec.html ACTANIM path).
+    # others keep their idle (rec.html ACTANIM path). Prefer CFX per-layer ani
+    # map when present (char intro_1_en vs bg intro).
     act = p.get("actanim")
     if act:
         env["E7_ACTANIM"] = act
+    # Always pass CFX ani map when primitives declare it (intro packs).
+    am = anims_csv(p)
+    if am:
+        env["E7_LAYER_ANIMS"] = am
+    # Hierarchical camera bone → setup (c6005 intro); see rec.html CAM_NEUTRAL.
+    if p.get("cam_neutral") or p.get("camneutral"):
+        env["E7_CAM_NEUTRAL"] = "1"
+    # Hide slots whose names contain any token (rec.html EHIDE). Used when
+    # authored camera-space FX (e.g. prism_total scale ~130) wash the fixed AABB.
+    ehide = p.get("ehide") or p.get("E7_EHIDE")
+    if ehide:
+        env["E7_EHIDE"] = ehide if isinstance(ehide, str) else ",".join(ehide)
     if extra:
         env.update(extra)
     return env
@@ -556,8 +584,12 @@ def cmd_still(packs: list[dict], dry: bool) -> int:
                 env=env,
             )
         else:
-            # intimacy: single composite via dbg.js at t=0.5
+            # intimacy: single composite via dbg.js. Default t=0.5; intro packs
+            # may set still_t after authored enter (e.g. c6005 body null until ~3s).
             still = str(out_path(p)).replace(".webm", "_still.png")
+            still_t = str(p.get("still_t", 0.5))
+            # Pass actanim via env for dbg when present (dbg reads argv actanim).
+            act = p.get("actanim") or ""
             rc = run(
                 [
                     "node",
@@ -565,15 +597,41 @@ def cmd_still(packs: list[dict], dry: bool) -> int:
                     p["stage_dir"],
                     order,
                     still,
-                    "0.5",
+                    still_t,
                     p["anchor"],
                     crop_for(p),
                     str(p["outH"]),
+                    act,
                 ],
                 dry=dry,
+                env=_bake_env(p),
             )
         if rc:
             return rc
+    return 0
+
+
+def _reuse_site(p: dict, dry: bool) -> int:
+    """Copy shipped site intimacy.webm (good FX motion) into the spike out path.
+
+    Used when spine re-bake is deferred (petal/butterfly seek broken). Framing
+    targets stay in the recipe for when re-bake is fixed; site files already
+    match the accepted cut (c6005 2048x1040, c1153 2364x1080).
+    """
+    slug = p.get("site_slug") or p.get("primary") or p["id"]
+    src = REPO / "site" / "assets" / slug / "intimacy.webm"
+    dst = out_path(p)
+    if not src.is_file():
+        print(f"[reuse_site] missing {src}", file=sys.stderr)
+        return 1
+    print(
+        f"[reuse_site] {p['id']}: {src} -> {dst} "
+        f"(deferred_spine_rebake — do not bake.js until FX seek fixed)"
+    )
+    if dry:
+        return 0
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_bytes(src.read_bytes())
     return 0
 
 
@@ -585,6 +643,11 @@ def cmd_bake(packs: list[dict], dry: bool) -> int:
         keep = []
         if p.get("xfade"):
             keep = ["--keep-frames"]
+        if p.get("bake") == "reuse_site" or p.get("deferred_spine_rebake"):
+            rc = _reuse_site(p, dry)
+            if rc:
+                return rc
+            continue
         if p["bake"] == "lobby_hq":
             rc = run(
                 [
@@ -661,7 +724,13 @@ def _xfade(p: dict) -> int:
     tail_n = int(p.get("xfade_tail_frames") or 30)
     order = order_csv(p)
     # tail.js: <base> <order> <outDir> <anchor> <crop> <outH> <fps> <start> <count>
+    # Start at the actual baked loop length (body last frame + 1/fps), not a
+    # stale max_sec that can disagree with master duration (petal 33.33 vs 21).
     start_t = float(p.get("max_sec") or 14)
+    body_n = len(list(body.glob("*.png")))
+    fps = int(p.get("fps") or 30)
+    if body_n > 0 and fps > 0:
+        start_t = body_n / float(fps)
     tail_dir = SPIKE / f"_tail_{p['id']}"
     rc = run(
         [

@@ -2241,7 +2241,15 @@ def convert_scsp_to_json(input_path: str, output_path: str) -> bool:
 
     root = write_json_data(skeleton)
     json_str = json.dumps(root, ensure_ascii=False)
-    json_str = special_process(json_str) # 临时的处理, 但是并不是完全可靠的
+    # special_process used to delete from the "normal" skin any slot that every
+    # emotion skin also defines (usually slot "normal" = mouth / face plate).
+    # That was meant to stop face-overlap when stacking normal under emotions,
+    # but it left resting "normal" mouthless while keeping only blink pieces
+    # (normal1..normalc). The atlas still has normal/normal; the SCSP still
+    # has the attachment — only this post-pass stripped it. Correct layering
+    # is exclusive: resting = default+normal (mouth+blink), emotion =
+    # default+emotion only (no stack). Do not strip. (2026-07-18)
+    # json_str = special_process(json_str)
 
     if IS_COMPRESS_JSON:
         json_str = compress_json(json_str)

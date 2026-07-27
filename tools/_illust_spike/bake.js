@@ -56,14 +56,22 @@ async function loadPage(port, base, order, W, H) {
   const anim = process.env.E7_LAYER_ANIM
     ? "&anim=" + encodeURIComponent(process.env.E7_LAYER_ANIM)
     : "";
+  // Per-stem CFX ani map (stem:anim,...) — intro packs with mixed clip names.
+  const anims = process.env.E7_LAYER_ANIMS
+    ? "&anims=" + encodeURIComponent(process.env.E7_LAYER_ANIMS)
+    : "";
+  // Neutralize hierarchical `camera` bones (c6005 intro dezoom fix).
+  const camn = process.env.E7_CAM_NEUTRAL === "1" ? "&camneutral=1" : "";
   const url =
     `http://localhost:${port}/rec.html?base=${base}&order=${order}&w=${W}&h=${H}` +
-    `${pma}${pmaoff}${ehide}${actanim}${pre}${anim}`;
+    `${pma}${pmaoff}${ehide}${actanim}${pre}${anim}${anims}${camn}`;
   await page.goto(url, { waitUntil: "networkidle0", timeout: 90000 });
   await page.waitForFunction("window.__ready === true", { timeout: 90000 });
   // Phase-lock report (same as bake_lobby_hq) — multi-layer intimacy stacks
   // also go through rec.html __seek.
   if (process.env.E7_LAYER_ANIM) console.log("layer anim:", process.env.E7_LAYER_ANIM);
+  if (process.env.E7_LAYER_ANIMS) console.log("layer anims:", process.env.E7_LAYER_ANIMS);
+  if (process.env.E7_CAM_NEUTRAL === "1") console.log("cam neutral: on");
   const phase = await page.evaluate(() =>
     typeof window.__phaseReport === "function" ? window.__phaseReport() : null
   );
@@ -140,11 +148,33 @@ async function orchestrate() {
     const d = gl && gl.getExtension("WEBGL_debug_renderer_info");
     return d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : "unknown";
   });
-  const aabb = await page.evaluate((s) => window.__aabb(s), anchor);
-  if (!aabb) { console.error("anchor slot not found:", anchor); process.exit(1); }
+  // anchor: slot name | skel | char_skel (rank-2 skeleton bounds when bg mesh is a thin strip)
+  const useSkel = anchor === "skel" || anchor === "char_skel";
+  const aabb = await page.evaluate((s, skel) => {
+    if (skel && typeof window.__char_skel_aabb === "function") return window.__char_skel_aabb();
+    return window.__aabb(s);
+  }, anchor, useSkel);
+  if (!aabb) {
+    console.error(useSkel ? "char skeleton AABB not found" : "anchor slot not found: " + anchor);
+    process.exit(1);
+  }
   let dur = await page.evaluate("window.__dur()");
+  const masterDur = await page.evaluate(() =>
+    typeof window.__masterDur === "function" ? window.__masterDur() : 0
+  );
   await browser.close();
-  if (maxSec > 0 && dur > maxSec) dur = maxSec;
+  if (maxSec > 0 && dur > maxSec) {
+    // Truncating below master cuts long ambient FX mid-timeline (c6005 petals
+    // 33.3s under max_sec 21 → incomplete fall cycle that jumps on loop).
+    if (masterDur > maxSec + 1e-3) {
+      console.warn(
+        `WARN: max_sec=${maxSec}s < master=${masterDur.toFixed(2)}s — ` +
+          `long ambient FX will not complete one authored cycle. ` +
+          `Raise max_sec to master (or 0) unless intentionally short.`
+      );
+    }
+    dur = maxSec;
+  }
 
   const cropW = aabb.width * (1 - crop.l - crop.r);
   const cropH = aabb.height * (1 - crop.t - crop.b);
@@ -153,7 +183,10 @@ async function orchestrate() {
   const H = outH % 2 ? outH + 1 : outH;
   const N = Math.max(1, Math.round(dur * fps));
   console.log(`renderer: ${gpu}`);
-  console.log(`rect ${aabb.width.toFixed(0)}x${aabb.height.toFixed(0)} -> ${W}x${H}  loop ${dur.toFixed(2)}s -> ${N} frames @ ${fps}fps  (${nWorkers} workers)`);
+  console.log(
+    `anchor=${useSkel ? "skel" : anchor} rect ${aabb.width.toFixed(0)}x${aabb.height.toFixed(0)} -> ${W}x${H}` +
+    `  loop ${dur.toFixed(2)}s -> ${N} frames @ ${fps}fps  (${nWorkers} workers)`
+  );
 
   // Split [0,N) into nWorkers contiguous ranges, fork a worker per range.
   const per = Math.ceil(N / nWorkers);

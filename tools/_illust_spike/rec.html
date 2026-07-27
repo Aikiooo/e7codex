@@ -39,6 +39,29 @@ const ACTANIM = params.get("actanim") || "";
 // this timeline; using short `animation` on char layers while FX play story_*
 // desyncs attachments (tears leave the eyes). Empty → pickIdleAnim per layer.
 const WANTANIM = params.get("anim") || "";
+// Per-layer preferred clip (stem:anim,stem:anim) from CFX primitive `ani` (rank-2).
+// Takes precedence over ACTANIM/WANTANIM when the stem has a mapping and the
+// skeleton ships that clip. Needed for intro packs where char uses intro_1_en
+// while bg uses intro (single global actanim cannot express both).
+const LAYER_ANIMS = (() => {
+  const m = Object.create(null);
+  const raw = params.get("anims") || "";
+  for (const part of raw.split(",")) {
+    if (!part) continue;
+    const i = part.lastIndexOf(":");
+    if (i < 0) continue;
+    const stem = part.slice(0, i);
+    const an = part.slice(i + 1);
+    if (stem && an) m[stem] = an;
+  }
+  return m;
+})();
+// When set, after each apply reset bones named `camera` to setup pose.
+// c6005 intro parents the character under `camera` and keys large scale/translate
+// for an engine view matrix; spine-player treats it as a mesh parent → character
+// flies out of the fixed AABB and "dezooms". Neutralizing restores idle-like
+// framing while other intro body/FX timelines still play (rank-2 bone name).
+const CAM_NEUTRAL = params.get("camneutral") === "1";
 // Rank-2 CFX primitive `scale` per stem (stem:scale,stem:scale). EffectPlay
 // multiplies node scale by this on top of scaleFactor=BASE_SCALE. world0 framing
 // is DESIGN/BASE_SCALE; without CFX scale the panel sits small with dark FX
@@ -158,8 +181,11 @@ async function setupPreLayer() {
   preReady = true;
 }
 function drawPre(t) {
-  if (!preReady || !preCanvas) return;
-  const idx = ((Math.round((((t % PRE_DUR) + PRE_DUR) % PRE_DUR) / PRE_DUR * PRE_N)) % PRE_N + PRE_N) % PRE_N;
+  if (!preReady || !preCanvas || PRE_N <= 0 || PRE_DUR <= 0) return;
+  // floor (not round): round() skips/duplicates frames near .5 and at the seam —
+  // particle pre-seqs (flowerseq / petal layers) look like a scrambled timeline.
+  const u = (((t % PRE_DUR) + PRE_DUR) % PRE_DUR) / PRE_DUR;
+  const idx = Math.min(PRE_N - 1, Math.floor(u * PRE_N));
   const im = preImgs[idx]; const cx = preCanvas.getContext("2d");
   cx.clearRect(0, 0, preCanvas.width, preCanvas.height);
   if (im) cx.drawImage(im, 0, 0, preCanvas.width, preCanvas.height);
@@ -176,16 +202,28 @@ function drawPre(t) {
   // fire-particle slots x 5 layers) that exhausts Chromium and crashes the tab
   // mid-bake (Target closed). Stopping them is also a big speedup.
   for (const p of window.__players) p.stopRequestAnimationFrame = true;
-  // Switch the character layers onto the requested action animation; FX layers
-  // that don't carry it keep their idle track (pickIdleAnim — not always "animation").
-  if (ACTANIM) {
-    for (const p of window.__players) {
-      const has = p.skeleton.data.animations.some((a) => a.name === ACTANIM);
-      const name = has ? ACTANIM : pickIdleAnim(p.skeleton.data.animations);
-      if (name) {
-        p.animationState.setAnimation(0, name, !has);
-        p.animationState.apply(p.skeleton);
-      }
+  // Select per-layer clips. Priority: CFX LAYER_ANIMS[stem] → ACTANIM → idle.
+  // CFX maps are required when char/bg ship different intro clip names.
+  for (const p of window.__players) {
+    const stem = p.__stem || "";
+    const names = p.skeleton.data.animations.map((a) => a.name);
+    let name = null;
+    let loop = true;
+    if (LAYER_ANIMS[stem] && names.includes(LAYER_ANIMS[stem])) {
+      name = LAYER_ANIMS[stem];
+      // One-shot when the mapped clip is an intro/enter/touch (CFX delay chain
+      // would play a follow-up idle; we only bake the first phase).
+      loop = !/intro|enter|touch/i.test(name);
+    } else if (ACTANIM && names.includes(ACTANIM)) {
+      name = ACTANIM;
+      loop = false;
+    } else {
+      name = pickIdleAnim(p.skeleton.data.animations);
+      loop = true;
+    }
+    if (name) {
+      p.animationState.setAnimation(0, name, loop);
+      p.animationState.apply(p.skeleton);
     }
   }
   window.__ready = true;
@@ -274,8 +312,28 @@ window.__seek = function (t) {
       } else {
         tr.trackTime = mt;
       }
+      // Do NOT setToSetupPose / force animationLast=-1 every frame.
+      // That path freezes multi-turn bone spins (petals/butterflies "lag", no
+      // self-rotation) and desyncs path/deform vs the site bake. Spine-player
+      // track0+mix1 already applies absolute pose from trackTime; sequential
+      // worker frames only advance trackTime. (flowerseq 4.2 harness is a
+      // different runtime — do not copy its reset here.)
     }
     p.animationState.apply(p.skeleton);
+    if (CAM_NEUTRAL) {
+      // Reset engine camera bone(s) to setup so hierarchical camera keys do not
+      // eject the character from the fixed picture AABB (see camneutral param).
+      for (const b of p.skeleton.bones) {
+        if (b.data.name !== "camera") continue;
+        b.x = b.data.x;
+        b.y = b.data.y;
+        b.rotation = b.data.rotation;
+        b.scaleX = b.data.scaleX;
+        b.scaleY = b.data.scaleY;
+        b.shearX = b.data.shearX;
+        b.shearY = b.data.shearY;
+      }
+    }
     if (EHIDE.length) {
       for (const slot of p.skeleton.slots) {
         if (EHIDE.some((tok) => slot.data.name.includes(tok))) slot.color.a = 0;

@@ -25,8 +25,9 @@ try:
 
     EFFECT = Path(paths.RAW_DIR) / "effect"
 except Exception:
-    # Fallback when tools/paths.py is unavailable: sibling extracted_data layout.
     EFFECT = REPO.parent / "extracted_data" / "output" / "effect"
+    if not EFFECT.is_dir():
+        EFFECT = Path(r"D:\Claude\E7\extracted_data\output\effect")
 
 
 def _z_of(prim: dict) -> float:
@@ -57,11 +58,19 @@ def load_cfx_primitives(stem: str) -> list[dict]:
         src = (p.get("source") or "").strip()
         if not src:
             continue
+        ani = (p.get("ani") or "").strip() or None
+        delay_raw = p.get("delay")
+        try:
+            delay_ms = float(delay_raw) if delay_raw not in (None, "") else 0.0
+        except (TypeError, ValueError):
+            delay_ms = 0.0
         out.append(
             {
                 "source": src,
                 "z": _z_of(p),
                 "scale": float(p["scale"]) if p.get("scale") not in (None, "") else 1.0,
+                "ani": ani,
+                "delay_ms": delay_ms,
                 "cfx": path.stem,
             }
         )
@@ -116,7 +125,9 @@ def main() -> int:
         for r in rows:
             sc = r.get("scale", 1.0)
             sc_s = f"  scale={sc:g}" if abs(float(sc) - 1.0) > 1e-6 else ""
-            print(f"{r['z']:>7g}  {r['source']}{sc_s}")
+            ani_s = f"  ani={r['ani']}" if r.get("ani") else ""
+            dly_s = f"  delay={r['delay_ms']:g}ms" if r.get("delay_ms") else ""
+            print(f"{r['z']:>7g}  {r['source']}{sc_s}{ani_s}{dly_s}")
         print("---")
         print(",".join(r["source"] for r in rows))
         scales = [

@@ -22,7 +22,7 @@ Run:
     python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site
 """
 from __future__ import annotations
-import argparse, html, json, os, re, shutil, sys
+import argparse, hashlib, html, json, os, re, shutil, sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -67,6 +67,7 @@ CECILIA_ARTIFACT = "https://ceciliabot.github.io/#/artifacts"
 # entry once the in-game DB or community snapshot supplies the name on its own.
 MANUAL_ARTIFACTS: dict[str, dict] = {
     "art0244": {"name": "Butterfly's Baptism", "rarity": 5, "role": "thief"},  # Rhianna & Luciella (c2185), released 2026-06-04
+    "art0243": {"name": "Aubade Orb", "rarity": 5, "role": "ranger"},  # Aubade Ludwig (c5069), released 2026-06-11
     "art0241": {"name": "Refracted Desire", "rarity": 5, "role": "mage"},  # Eye of the Abyss Fumyr (c5147), released 2026-06-25
 }
 
@@ -77,6 +78,31 @@ MANUAL_ARTIFACTS: dict[str, dict] = {
 # releases (then the artifact surfaces automatically).
 UNRELEASED_ARTIFACTS: set[str] = {
     # art0243 "Aubade Orb" released 2026-06-11 with Aubade Ludwig (c5069)
+    # art0245 "Intoxicating Indulgence" (Aube) — unheld 2026-07-18 with c5190;
+    #          public as ANNOUNCED until banner day (see ANNOUNCED below).
+}
+
+# Officially announced but not yet in gacha / fully live. Public on the site
+# with an ANNOUNCED badge (not NEW). When today >= `release` (ISO date), the
+# announced flag clears and the normal first_seen NEW window applies.
+# Match keys: unit base/id (c5190 covers c5190_1) and/or artifact art####.
+# Optional `video` = official kit/preview URL (shown on detail + artifact zoom).
+ANNOUNCED: dict[str, dict] = {
+    # c5190 Aube + art0245 released 2026-07-23 — entry dropped (NEW takes over).
+}
+
+# Manual unit base → signature art#### (keep in sync with
+# tools/enrich_updates.SIGNATURE_ARTIFACTS). Prepends over
+# data_external/artifact_owners.json for detail-page + Updates Featured.
+# Owners file is the long-term bulk map; this covers brand-new EE gaps.
+SIGNATURE_ARTIFACTS: dict[str, list[str]] = {
+    "c5147": ["art0241"],  # Eye of the Abyss Fumyr — Refracted Desire
+    "c5069": ["art0243"],  # Aubade Ludwig — Aubade Orb
+    "c2185": ["art0244"],  # Rhianna & Luciella — Butterfly's Baptism
+    "c5190": ["art0245"],  # Aube — Intoxicating Indulgence
+    # Early covenant timeline mispairs (see tools/repair_artifact_owners.py):
+    "c1023": ["art0109"],  # Kayron — Shepherd of the Hollow (NOT Celestine)
+    "c1076": ["art0032"],  # Diene — Celestine (NOT Noble Oath)
 }
 
 # A playable unit / artifact carries a "NEW" badge (and sorts to the top of its
@@ -116,20 +142,26 @@ PRIMARY_SWAP: dict[str, dict] = {
     "c2185":     {"label": "backdrop"},
     "c5069":     {"label": "backdrop"},   # Aubade Ludwig — bare rig is bg/sky+clouds+moon
     "c6024":     {"label": "backdrop"},
-    # 2026-06-25 release (bare rig is the scene, _1 is the character):
-    "c5147":     {"label": "backdrop"},   # Eye of the Abyss Fumyr
-    "c2148":     {"label": "backdrop"},   # Tidal Rift Elvira — 98% backdrop slots
-    "c5190":     {"label": "backdrop"},   # Aube — underwater coral scene; detector
-                                          # false-negative, confirmed visually
-    "c2113_s01": {"label": "backdrop"},   # Empyrean Ilynav skin
+    # 2026-06-25 release (find_backdrops.py: bare rig is the scene, _1 is the char):
+    "c5147":     {"label": "backdrop"},   # Eye of the Abyss Fumyr — 80% backdrop slots
+    "c2148":     {"label": "backdrop"},   # 98% backdrop slots
+    "c5190":     {"label": "backdrop"},   # underwater coral scene; detector false-negative
+                                          # (0% — its slot names don't match BACKDROP_RE),
+                                          # confirmed visually: bare=reef, _1=character.
+    "c2113_s01": {"label": "backdrop"},   # Empyrean Ilynav skin; bare rig renders blank/
+                                          # near-empty, _1 carries the character (detector
+                                          # 1% — false-negative). All 4 of this release's
+                                          # new units ship scene-bare + character-_1.
 }
 
 # Arbitrary slug → parent mappings that don't follow the _1 suffix convention.
-# Each entry is attached as an extra rig on the parent's detail page.
-# Use when the same character ships under two unrelated IDs (e.g. an older
-# lobby-only rig alongside the full battle rig released later).
+# Each entry is attached as an extra rig on the parent's detail page (no hub
+# card of its own). Use when the same character ships under two unrelated IDs
+# (e.g. an older lobby-only rig alongside the full battle rig released later,
+# or a non-playable story/event alias that reuses the playable hero's name).
 SLUG_PARENT: dict[str, dict] = {
-    "c1084": {"parent": "c1142", "label": "lobby rig"},  # Eligos legacy 2.1.27 sprite
+    "c1084":  {"parent": "c1142", "label": "lobby rig"},          # Eligos legacy 2.1.27 sprite
+    "c1007t": {"parent": "c1007", "label": "non-playable alias"},  # Vildred story/event instance
 }
 
 
@@ -420,6 +452,248 @@ def apply_released_dates(units: dict) -> int:
     return n
 
 
+def _announced_info_for(obj_id: str, base_id: str | None = None) -> dict | None:
+    """Lookup ANNOUNCED by exact id, then base_id, then bare c#### peel."""
+    if not ANNOUNCED:
+        return None
+    for key in (obj_id, base_id):
+        if key and key in ANNOUNCED:
+            return ANNOUNCED[key]
+    if obj_id:
+        m = re.match(r"^(c\d{4})", obj_id.lower())
+        if m and m.group(1) in ANNOUNCED:
+            return ANNOUNCED[m.group(1)]
+    return None
+
+
+# Class aliases so unit.role and artifact.role line up when validating links.
+_ROLE_NORM = {
+    "soul-weaver": "manauser", "manauser": "manauser",
+    "thief": "assassin", "assassin": "assassin",
+    "warrior": "warrior", "knight": "knight",
+    "ranger": "ranger", "mage": "mage",
+}
+
+
+def _norm_role(r: str | None) -> str | None:
+    if not r:
+        return None
+    return _ROLE_NORM.get(str(r).lower(), str(r).lower())
+
+
+def _load_unit_to_arts() -> dict[str, list[str]]:
+    """unit base → art#### list: owners file + SIGNATURE_ARTIFACTS (manual first).
+
+    When a unit has a manual SIGNATURE_ARTIFACTS entry, those arts *replace*
+    the owners-file list for that unit (so a fixed exclusive is not polluted
+    by a stale wrong link like Kayron→Celestine).
+    """
+    unit_to_arts: dict[str, list[str]] = {}
+    owners_path = Path(__file__).resolve().parent / "data_external" / "artifact_owners.json"
+    if owners_path.exists():
+        try:
+            owners = json.loads(owners_path.read_text(encoding="utf-8"))
+            for cid, aids in (owners.get("unit_to_arts") or {}).items():
+                if isinstance(aids, list) and aids:
+                    unit_to_arts[cid.lower()] = [str(a).lower() for a in aids]
+        except Exception:
+            pass
+    for cid, aids in SIGNATURE_ARTIFACTS.items():
+        key = cid.lower()
+        # Manual replaces owners for this unit (authoritative exclusive).
+        unit_to_arts[key] = list(dict.fromkeys(str(a).lower() for a in aids))
+    return unit_to_arts
+
+
+def attach_signature_artifacts(units: dict, artifacts: list) -> int:
+    """Stamp units with `signature_artifacts[]` from the owner map + manuals.
+
+    Only arts present in the public `artifacts` list with a portrait are linked
+    (UNRELEASED_ARTIFACTS never appear). Cross-class pairs are dropped when both
+    sides have a known role (exclusive arts match the hero's class). Cards are
+    slim copies for the detail page UI. Returns units stamped."""
+    by_art = {a["id"]: a for a in artifacts if a.get("id") and a.get("art_full")}
+    unit_to_arts = _load_unit_to_arts()
+
+    def art_ids_for(unit: dict) -> list[str]:
+        keys: list[str] = []
+        for k in (unit.get("id"), unit.get("base_id")):
+            if not k:
+                continue
+            kl = k.lower()
+            keys.append(kl)
+            m = re.match(r"^(c\d{4})", kl)
+            if m:
+                keys.append(m.group(1))
+        u_role = _norm_role(unit.get("role"))
+        out: list[str] = []
+        seen: set[str] = set()
+        for k in keys:
+            for aid in unit_to_arts.get(k) or []:
+                if aid in seen or aid in UNRELEASED_ARTIFACTS:
+                    continue
+                rec = by_art.get(aid)
+                if not rec:
+                    continue
+                a_role = _norm_role(rec.get("role"))
+                # Refuse known class clashes (Kayron/assassin ≠ Celestine/manauser).
+                if u_role and a_role and u_role != a_role:
+                    continue
+                seen.add(aid)
+                out.append(aid)
+        return out
+
+    def slim_art(rec: dict) -> dict:
+        card: dict = {
+            "id": rec["id"],
+            "kind": "artifact",
+            "name": rec.get("name") or rec["id"],
+            "art_full": rec["art_full"],
+        }
+        for k in ("art_lobby", "rarity", "role", "slug", "cecilia",
+                  "announced", "announce_video", "announce_release", "new"):
+            if rec.get(k) is not None and rec.get(k) is not False:
+                card[k] = rec[k]
+        return card
+
+    n = 0
+    for u in units.values():
+        if u.get("kind") != "unit":
+            continue
+        cards = []
+        for aid in art_ids_for(u):
+            rec = by_art.get(aid)
+            if rec:
+                cards.append(slim_art(rec))
+        if cards:
+            u["signature_artifacts"] = cards
+            n += 1
+    return n
+
+
+def attach_artifact_owners(units: dict, artifacts: list) -> int:
+    """Stamp artifacts with `owner_units[]` (reverse of signature map).
+
+    Links the Artifacts tab / zoom UI to the unit detail page (#/u/<base>).
+    Prefer a public primary unit for each base (not unreleased-only). Returns
+    artifacts stamped."""
+    unit_to_arts = _load_unit_to_arts()
+    # art → unit bases
+    art_to_bases: dict[str, list[str]] = {}
+    for cid, aids in unit_to_arts.items():
+        for aid in aids:
+            if aid in UNRELEASED_ARTIFACTS:
+                continue
+            art_to_bases.setdefault(aid, [])
+            if cid not in art_to_bases[aid]:
+                art_to_bases[aid].append(cid)
+
+    # Prefer one public representative per base_id (PRIMARY_SWAP primary, etc.)
+    by_base: dict[str, dict] = {}
+    for u in units.values():
+        if u.get("kind") != "unit":
+            continue
+        base = (u.get("base_id") or u.get("id") or "").lower()
+        if not base:
+            continue
+        m = re.match(r"^(c\d{4})", base)
+        bare = m.group(1) if m else base
+        # Prefer exact base match, then any; keep first stable
+        for key in (base, bare):
+            if key not in by_base:
+                by_base[key] = u
+            elif not (u.get("variant") or "") and (by_base[key].get("variant") or ""):
+                by_base[key] = u  # prefer unskinned form as rep
+
+    def slim_unit(u: dict) -> dict:
+        base = u.get("base_id") or u["id"]
+        card: dict = {
+            "id": u["id"],
+            "base_id": base,
+            "name": u.get("hero_name") or u.get("name") or base,
+            "href": f"#/u/{base}",
+        }
+        if u.get("thumb"):
+            card["thumb"] = u["thumb"]
+        elif u.get("pose"):
+            card["pose"] = u["pose"]
+        for k in ("rarity", "attribute", "role", "announced", "new"):
+            if u.get(k) is not None and u.get(k) is not False:
+                card[k] = u[k]
+        return card
+
+    a_role = None  # set per artifact below
+    n = 0
+    for a in artifacts:
+        aid = (a.get("id") or "").lower()
+        bases = art_to_bases.get(aid) or []
+        a_role = _norm_role(a.get("role"))
+        owners = []
+        seen: set[str] = set()
+        for b in bases:
+            u = by_base.get(b) or by_base.get(
+                re.match(r"^(c\d{4})", b).group(1)
+                if re.match(r"^(c\d{4})", b) else ""
+            )
+            if not u:
+                continue
+            u_role = _norm_role(u.get("role"))
+            # Drop cross-class reverse links (same rule as signature attach).
+            if a_role and u_role and a_role != u_role:
+                continue
+            key = (u.get("base_id") or u["id"]).lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            owners.append(slim_unit(u))
+        if owners:
+            a["owner_units"] = owners
+            n += 1
+    return n
+
+
+def apply_announced_flags(units: dict, artifacts: list) -> int:
+    """Mark pre-banner public units/artifacts as `announced` (not NEW).
+
+    While today < entry['release'], clear `new` so the hub shows ANNOUNCED
+    instead of NEW, and attach optional official `announce_video`. On/after
+    release day the flag is omitted — first_seen NEW applies normally.
+
+    Delete (or leave past-dated) ANNOUNCED entries once the window no longer
+    matters; stale past-release rows are no-ops. Returns count flagged."""
+    import datetime
+    if not ANNOUNCED:
+        return 0
+    today = datetime.date.today().isoformat()
+    n = 0
+
+    def apply_one(obj: dict, info: dict) -> None:
+        nonlocal n
+        rel = (info.get("release") or "").strip()
+        if rel and today >= rel:
+            return  # live — let NEW badge take over
+        obj["announced"] = True
+        if rel:
+            obj["announce_release"] = rel
+        vid = (info.get("video") or "").strip()
+        if vid:
+            obj["announce_video"] = vid
+        # Don't double-badge as NEW while still pre-banner.
+        obj.pop("new", None)
+        obj.pop("new_since", None)
+        n += 1
+
+    for u in units.values():
+        info = _announced_info_for(u.get("id") or "", u.get("base_id"))
+        if info:
+            apply_one(u, info)
+    for a in artifacts:
+        info = _announced_info_for(a.get("id") or "", None)
+        if info:
+            apply_one(a, info)
+    return n
+
+
 def inspect(img: Path, raw: Path, out: Path) -> None:
     """Read-only report (--inspect): staged slug counts by kind, name coverage,
     raw rig counts, and update codenames detected in path tokens. Writes
@@ -514,13 +788,15 @@ def build(img: Path, raw: Path, out: Path) -> None:
     all_dirs = [d for d in sorted(site_assets.iterdir())
                 if d.is_dir() and d.name not in _RESERVED_ASSET_DIRS
                 and (d / "pose.png").exists()]
-    # Drop unreleased units (by slug OR base hero slug) before anything sees
-    # them — keeps them out of units.json, extras, emote links, everything.
-    n_dirs_before = len(all_dirs)
-    all_dirs = [d for d in all_dirs
-                if d.name not in unreleased
-                and split_variant(d.name)[0] not in unreleased]
-    n_hidden = n_dirs_before - len(all_dirs)
+    # Unreleased units are MATERIALIZED the same as released (full face/skill/
+    # swap_alias/name path) so local / tunnel preview pages are complete. They
+    # are only SPLIT OUT at write time into units_unreleased.json — never
+    # units.json, never SEO stubs, never deploy (deploy.ps1 holds assets + the
+    # unreleased JSON aside). Token guards on wallpapers/emotes/updates still
+    # withhold public cross-refs to held slugs.
+    def _is_unreleased(name: str) -> bool:
+        return name in unreleased or split_variant(name)[0] in unreleased
+    n_hidden = sum(1 for d in all_dirs if _is_unreleased(d.name))
     staged = {d.name for d in all_dirs}
 
     # slug -> ("primary", "")   or   ("extra", parent_slug)
@@ -649,6 +925,11 @@ def build(img: Path, raw: Path, out: Path) -> None:
             rigs_manifest = d / "combat" / "rigs.json"
             if rigs_manifest.exists():
                 unit["combat_rigs"] = json.loads(rigs_manifest.read_text(encoding="utf-8"))
+            # Full skill-3 clip baked by tools/bake_skill3.js (TASKS #57).
+            # R2-served like the rest of combat/ — the frontend builds the URL
+            # from E7.spineBase, so only a flag is emitted here.
+            if (d / "combat" / "sk3_full.webp").exists():
+                unit["skill3_full"] = True
 
         trim_path = d / "pose_trim.json"
         if trim_path.exists():
@@ -691,10 +972,15 @@ def build(img: Path, raw: Path, out: Path) -> None:
     # Step 2: artwork matching — count every img_output file whose name/parent
     # references the unit ID, but only COPY the face/* PNGs into the site bundle.
     # Include swap_alias keys so bare-slug face images land on the primary unit.
+    # Content-hash dedupe: the dump sometimes ships identical base + `_t`
+    # faces (e.g. Notos c2181 / c2181_t) that both match the same primary —
+    # keep the first path only so the detail gallery doesn't show twin tiles.
     all_match_slugs = sorted(set(units) | set(swap_alias), key=len, reverse=True)
     slug_re = {s: re.compile(rf"(?:^|[^a-z0-9]){re.escape(s)}(?:[^a-z0-9]|$)", re.I)
                for s in all_match_slugs}
     counts: dict[str, int] = defaultdict(int)
+    face_hashes: dict[str, set[str]] = defaultdict(set)
+    n_face_dedup = 0
 
     for p in walk(img):
         if p.suffix.lower() not in IMG_EXT: continue
@@ -709,10 +995,24 @@ def build(img: Path, raw: Path, out: Path) -> None:
                 primary = swap_alias.get(s, s)
                 counts[primary] += 1
                 if is_face:
+                    try:
+                        blob = p.read_bytes()
+                    except OSError:
+                        break
+                    digest = hashlib.md5(blob).hexdigest()
+                    if digest in face_hashes[primary]:
+                        n_face_dedup += 1
+                        # Drop a prior-build copy if one still sits on disk.
+                        orphan = site_assets / primary / f"face_{p.name}"
+                        if orphan.exists():
+                            try: orphan.unlink()
+                            except OSError: pass
+                        break
+                    face_hashes[primary].add(digest)
                     dst = site_assets / primary / f"face_{p.name}"
                     if not dst.exists():
                         try:    shutil.copy2(p, dst)
-                        except OSError: continue
+                        except OSError: break
                     rel = f"assets/{primary}/{dst.name}"
                     if rel not in units[primary]["artworks"]:
                         units[primary]["artworks"].append(rel)
@@ -720,11 +1020,44 @@ def build(img: Path, raw: Path, out: Path) -> None:
     for s, n in counts.items():
         if s in units:
             units[s]["artworks_count"] = n
+    if n_face_dedup:
+        print(f"[artwork] skipped {n_face_dedup} content-identical face PNG(s)")
 
     # Step 3: skill animations from img_output/cut/fhd/sk_<id>_3*.webp
     # The third skill (S3) is the one E7 dumps as a still; we copy it next to
     # the pose so the detail page can render it without a second fetch path.
     # swap_alias resolves bare-slug skill files to the correct primary unit.
+    def _force_webp_loop(path: Path) -> bool:
+        """Set an animated WebP's ANIM loop count to 0 (infinite). Newer packs
+        ship cut-ins/emotes with loop=1 (first seen: c5069 skill cut-in,
+        2026-06-11; c5147 emote, 2026-07-03) which play once and freeze in the
+        gallery; every older animation loops. Walks the top-level RIFF chunks
+        (no naive byte search — 'ANIM' can occur in compressed payloads).
+        Returns True if it rewrote the file; False (no-op) for static or
+        already-looping files. Idempotent — safe to re-run on staged files."""
+        try:
+            b = bytearray(path.read_bytes())
+        except OSError:
+            return False
+        if len(b) < 12 or b[0:4] != b"RIFF" or b[8:12] != b"WEBP":
+            return False
+        pos = 12
+        while pos + 8 <= len(b):
+            fourcc = bytes(b[pos:pos + 4])
+            size = int.from_bytes(b[pos + 4:pos + 8], "little")
+            if fourcc == b"ANIM" and size >= 6:
+                loop_at = pos + 8 + 4          # payload: u32 bg color, u16 loop
+                if b[loop_at:loop_at + 2] != b"\x00\x00":
+                    b[loop_at:loop_at + 2] = b"\x00\x00"
+                    try:
+                        path.write_bytes(b)
+                        return True
+                    except OSError:
+                        return False
+                return False
+            pos += 8 + size + (size & 1)       # chunks are 2-byte aligned
+        return False
+
     fhd = img / "cut" / "fhd"
     if fhd.exists():
         sk_re = re.compile(r"^sk_(.+?)_3(?:_\d+)?\.(?:webp|png|jpg)$", re.I)
@@ -738,6 +1071,8 @@ def build(img: Path, raw: Path, out: Path) -> None:
             if not dst.exists():
                 try: shutil.copy2(p, dst)
                 except OSError: continue
+                if dst.suffix.lower() == ".webp":
+                    _force_webp_loop(dst)
             units[primary]["skills"].append(f"assets/{primary}/{dst.name}")
 
     # Step 3b: intimacy illustrations — story/bg/img_intimacy_illust_c<id>.webp (skip _th).
@@ -761,6 +1096,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
             if not dst.exists():
                 try:    shutil.copy2(p, dst)
                 except OSError: continue
+                _force_webp_loop(dst)
             units[primary]["intimacy"] = f"assets/{primary}/intimacy.webp"
 
     # Step 3b-2: animated intimacy illustrations (preferred). A few units ship the
@@ -804,15 +1140,20 @@ def build(img: Path, raw: Path, out: Path) -> None:
     updates_dir.mkdir(exist_ok=True)
     banners_per_code: dict[str, list[str]] = defaultdict(list)
     story_per_code:  dict[str, list[str]] = defaultdict(list)
-    STORY_SKIP = re.compile(r"_th\.|_blur\.|(?:^|_)silhouette", re.I)
+    # panic_stage = Panic minigame roster portraits (already shown as Stage cast);
+    # keep them out of the event story / art gallery.
+    STORY_SKIP = re.compile(
+        r"_th\.|_blur\.|(?:^|_)silhouette|panic_stage", re.I
+    )
 
     for p in walk(img / "banner"):
         if p.suffix.lower() not in IMG_EXT: continue
         codes = {c.lower() for c in CODE_RE.findall(p.name.lower())} & event_labels.keys()
         if refs_unreleased(p.name):
-            # Unreleased-unit promo art (gacha/update banner) reaches _updates by
-            # CODENAME, not a staged unit dir — the unit-dir hold-back misses it.
-            # Never stage/reference it, and purge any copy a prior build left.
+            # Unreleased-unit promo art (gacha/update banner, e.g.
+            # vsu6aa_..._c5190_play) reaches _updates by CODENAME, not a staged
+            # unit dir — the unit-dir hold-back misses it. Never stage/reference
+            # it, and purge any copy a prior build left. (Same guard as wallpapers.)
             for c in codes:
                 stale = updates_dir / c / p.name
                 if stale.exists():
@@ -858,7 +1199,15 @@ def build(img: Path, raw: Path, out: Path) -> None:
     arti_dir.mkdir(exist_ok=True)
     ARTI_ID_RE = re.compile(r"^(art\d+(?:_\d+)?)_(fu\.png|l\.jpg)$", re.I)
     arti_files: dict[str, dict[str, str]] = defaultdict(dict)
+    arti_unrel_files: dict[str, dict[str, str]] = defaultdict(dict)
     arti_src = img / "item_arti"
+    # LOCAL-ONLY preview dir for held (unreleased-unit) artifacts — mirrors the
+    # units_unreleased path. Rebuilt fresh each run so a since-released artifact's
+    # art can't linger. Held aside by deploy.ps1 + gated behind E7.isLocal, so it
+    # never reaches Pages/R2. (The Step-2b loose token scan doesn't cover it.)
+    arti_unrel_dir = site_assets / "_artifacts_unreleased"
+    if arti_unrel_dir.exists():
+        shutil.rmtree(arti_unrel_dir, ignore_errors=True)
     if arti_src.exists():
         for p in sorted(arti_src.iterdir()):
             m = ARTI_ID_RE.match(p.name)
@@ -866,24 +1215,26 @@ def build(img: Path, raw: Path, out: Path) -> None:
                 continue
             aid = m.group(1).lower()
             suf = m.group(2).lower()
+            key = "full" if suf.startswith("fu") else "lobby"
             dst = arti_dir / p.name
             if aid in UNRELEASED_ARTIFACTS:
-                # Belongs to an unreleased unit — never stage/publish it, and
-                # purge any copy a prior build left behind.
+                # Never PUBLISH it: purge any copy in the public dir, but keep a
+                # local-only copy so it can be previewed on localhost.
                 if dst.exists():
                     try: dst.unlink()
                     except OSError: pass
+                arti_unrel_dir.mkdir(exist_ok=True)
+                udst = arti_unrel_dir / p.name
+                try: shutil.copy2(p, udst)
+                except OSError: continue
+                arti_unrel_files[aid][key] = f"assets/_artifacts_unreleased/{p.name}"
                 continue
             if not dst.exists():
                 try: shutil.copy2(p, dst)
                 except OSError: continue
-            arti_files[aid]["full" if suf.startswith("fu") else "lobby"] = (
-                f"assets/_artifacts/{p.name}"
-            )
-    artifacts_out: list[dict] = []
-    for aid, paths in arti_files.items():
-        if "full" not in paths:
-            continue                          # no portrait → not card-worthy
+            arti_files[aid][key] = f"assets/_artifacts/{p.name}"
+
+    def _arti_entry(aid: str, paths: dict[str, str]) -> dict:
         rec = {**artifact_db.get(aid, {}), **MANUAL_ARTIFACTS.get(aid, {})}
         entry: dict = {"id": aid, "art_full": paths["full"]}
         if "lobby" in paths: entry["art_lobby"] = paths["lobby"]
@@ -902,8 +1253,18 @@ def build(img: Path, raw: Path, out: Path) -> None:
             entry["cecilia"] = f"{CECILIA_ARTIFACT}/{kebab(rec['name'])}"
         else:
             entry["cecilia"] = CECILIA_ARTIFACT
-        artifacts_out.append(entry)
+        return entry
+
+    artifacts_out: list[dict] = [
+        _arti_entry(aid, paths) for aid, paths in arti_files.items()
+        if "full" in paths                    # no portrait → not card-worthy
+    ]
     artifacts_out.sort(key=lambda a: (-(a.get("rarity") or 0), a["id"]))
+    artifacts_unrel: list[dict] = [
+        {**_arti_entry(aid, paths), "unreleased": True}
+        for aid, paths in arti_unrel_files.items() if "full" in paths
+    ]
+    artifacts_unrel.sort(key=lambda a: (-(a.get("rarity") or 0), a["id"]))
 
     # Step 5: emote gallery — img_output/emoticon/<id>_<theme>_001.webp (animated)
     # and img_output/emoticon_chat/<id>_<theme>_001.png (static chat sticker).
@@ -1058,38 +1419,13 @@ def build(img: Path, raw: Path, out: Path) -> None:
                 continue   # solid-colour utility screens — not real backgrounds
             add_wallpaper(p, "story")
 
-    # Safety net: force infinite loop on EVERY staged animated WebP. Newer packs
-    # ship cut-ins/emotes with ANIM loop=1 (play once then freeze — first bit a
-    # skill cut-in, then an emote); every older animation loops. One unconditional,
-    # idempotent sweep over the staged tree is the single guarantee no animated
-    # webp ever ships play-once, whichever step copied it.
-    def _force_webp_loop(path: Path) -> bool:
-        """Rewrite an animated WebP's ANIM loop count to 0 (infinite). Walks the
-        top-level RIFF chunks (no naive byte search — 'ANIM' can occur in
-        compressed payloads). Returns True if it rewrote the file; False (no-op)
-        for static or already-looping files. Idempotent."""
-        try:
-            b = bytearray(path.read_bytes())
-        except OSError:
-            return False
-        if len(b) < 12 or b[0:4] != b"RIFF" or b[8:12] != b"WEBP":
-            return False
-        pos = 12
-        while pos + 8 <= len(b):
-            fourcc = bytes(b[pos:pos + 4])
-            size = int.from_bytes(b[pos + 4:pos + 8], "little")
-            if fourcc == b"ANIM" and size >= 6:
-                loop_at = pos + 8 + 4          # payload: u32 bg color, u16 loop
-                if b[loop_at:loop_at + 2] != b"\x00\x00":
-                    b[loop_at:loop_at + 2] = b"\x00\x00"
-                    try:
-                        path.write_bytes(b)
-                        return True
-                    except OSError:
-                        return False
-                return False
-            pos += 8 + size + (size & 1)       # chunks are 2-byte aligned
-        return False
+    # Safety net: force infinite loop on EVERY staged animated WebP, whichever
+    # step copied it. Newer packs ship cut-ins/emotes/etc. with loop=1 (play once
+    # then freeze — first bit c5069's skill cut-in, then c5147's emote). The
+    # per-step _force_webp_loop() calls above only touch FRESHLY-copied files, so
+    # they miss already-staged webps and any future copy path we forget to wire.
+    # This unconditional, idempotent sweep is the single guarantee that no
+    # animated webp ever ships play-once again. See [[project-e7-webp-loop-sweep]].
     n_loop = sum(_force_webp_loop(wp) for wp in site_assets.rglob("*.webp"))
 
     # Flag newly-seen units/artifacts/emotes/wallpapers (first_seen ledger) +
@@ -1098,16 +1434,49 @@ def build(img: Path, raw: Path, out: Path) -> None:
     n_new = apply_new_flags(units, artifacts_out, emotes_list, wallpapers)
     n_mod = apply_modified_flags(units)
     n_rel = apply_released_dates(units)
-    artifacts_out.sort(key=lambda a: (not a.get("new"),
+    # After NEW so we can strip `new` while still pre-banner (ANNOUNCED wins).
+    n_ann = apply_announced_flags(units, artifacts_out)
+    # Bidirectional owner links (after announced so pre-banner flags propagate):
+    #   unit.signature_artifacts[]  → detail page strip
+    #   artifact.owner_units[]      → Artifacts tab / zoom → unit page
+    n_sig = attach_signature_artifacts(units, artifacts_out)
+    # Held units must never surface as owner pills in PUBLIC artifacts.json
+    # (name + #/u/ link would leak an unannounced hero) — pass released only.
+    n_own = attach_artifact_owners(
+        {s: u for s, u in units.items() if not _is_unreleased(s)}, artifacts_out)
+    artifacts_out.sort(key=lambda a: (not a.get("announced"), not a.get("new"),
                                       -(a.get("rarity") or 0), a["id"]))
 
     # Step 7: write outputs.
     data = out / "data"
     data.mkdir(parents=True, exist_ok=True)
+
+    # Split held units out of the public catalog. Same full materialization as
+    # released (above); only the write targets differ. Strip cecilia — CB pages
+    # usually don't exist yet and we don't want a public deep-link temptation
+    # if the JSON ever escaped the local gate.
+    unrel_list: list[dict] = []
+    public_units: dict[str, dict] = {}
+    for slug, unit in units.items():
+        if _is_unreleased(slug):
+            held = dict(unit)
+            held["unreleased"] = True
+            held.pop("cecilia", None)
+            unrel_list.append(held)
+        else:
+            public_units[slug] = unit
+    units = public_units
+
+    # Defense-in-depth: units.json must never carry an unreleased slug (the other
+    # guard is sync_pack Stage 8). Cheap, and it turns any future refactor slip
+    # into a hard build failure instead of a silent public leak.
+    _leaked = [s for s in units if _is_unreleased(s)]
+    if _leaked:
+        raise SystemExit(f"FATAL: unreleased slug(s) reached units.json: {_leaked}")
     _units_text = json.dumps(sorted(units.values(), key=lambda u: u["id"]),
                              indent=1, ensure_ascii=False)
-    # Deep belt: the unit-dir drop above only guards TOP-LEVEL slugs — a held
-    # slug nested in a string field (extras, aliases) would pass it. Token-scan
+    # Deep belt: the check above only sees TOP-LEVEL slugs — a held slug nested
+    # as an extras[] entry under a released primary would pass it. Token-scan
     # the serialized text instead (consecutive-sequence match, so a held _1
     # variant never false-flags its released base).
     _held_seqs = [tuple(p for p in re.split(r"[^a-z0-9]+", u.lower()) if p)
@@ -1117,8 +1486,30 @@ def build(img: Path, raw: Path, out: Path) -> None:
                     for i, t in enumerate(_toks) if t == seq[0]
                     and tuple(_toks[i:i + len(seq)]) == seq})
     if _deep:
-        raise SystemExit(f"FATAL: held slug token(s) inside units.json: {_deep}")
+        raise SystemExit(f"FATAL: held slug token(s) inside units.json "
+                         f"(nested extras[]?): {_deep}")
     (data / "units.json").write_text(_units_text, "utf-8")
+
+    # LOCAL-ONLY browse file (index.html loads only when E7.isLocal / ?unreleased=1
+    # / ?local=1; deploy.ps1 holds it + asset dirs aside so it never reaches Pages).
+    unrel_path = data / "units_unreleased.json"
+    unrel_list.sort(key=lambda x: x["id"])
+    if unrel_list:
+        unrel_path.write_text(json.dumps(unrel_list, indent=1, ensure_ascii=False), "utf-8")
+        print(f"[unreleased] {len(unrel_list)} held unit(s) -> units_unreleased.json "
+              f"(full build, LOCAL-ONLY; deploy.ps1 holds it aside)")
+    elif unrel_path.exists():
+        unrel_path.unlink()   # don't let a stale file outlive the held set
+
+    # LOCAL-ONLY held-artifact preview (same treatment as units_unreleased).
+    unrel_arti_path = data / "artifacts_unreleased.json"
+    if artifacts_unrel:
+        unrel_arti_path.write_text(json.dumps(artifacts_unrel, indent=1, ensure_ascii=False), "utf-8")
+        print(f"[unreleased] {len(artifacts_unrel)} held artifact(s) -> artifacts_unreleased.json "
+              f"(LOCAL-ONLY; deploy.ps1 holds it aside)")
+    else:
+        if unrel_arti_path.exists(): unrel_arti_path.unlink()
+        if arti_unrel_dir.exists(): shutil.rmtree(arti_unrel_dir, ignore_errors=True)
     updates_out = {}
     # Only iterate over codenames that picked up any art — keeps the JSON tight
     # even though event_labels now has 100+ entries (most have no on-disk assets).
@@ -1220,9 +1611,9 @@ def build(img: Path, raw: Path, out: Path) -> None:
     print(f"\n[units] {len(units)} total")
     for k, n in sorted(by_kind.items(), key=lambda x: -x[1]):
         print(f"  {k:10s} {n}")
-    if n_hidden:
-        print(f"\n[hidden]  {n_hidden} unreleased unit(s) suppressed "
-              f"(game flag 'Unknown Hero')")
+    if n_hidden or unrel_list:
+        print(f"\n[hidden]  {len(unrel_list)} unreleased unit(s) built fully → "
+              f"units_unreleased.json only (not units.json / not deploy)")
     print(f"\n[names]   {with_name} units with display name "
           f"(from HeroDatabase.json + HeroSkins.json + names_from_db.json)")
     print(f"[artwork] {with_art} units with at least one face PNG bundled")
@@ -1243,6 +1634,12 @@ def build(img: Path, raw: Path, out: Path) -> None:
           f"{len(artifacts_out)-named_arti} orphan)")
     print(f"[new]     {n_new} unit/artifact/emote/wallpaper flagged new "
           f"(first-seen within {NEW_WINDOW_DAYS}d; first_seen.json)")
+    print(f"[ann]     {n_ann} unit/artifact flagged announced "
+          f"(pre-banner; ANNOUNCED ledger — becomes NEW after release date)")
+    print(f"[sig]     {n_sig} unit(s) with signature_artifacts[] "
+          f"(owners map + SIGNATURE_ARTIFACTS)")
+    print(f"[own]     {n_own} artifact(s) with owner_units[] "
+          f"(reverse map → unit detail links)")
     print(f"[upd]     {n_mod} unit(s) flagged updated "
           f"(within {MOD_WINDOW_DAYS}d; modified.json)")
     print(f"[date]    {n_rel} unit(s) stamped with release date "

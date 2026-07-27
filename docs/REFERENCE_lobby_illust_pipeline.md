@@ -209,14 +209,18 @@ Listed in recipes with `"deferred": true`. **Not** in the default bake set.
 
 | id | What |
 |----|------|
-| `c2185_intro` | R&L enter (`illeff_c2185_intro*` + intro butterfly) — blank at t=0, not loopable |
-| `c6005_intro` | Lady of the Scales enter (`illeff_illust_c6005_1_intro`) |
+| `c2185_intro` | R&L enter — **REJECTED 2026-07-27** (moon-face / wrong look). Do not bake. |
+| `c6005_intro` | Lady of the Scales enter — **REJECTED 2026-07-27** (worse than prior spike; former webm overwritten). Do not bake. |
 | `vva5aa_lobby_intro` | Tori lobby intro stack (bg_b, char, bg_f, eff) |
 | `vva5aa_intro` | Tori illust intro only (`intro_b` / `intro_f`) |
 
+**c2185 / c6005 intro stop:** see `docs/REFERENCE_intimacy_illustration.md` § Deferred
+intimacy INTROS and `recipes.json` → `_meta.deferred_intimacy_intro`. Rejected
+artifacts: `tools/_illust_spike/*_intro.rejected_2026-07-27.webm`.
+
 ```powershell
 python pipeline_illust.py list deferred
-# later: python pipeline_illust.py full deferred
+# Do NOT: python pipeline_illust.py full deferred   # until camera/FX RE is done
 ```
 
 ### Lang swaps (very low priority)

@@ -33,11 +33,24 @@
   main{max-width:1300px;margin:0 auto;padding:14px;display:grid;gap:12px}
   #stage-wrap{position:relative;background:var(--ink-2);border:1px solid var(--line);border-radius:6px;height:78vh;min-height:480px;overflow:hidden;touch-action:none}
   #stage-scaler{position:absolute;left:0;top:0;transform-origin:0 0;transition:transform .15s ease-out;will-change:transform}
-  #stage{position:absolute;inset:0}
+  #stage{position:absolute;inset:0;z-index:2}
   /* Backdrop player sits behind the character at the same coordinates so the
      character renders on top. pointer-events:none so the wrap-level pan/zoom
      handlers still receive drags; the backdrop has no control bones anyway. */
   #stage-bg{position:absolute;inset:0;pointer-events:none}
+  /* Skill-FX effect layers (TASKS #58): one stacked div per effect rig,
+     spawned by the .timeline cue sheet during combat animations. Inline
+     z-index 1 (behind the character, above the backdrop) or 3 (in front);
+     #pick-overlay stays above everything at z 5. Hidden until cued. */
+  /* FX layers are OVERSCANNED 2x (centered on the stage box) so big battle
+     effects render to their full extent instead of cutting at the stage
+     edge; each layer's camera is widened to match in the viewport sync
+     (FX_OVERSCAN). Exports sample the centre quarter back out. */
+  .fx-layer{position:absolute;left:-50%;top:-50%;width:200%;height:200%;pointer-events:none;visibility:hidden}
+  /* spine-player's pause() force-shows its control bar even with
+     showControls:false (the engine pauses parked FX players) — FX layers
+     must never show one. */
+  .fx-layer .spine-player-controls{display:none !important}
   /* Spine-player draws its own play/scrub bar inside the target div, which
      puts it inside our pan/zoom transform — the bar moves with the character
      and gets clipped when the user pans. We relocate it to a wrapper *outside*
@@ -219,6 +232,7 @@
       <option value="4">4× (slow)</option>
     </select>
     <label class="stage-toggle" id="stage-label" hidden title="composite the backdrop rig behind the character"><input type="checkbox" id="stage-on"> <span data-i18n="viewer_stage">Stage</span></label>
+    <label class="stage-toggle" id="fx-label" hidden title="Composite the skill's Spine effect rigs (slashes, beams, impacts) over the character at their in-game cue times. Particle-system FX and the target's hit reactions can't be reproduced, so it's close to — not identical to — the in-game look."><input type="checkbox" id="fx-on" checked> <span data-i18n="viewer_skillfx">Skill FX</span></label>
     <label class="stage-toggle" id="scene-label" hidden title="Reproduce the hub thumbnail: hides the FX / aura / backdrop / scene slots that the thumbnail bake strips (plus the curated scene slots for combined-file rigs like Hwayoung Summertime / Aram). Shown for any rig that has such slots. Use the Assets panel for finer control."><input type="checkbox" id="scene-on"> <span data-i18n="viewer_hidefx">Hide FX/BG</span><sup style="color:var(--gold-dim);margin-left:2px;font-size:10px;font-family:'Spline Sans Mono',monospace">*</sup></label>
     <button id="slot-picker-btn" type="button" title="Open the per-asset toggle panel — hide any asset on this rig (backdrop pieces, FX, accessories) with live preview."><span data-i18n="viewer_assets">Assets</span><span class="pcount" id="slot-picker-count"></span></button>
   </div>
@@ -382,11 +396,35 @@ const animSel = document.getElementById("anim");
 const skinSel = document.getElementById("skin");
 const rigSel = document.getElementById("rig-sel");
 const rigSelLabel = document.getElementById("rig-sel-label");
+// Wheel over a <select> steps to the next/previous option instead of zooming
+// the stage. Fires the real change event so existing onchange handlers work.
+function stepSelect(sel, dir) {
+  if (!sel || sel.disabled) return;
+  const n = sel.options.length;
+  if (n < 2) return;
+  let i = sel.selectedIndex;
+  if (i < 0) i = 0;
+  const next = Math.max(0, Math.min(n - 1, i + (dir > 0 ? 1 : -1)));
+  if (next === i) return;
+  sel.selectedIndex = next;
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+}
+function wheelStepSelect(sel) {
+  sel.addEventListener("wheel", (e) => {
+    if (sel.options.length < 2) return;
+    e.preventDefault();
+    e.stopPropagation();
+    stepSelect(sel, e.deltaY);
+  }, { passive: false });
+}
+wheelStepSelect(skinSel);
+wheelStepSelect(animSel);
 // Which combat-rig json basename to load. Defaults to <slug> (the primary rig);
 // dual-rig units (DUAL_COMBAT, e.g. Rhianna & Luciella) flip this via the rig
 // <select> and reload. Only meaningful when isCombat.
 let combatFile = slug;
 const qSel    = document.getElementById("quality");
+wheelStepSelect(qSel);
 const zinBtn  = document.getElementById("zin");
 const zoutBtn = document.getElementById("zout");
 const zfitBtn = document.getElementById("zfit");
@@ -420,6 +458,23 @@ const spExcluded = document.getElementById("sp-excluded");
 const spExcludedHead = document.getElementById("sp-excluded-head");
 const spExcludedList = document.getElementById("sp-excluded-list");
 const spExcludedCount = document.getElementById("sp-excluded-count");
+
+// ── Hide FX preference (global across all units) ────────────────────────────
+// Default ON (FX/BG hidden) so the character frames tighter / cleaner by
+// default. Stored in localStorage: if the user toggles it, that choice is
+// kept across units and reloads. Per-rig "Reset" / undo only touch the
+// current hideSet; they do not clear this preference.
+const HIDE_FX_KEY = "e7_viewer_hide_fx";
+function getHideFxPref() {
+  try {
+    const v = localStorage.getItem(HIDE_FX_KEY);
+    if (v === null) return true; // first visit: FX/BG off (hidden)
+    return v === "1";
+  } catch (_) { return true; }
+}
+function setHideFxPref(on) {
+  try { localStorage.setItem(HIDE_FX_KEY, on ? "1" : "0"); } catch (_) {}
+}
 
 // ── Thumbnail strip patterns, from the shared site/data/strip_patterns.json ──
 // The "Hide FX" toggle applies the exact set the hub thumbnail bake uses, so
@@ -626,7 +681,12 @@ zshotBtn.onclick = async () => {
   off.width = w; off.height = h;
   const offCtx = off.getContext("2d");
   if (bgCanvas) offCtx.drawImage(bgCanvas, 0, 0, w, h);
-  offCtx.drawImage(canvas, 0, 0, w, h);
+  {
+    const fx = fxExportLayers();
+    for (const s of fx.back) offCtx.drawImage(s.canvas, s.sx, s.sy, s.sw, s.sh, 0, 0, w, h);
+    offCtx.drawImage(canvas, 0, 0, w, h);
+    for (const s of fx.front) offCtx.drawImage(s.canvas, s.sx, s.sy, s.sw, s.sh, 0, 0, w, h);
+  }
 
   // Trim transparent margins. spine-player's auto-fit allocates the whole
   // canvas to the rig's world bounds; rigs with off-screen FX/aura slots
@@ -758,7 +818,10 @@ async function exportWebm({ canvas, animName, duration }) {
   const drawFrame = () => {
     ctx.fillStyle = bgColor; ctx.fillRect(0, 0, w, h);
     if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0, w, h);
+    const fx = fxExportLayers();
+    for (const s of fx.back) ctx.drawImage(s.canvas, s.sx, s.sy, s.sw, s.sh, 0, 0, w, h);
     ctx.drawImage(canvas, 0, 0, w, h);
+    for (const s of fx.front) ctx.drawImage(s.canvas, s.sx, s.sy, s.sw, s.sh, 0, 0, w, h);
   };
   // captureStream auto-samples at 60fps (more reliable than manual
   // requestFrame, which collapsed near-static anims to one frame). Bitrate
@@ -820,7 +883,10 @@ async function captureAlphaFrames(canvas, animName, duration, maxH, fps) {
   const capture = () => {
     ctx.clearRect(0, 0, w, h);
     if (bgCanvas) ctx.drawImage(bgCanvas, 0, 0, w, h);
+    const fx = fxExportLayers();
+    for (const s of fx.back) ctx.drawImage(s.canvas, s.sx, s.sy, s.sw, s.sh, 0, 0, w, h);
     ctx.drawImage(canvas, 0, 0, w, h);
+    for (const s of fx.front) ctx.drawImage(s.canvas, s.sx, s.sy, s.sw, s.sh, 0, 0, w, h);
     imgs.push(ctx.getImageData(0, 0, w, h));
   };
   player.setAnimation(animName);
@@ -994,6 +1060,12 @@ wrap.addEventListener("touchend", (e) => {
 // R2-backed CDN. Host detection lives in shared.js — the SAME logic
 // index.html uses for voice clips, so the two can't drift apart again.
 const spineBase = E7.spineBase;
+// Skill-FX compositing (TASKS #58) is WIP — kept LOCAL-ONLY by host gate: the FX
+// engine + "Skill FX" toggle activate only on localhost (E7.isLocal) or with
+// ?s3=1, never on production. initCombatFx() early-returns otherwise, so fxEngine
+// stays null and every fx call no-ops (production-identical). Same gate as
+// index.html's S3_DEV; open it (and pass deploy.ps1 -IncludeSkill3) when shipping.
+const S3_DEV = E7.isLocal || /[?&]s3=1/.test(location.search);
 
 if (!slug) {
   stage.innerHTML = '<div class="err">missing ?slug= in URL.</div>';
@@ -1019,6 +1091,1619 @@ if (!slug) {
   loadScene();
 }
 
+// ---------------------------------------------------------------------------
+// Skill-FX compositing (TASKS #58). Combat rigs ship a .timeline cue sheet
+// (compiled to combat/fx/cues.json by tools/prepare_fx_assets.py) that spawns
+// the skill's Spine EFFECT rigs at authored times: each cue's primitives are
+// separate spine-players in stacked .fx-layer divs (z<0 behind the character,
+// z>=0 in front), sharing the character's exact viewport so world coordinates
+// register. The engine is driven off the character's trackTime via rAF, so
+// pause and animation switches stay in sync, and cues re-fire on every loop
+// iteration like in-game. Effects despawn via `remove` cues, on non-loop
+// completion, or on lifeTime expiry.
+var fxEngine = null;   // var: hoisted — the initial loadScene() runs above this line
+
+// Visible effect canvases for the export composites (screenshot/WebM/WebP/
+// APNG), already split into behind-/in-front-of-character layers.
+function fxExportLayers() {
+  return fxEngine ? fxEngine.canvases() : { back: [], front: [] };
+}
+
+function destroyFxEngine() {
+  if (!fxEngine) return;
+  try { fxEngine.destroy(); } catch (_) {}
+  fxEngine = null;
+  document.getElementById("fx-label").hidden = true;
+}
+
+function initCombatFx(charP) {
+  if (!S3_DEV) return;   // WIP skill-FX held local-only (see S3_DEV above)
+  const base = `${spineBase}/${slug}/combat/fx`;
+  fetch(`${base}/cues.json`)
+    .then(r => (r.ok ? r.json() : null))
+    .then(cues => {
+      if (!cues || !cues.anims || !Object.keys(cues.anims).length) return;
+      if (player !== charP) return;   // stale load (scene was reloaded)
+      document.getElementById("fx-label").hidden = false;
+      fxEngine = makeFxEngine(charP, cues, base);
+    })
+    .catch(() => {});
+}
+
+function makeFxEngine(charP, cues, base) {
+  const fxOn = document.getElementById("fx-on");
+  // FX canvases are this factor larger than the stage box (must match the
+  // .fx-layer CSS: 2 -> left/top -50%, width/height 200%).
+  const FX_OVERSCAN = 2;
+  // Phantom-enemy distance for enemy-side (spawn.tgt) effects. The live
+  // viewer's 600 reads well in its box; the bake overrides via
+  // window.__fxTargetDx (~1100 — measured against in-game footage, ravi's
+  // thrown axe lands much further out than 600).
+  const FX_TARGET_DX = () => +window.__fxTargetDx || 600;
+
+  // Pool key for a cue primitive: spine rigs by stem, cocos particle systems
+  // (prim.particle, staged as <src>.particle.json) namespaced "p~".
+  function primKey(p) { return p.rig || (p.particle ? "p~" + p.particle : ""); }
+
+  // Expand each animation's cue list into flat timed events (per-primitive
+  // cfx delay folded into the fire time).
+  const events = {};
+  const allRigs = new Set();
+  for (const [anim, list] of Object.entries(cues.anims)) {
+    const ev = [];
+    for (const c of list) {
+      // pre-roll cues (graphs that play their cinematic BEFORE the first ANI
+      // node — doris) are attributed to the unit's idle: schedule-only, the
+      // live viewer looping idle must not fire the S3 cutaway
+      if (c.pre && !window.__fxScheduleMode) continue;
+      if (c.spawn) {
+        for (const prim of c.spawn.prims) {
+          ev.push({ t: c.t + (prim.delay || 0), kind: "spawn", prim, spawn: c.spawn });
+          allRigs.add(primKey(prim));
+        }
+      } else if (c.remove) ev.push({ t: c.t, kind: "remove", id: c.remove });
+      else if (c.shake)    ev.push({ t: c.t, kind: "shake", shake: c.shake });
+    }
+    ev.sort((a, b) => a.t - b.t);
+    events[anim] = ev;
+  }
+
+  // Per-rig sets so the pool can be scoped to the CURRENT animation. Browsers
+  // cap WebGL contexts at ~16 per page; FX-heavy units reference 25+ effect
+  // rigs across all skills (c1009 Charlotte = 27), so preloading everything
+  // silently loses contexts. Instead, players are created when an animation
+  // starts and torn down when it no longer needs them — a skill cues at most
+  // a handful of rigs. First-loop spawns may fire a moment late (pending
+  // queue + lateBy compensation); subsequent loops are exact.
+  const rigsByAnim = {};
+  for (const [anim, ev] of Object.entries(events)) {
+    rigsByAnim[anim] = new Set(ev.filter(e => e.kind === "spawn").map(e => primKey(e.prim)));
+  }
+
+  const pool = new Map();   // rig -> entry
+  let sceneSeq = 0;         // spawn-object ids for cinematic scene grouping
+  function snapshotViewport() {
+    const v = charP.currentViewport;
+    return v ? { x: v.x, y: v.y, width: v.width, height: v.height,
+                 padLeft: v.padLeft, padRight: v.padRight,
+                 padTop: v.padTop, padBottom: v.padBottom } : undefined;
+  }
+  function destroyEntry(e) {
+    if (e.killTimer) clearTimeout(e.killTimer);
+    if (e.player) {
+      try { e.player.stopRendering(); } catch (_) {}
+      // release the WebGL context DETERMINISTICALLY: Chrome caps a page at
+      // 16 live contexts and silently loses the OLDEST when the 17th is
+      // created — estelle's 29-rig pool rendered its early scenes blank.
+      // GC would free them eventually; the cap needs it freed NOW.
+      try {
+        const gl = e.player.context && e.player.context.gl;
+        const ext = gl && gl.getExtension("WEBGL_lose_context");
+        if (ext) { ext.loseContext(); window.__ctxFreed = (window.__ctxFreed || 0) + 1; }
+        else window.__ctxFreeFail = (window.__ctxFreeFail || 0) + 1;
+      } catch (_) { window.__ctxFreeFail = (window.__ctxFreeFail || 0) + 1; }
+    }
+    e.div.remove();
+    pool.delete(e.rig);
+  }
+  function ensureAnim(anim) {
+    // LAZY pool: entries are created at fire time (startPrim), never all
+    // upfront — a multi-scene skill references more rigs than the browser
+    // allows live WebGL contexts (16; Chrome silently loses the oldest past
+    // that), and 30 live players also saturate rendering. Pool-creation
+    // stalls can't skew the bake: its schedule runs on the character's
+    // TRACK time, which pauses right along with the stall. Here only drop
+    // stale layers and keep what carried-over delayed spawns still need.
+    const need = new Set();
+    for (const c of st.carry) need.add(primKey(c.ev.prim));
+    for (const e of [...pool.values()]) {
+      // visible layers survive the switch in schedule mode (in-game effect
+      // nodes are global; they retire when their own animation/sim ends)
+      if (!need.has(e.rig) && !e.visible) destroyEntry(e);
+    }
+    for (const rig of need) {
+      if (!pool.has(rig)) (rig.startsWith("p~") ? createParticleEntry : createEntry)(rig);
+    }
+  }
+  function createEntry(rig) {
+    const div = document.createElement("div");
+    div.className = "fx-layer";
+    scaler.appendChild(div);
+    const entry = { rig, div, player: null, ready: false, visible: false,
+                    loop: false, spawnId: null, killTimer: 0 };
+    pool.set(rig, entry);
+    entry.player = new spine.SpinePlayer(div, {
+      jsonUrl: `${base}/${rig}.json`,
+      atlasUrl: `${base}/${rig}.atlas`,
+      backgroundColor: "#00000000",
+      alpha: true,
+      premultipliedAlpha: true,
+      showControls: false,
+      viewport: { ...(snapshotViewport() || { padLeft: 80, padRight: 80, padTop: 40, padBottom: 80 }),
+                  transitionTime: 0, debugRender: false },
+      success: (p) => {
+        // Cap the FX backing buffer. The overscanned layer div is 2x the
+        // stage box, and the screenshot/export path temporarily forces
+        // Quality 4x — uncapped, each FX canvas balloons to ~8x the stage
+        // pixels and exports crawl. Effects are soft gradients; ~1600 px on
+        // the long edge is visually lossless. spine-player's drawFrame
+        // derives camera zoom from canvas.width, so a smaller backing
+        // buffer just renders at lower density — no projection change.
+        // In schedule mode (the bake) the cap rises so the composite's
+        // centre sample (1/FX_OVERSCAN of the canvas) still meets the
+        // 1470px output width — at 1600 the cinematics were sampled at
+        // 800px and upscaled 1.84x (estelle's blurry finale).
+        const FX_BACKING_CAP = window.__fxScheduleMode ? 3200 : 1600;
+        const sr = p.sceneRenderer;
+        sr.resize = function () {
+          const cv = this.canvas;
+          let w = cv.clientWidth, h = cv.clientHeight;
+          const s = Math.min(1, FX_BACKING_CAP / Math.max(w, h, 1));
+          w = Math.max(1, Math.round(w * s)); h = Math.max(1, Math.round(h * s));
+          if (cv.width != w || cv.height != h) { cv.width = w; cv.height = h; }
+          this.context.gl.viewport(0, 0, w, h);
+          this.camera.setViewport(w, h);   // player always uses Expand mode
+        };
+        // Effect rigs can't auto-fit (slots attach mid-animation only), and we
+        // drive tracks manually — set SOME animation so currentViewport exists,
+        // then park paused + hidden until a cue fires.
+        const anims = p.skeleton.data.animations;
+        if (anims.length) p.setAnimation(anims[0].name, false);
+        p.pause();
+        // debug: count drawFrame cycles so a dead/starved render loop is
+        // visible from _debug (spine-player re-queues itself via rAF; an
+        // exception inside drawFrame kills that player's loop silently)
+        const _od = p.drawFrame.bind(p);
+        p.drawFrame = function (rq) { p.__draws = (p.__draws || 0) + 1; return _od(rq); };
+        p.animationState.addListener({
+          // staticHold: rigs whose "animation" is authored empty/zero-length
+          // (e.g. achates_skill_01, a static heal glow whose motion comes from
+          // sibling particle primitives) complete instantly — keep them up
+          // until remove cue / loop wrap / lifeTime cap instead.
+          // ...and in schedule mode a CINEMATIC layer whose final frame
+          // still shows something holds it (estelle's finale pose lingers
+          // over the explosion until the clip ends; the next scene hides it
+          // — see tick). Layers that end DETACHED (most scene rigs strip
+          // all attachments on their last frame) hide normally — holding
+          // them would only pin a dead WebGL context.
+          complete: (tr) => {
+            if (tr.loop || tr.next || entry.staticHold) return;
+            let hold = false;
+            if (window.__fxScheduleMode && entry.isCine) {
+              try {
+                entry.player.skeleton.getBounds(_o2, _s2, []);
+                hold = _s2.x > 0 && _s2.y > 0;
+              } catch (_) {}
+            }
+            if (!hold) hideEntry(entry);
+          },
+        });
+        entry.ready = true;
+      },
+      error: (_p, msg) => console.warn("fx rig load failed:", rig, msg),
+    });
+  }
+
+  // ---- cocos2d particle layer (TASKS #57 v3) -------------------------------
+  // cfx format:"particle" primitives (ravi's S3 smoke cloud lives ONLY here)
+  // are staged as <src>.particle.json + sibling <tex>.png. Particles are
+  // PRECOMPUTED at spawn with a seeded RNG into a pure function of
+  // (charTrackTime - spawnTime), so pause / seek / the bake's frame capture
+  // re-evaluate the exact same cloud.
+  function hashStr(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // E7 colorBlends gradient: "t,a,r,g,b;..." stops (alpha is the SECOND field
+  // — every emitter inspected fades alpha 0→peak→0, which only reads sane in
+  // that order). Fallback: plain cocos start/finish color lerp.
+  function emitterStops(em) {
+    const cb = Array.isArray(em.colorBlends) ? em.colorBlends[0] : null;
+    if (typeof cb === "string" && cb.indexOf(",") >= 0) {
+      const stops = cb.split(";").map(s => s.split(",").map(Number))
+        .filter(v => v.length >= 5 && v.every(n => !isNaN(n)))
+        .map(v => ({ t: v[0], a: v[1], r: v[2], g: v[3], b: v[4] }));
+      if (stops.length >= 2) return stops.sort((x, y) => x.t - y.t);
+    }
+    return [
+      { t: 0, a: em.startColorAlpha != null ? +em.startColorAlpha : 1,
+        r: +em.startColorRed || 0, g: +em.startColorGreen || 0, b: +em.startColorBlue || 0 },
+      { t: 1, a: em.finishColorAlpha != null ? +em.finishColorAlpha : 0,
+        r: +em.finishColorRed || 0, g: +em.finishColorGreen || 0, b: +em.finishColorBlue || 0 },
+    ];
+  }
+  function sampleStops(stops, t) {
+    if (t <= stops[0].t) return stops[0];
+    for (let i = 1; i < stops.length; i++) {
+      if (t <= stops[i].t) {
+        const a = stops[i - 1], b = stops[i], k = (t - a.t) / Math.max(1e-6, b.t - a.t);
+        return { a: a.a + (b.a - a.a) * k, r: a.r + (b.r - a.r) * k,
+                 g: a.g + (b.g - a.g) * k, b: a.b + (b.b - a.b) * k };
+      }
+    }
+    return stops[stops.length - 1];
+  }
+  // Per-emitter sprite tint atlas: the texture multiplied by the gradient
+  // color at K quantized life positions (canvas can't tint per-draw cheaply).
+  function tintSprites(img, stops) {
+    const K = 12, out = [];
+    const w = Math.max(1, Math.min(img.naturalWidth || 64, 256));
+    const h = Math.max(1, Math.min(img.naturalHeight || 64, 256));
+    for (let k = 0; k < K; k++) {
+      const col = sampleStops(stops, k / (K - 1));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const g = c.getContext("2d");
+      g.drawImage(img, 0, 0, w, h);
+      g.globalCompositeOperation = "multiply";
+      g.fillStyle = "rgb(" + Math.round(col.r * 255) + "," + Math.round(col.g * 255) +
+                    "," + Math.round(col.b * 255) + ")";
+      g.fillRect(0, 0, w, h);
+      g.globalCompositeOperation = "destination-in";
+      g.drawImage(img, 0, 0, w, h);
+      out.push(c);
+    }
+    return out;
+  }
+  // duration -1 (cocos "forever") + repeat N: every E7 skill emitter authors
+  // emissionRate == maxParticles, i.e. a ~1 s burst per repeat, and the engine
+  // removes the node afterwards — treat it that way.
+  function buildSim(em, seed) {
+    const R = mulberry32(seed), rnd = () => R() * 2 - 1;
+    const n = Math.max(1, Math.round(+em.maxParticles || 1));
+    const rate = (+em.emissionRate || n) || 1;
+    const emitDur = (em.duration != null && +em.duration > 0) ? +em.duration : n / rate;
+    const rep = Math.max(1, Math.round(+em.repeat || 1));
+    const delay0 = +em.startDelay || 0;
+    const radius = +em.emitterType === 1;
+    const stops = emitterStops(em);
+    const parts = [];
+    let total = 0;
+    for (let r = 0; r < rep; r++) {
+      for (let i = 0; i < n; i++) {
+        const off = i / rate;
+        if (off > emitDur + 1e-6) break;
+        const birth = delay0 + r * emitDur + off;
+        const life = Math.max(0.05, (+em.particleLifespan || 1) + rnd() * (+em.particleLifespanVariance || 0));
+        total = Math.max(total, birth + life);
+        const p = {
+          birth, life,
+          cx: (+em.sourcePositionx || 0) + rnd() * (+em.sourcePositionVariancex || 0),
+          cy: (+em.sourcePositiony || 0) + rnd() * (+em.sourcePositionVariancey || 0),
+          s0: Math.max(0, (+em.startParticleSize || 0) + rnd() * (+em.startParticleSizeVariance || 0)),
+          s1: Math.max(0, ((em.finishParticleSize != null ? +em.finishParticleSize : +em.startParticleSize) || 0)
+                          + rnd() * (+em.finishParticleSizeVariance || 0)),
+          rot0: ((+em.rotationStart || 0) + rnd() * (+em.rotationStartVariance || 0)) * Math.PI / 180,
+          spin: ((+em.rotatePerSecond || 0) + rnd() * (+em.rotatePerSecondVariance || 0)) * Math.PI / 180,
+        };
+        const aRad = ((+em.angle || 0) + rnd() * (+em.angleVariance || 0)) * Math.PI / 180;
+        if (radius) {
+          p.ang0 = aRad;
+          p.r0 = (+em.maxRadius || 0) + rnd() * (+em.maxRadiusVariance || 0);
+          p.r1 = (+em.minRadius || 0) + rnd() * (+em.minRadiusVariance || 0);
+        } else {
+          const spd = (+em.speed || 0) + rnd() * (+em.speedVariance || 0);
+          p.vx = Math.cos(aRad) * spd; p.vy = Math.sin(aRad) * spd;
+          // radial/tangential accel approximated along the birth outward dir
+          let dx = p.cx - (+em.sourcePositionx || 0), dy = p.cy - (+em.sourcePositiony || 0);
+          const dl = Math.hypot(dx, dy);
+          if (dl > 1e-3) { dx /= dl; dy /= dl; } else { dx = Math.cos(aRad); dy = Math.sin(aRad); }
+          const ra = (+em.radialAcceleration || 0) + rnd() * (+em.radialAccelVariance || 0);
+          const ta = (+em.tangentialAcceleration || 0) + rnd() * (+em.tangentialAccelVariance || 0);
+          p.ax = (+em.gravityx || 0) + ra * dx - ta * dy;
+          p.ay = (+em.gravityy || 0) + ra * dy + ta * dx;
+        }
+        parts.push(p);
+      }
+    }
+    return { parts, total, stops, radius,
+             additive: +em.blendFuncDestination === 1,
+             scale: +em.scale || 1, tex: em.textureFileName };
+  }
+
+  function createParticleEntry(key) {
+    const name = key.slice(2);
+    const div = document.createElement("div");
+    div.className = "fx-layer";
+    scaler.appendChild(div);
+    const cv = document.createElement("canvas");
+    cv.style.width = "100%"; cv.style.height = "100%";
+    div.appendChild(cv);
+    const entry = { rig: key, particle: true, div, canvas: cv,
+                    ctx: cv.getContext("2d"), emitters: null, textures: {},
+                    tints: null, sims: null, ready: false, visible: false,
+                    spawnId: null, killTimer: 0, startT: 0, dur: 0,
+                    offX: 0, offY: 0, rot: 0, scaleX: 1, scaleY: 1 };
+    pool.set(key, entry);
+    fetch(`${base}/${name}.particle.json`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!d || !pool.has(key)) return;
+        entry.emitters = d.emitters || [];
+        const texNames = [...new Set(entry.emitters.map(em => em.textureFileName).filter(Boolean))];
+        if (!texNames.length) { entry.ready = true; return; }
+        let waiting = texNames.length;
+        for (const tn of texNames) {
+          const img = new Image();
+          img.onload = img.onerror = () => { if (--waiting === 0) entry.ready = true; };
+          img.src = `${base}/${tn}`;
+          entry.textures[tn] = img;
+        }
+      })
+      .catch(() => console.warn("fx particle load failed:", name));
+  }
+
+  function startParticle(ev, e, lateBy) {
+    const prim = ev.prim, spawn = ev.spawn;
+    if (!e.emitters || !e.emitters.length) return;
+    // back/front depth: GLOBAL z (gz) when authored — it orders layers across
+    // the whole scene relative to the live character, where the per-spawn
+    // local z only orders within one spawn. (doris's tree backdrop is gz=-1
+    // but local z=10, so local-z buried the live rig behind it.)
+    e.div.style.zIndex = (((prim.gz != null ? prim.gz : prim.z)) < 0) ? 1 : 3;
+    e.div.style.opacity = (prim.opacity != null) ? String(prim.opacity) : "";
+    e.spawnId = spawn.id || null;
+    e.offX = (spawn.x || 0) + (prim.x || 0) + (spawn.tgt ? FX_TARGET_DX() : 0);
+    e.offY = (spawn.y || 0) + (prim.y || 0);
+    if (spawn.bone) {
+      const b = charP.skeleton.findBone(spawn.bone);
+      if (b) { e.offX += b.worldX; e.offY += b.worldY; }
+    }
+    e.scaleX = (spawn.scale || 1) * (prim.scale || 1);
+    e.scaleY = (spawn.scale || 1) * (prim.scaleY != null ? prim.scaleY : (prim.scale || 1));
+    e.rot = ((prim.rotate || 0) * Math.PI) / 180;   // cocos node rotation: CW-positive
+    e.startT = st.gt - (lateBy > 0 ? lateBy : 0);   // engine-clock spawn time
+    e.sims = e.emitters.map((em, i) => buildSim(em, hashStr(e.rig + "#" + i)));
+    e.dur = prim.lifeTime || Math.max(0.5, ...e.sims.map(s => s.total));
+    if (!e.tints) {
+      e.tints = e.sims.map(s => {
+        const img = e.textures[s.tex];
+        return (img && img.naturalWidth) ? tintSprites(img, s.stops) : null;
+      });
+    }
+    e.visible = true;
+    e.div.style.visibility = "visible";
+  }
+
+  function renderParticleEntry(e, t, vp) {
+    const tau = t - e.startT;
+    if (tau < 0 || tau > e.dur + 0.25) { hideEntry(e); return; }
+    const cv = e.canvas, ctx = e.ctx;
+    const FX_BACKING_CAP = 1600;
+    let w = e.div.clientWidth, h = e.div.clientHeight;
+    const cap = Math.min(1, FX_BACKING_CAP / Math.max(w, h, 1));
+    w = Math.max(1, Math.round(w * cap)); h = Math.max(1, Math.round(h * cap));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    // same camera math as the spine layers' viewport sync, so world coords
+    // register and the export composites' centre sampling lines up
+    const effW = vp.width + (vp.padLeft || 0) + (vp.padRight || 0);
+    const effH = vp.height + (vp.padTop || 0) + (vp.padBottom || 0);
+    const camX = (vp.x - (vp.padLeft || 0)) - effW * (FX_OVERSCAN - 1) / 2 - (e.offX || 0);
+    const camY = (vp.y - (vp.padBottom || 0)) - effH * (FX_OVERSCAN - 1) / 2 - (e.offY || 0);
+    const s = w / (effW * FX_OVERSCAN);
+    const cosR = Math.cos(e.rot), sinR = Math.sin(e.rot);
+    for (let si = 0; si < e.sims.length; si++) {
+      const sim = e.sims[si], tints = e.tints && e.tints[si];
+      if (!tints) continue;
+      ctx.globalCompositeOperation = sim.additive ? "lighter" : "source-over";
+      for (const p of sim.parts) {
+        const age = tau - p.birth;
+        if (age < 0 || age >= p.life) continue;
+        const k = age / p.life;
+        let lx, ly;
+        if (sim.radius) {
+          const rr = p.r0 + (p.r1 - p.r0) * k;
+          const an = p.ang0 + p.spin * age;
+          lx = p.cx + Math.cos(an) * rr; ly = p.cy + Math.sin(an) * rr;
+        } else {
+          lx = p.cx + p.vx * age + 0.5 * p.ax * age * age;
+          ly = p.cy + p.vy * age + 0.5 * p.ay * age * age;
+        }
+        lx *= e.scaleX * sim.scale; ly *= e.scaleY * sim.scale;
+        const wx = lx * cosR + ly * sinR;
+        const wy = -lx * sinR + ly * cosR;
+        const col = sampleStops(sim.stops, k);
+        const size = (p.s0 + (p.s1 - p.s0) * k) * e.scaleX * sim.scale * s;
+        if (col.a < 0.004 || size < 1) continue;
+        const px = (wx - camX) * s, py = h - (wy - camY) * s;
+        if (px < -size || px > w + size || py < -size || py > h + size) continue;
+        ctx.globalAlpha = Math.min(1, col.a);
+        const spr = tints[Math.min(tints.length - 1, Math.floor(k * tints.length))];
+        const rot = sim.radius ? p.rot0 : (p.rot0 + p.spin * age);
+        if (rot) {
+          ctx.setTransform(1, 0, 0, 1, px, py); ctx.rotate(rot);
+          ctx.drawImage(spr, -size / 2, -size / 2, size, size);
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+        } else {
+          ctx.drawImage(spr, px - size / 2, py - size / 2, size, size);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  function hideEntry(e) {
+    e.visible = false;
+    e.spawnId = null;
+    e.isCine = false; e.sceneKey = null; e.everLit = false;
+    e.offX = 0; e.offY = 0;
+    e.div.style.visibility = "hidden";
+    if (e.killTimer) { clearTimeout(e.killTimer); e.killTimer = 0; }
+    if (e.particle) {
+      e.sims = null;
+      if (e.canvas.width) {
+        e.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        e.ctx.clearRect(0, 0, e.canvas.width, e.canvas.height);
+      }
+      return;
+    }
+    try { e.player.pause(); } catch (_) {}
+  }
+  function hideAll() { for (const e of pool.values()) hideEntry(e); }
+
+  // Animated world bounds of an entry's current sequence (cached per
+  // seq+scale). Scene rigs authored for the in-game camera system mostly
+  // carry ZERO skeleton.data bounds — detection/framing off sd.width framed
+  // estelle's landing as a tiny corner crop once the big layers retired.
+  // Samples each animation at 21 points like spine-player's own
+  // calculateAnimationViewport, then lets the live track re-apply next frame.
+  function sceneBounds(e) {
+    const seq = e.seq || [];
+    const sk = e.player.skeleton;
+    const key = seq.join(",") + "|" + sk.scaleX + "," + sk.scaleY;
+    if (e.bnds && e.bnds.key === key) return e.bnds.rect;
+    const offset = new spine.Vector2(), size = new spine.Vector2();
+    const rects = [];
+    for (const name of seq) {
+      const anim = sk.data.findAnimation(name);
+      if (!anim) continue;
+      const steps = anim.duration > 0 ? 20 : 1;
+      for (let i = 0; i <= steps; i++) {
+        sk.setToSetupPose();
+        anim.apply(sk, 0, anim.duration * i / steps, false, [], 1,
+                   spine.MixBlend.setup, spine.MixDirection.mixIn);
+        sk.updateWorldTransform();
+        sk.getBounds(offset, size, []);
+        if (size.x > 0 && size.y > 0)
+          rects.push({ x: offset.x, y: offset.y, w: size.x, h: size.y });
+      }
+    }
+    // restore the live pose so a paused viewer doesn't show a sample frame
+    try {
+      e.player.animationState.apply(sk);
+      sk.updateWorldTransform();
+    } catch (_) {}
+    // MEDIAN frame rect, not the union: scene rigs hide layers via extreme
+    // scale tricks (estelle's sc05_back2 sweeps to 26 MILLION world units on
+    // one frame) — a union camera fit renders the whole scene microscopic.
+    let rect = null;
+    if (rects.length) {
+      const med = (vals) => {
+        vals.sort((a, b) => a - b);
+        return vals[vals.length >> 1];
+      };
+      const w = med(rects.map(r => r.w)), h = med(rects.map(r => r.h));
+      const cx = med(rects.map(r => r.x + r.w / 2));
+      const cy = med(rects.map(r => r.y + r.h / 2));
+      rect = { x: cx - w / 2, y: cy - h / 2, width: w, height: h };
+    }
+    e.bnds = { key, rect };
+    return rect;
+  }
+
+  function startPrim(ev, lateBy) {
+    const key = primKey(ev.prim);
+    let e = pool.get(key);
+    if (!e) {   // lazy pool — create now, the pending queue fires it when loaded
+      (key.startsWith("p~") ? createParticleEntry : createEntry)(key);
+      e = pool.get(key);
+      if (!e) return;
+    }
+    if (!e.ready) {
+      // rig still fetching (first seconds after load): queue, flushed by tick
+      st.pending.push(ev);
+      return;
+    }
+    if (e.particle) return startParticle(ev, e, lateBy);
+    const prim = ev.prim, spawn = ev.spawn;
+    // back/front depth keyed on GLOBAL z (gz) when authored — see startParticle.
+    e.div.style.zIndex = (((prim.gz != null ? prim.gz : prim.z)) < 0) ? 1 : 3;
+    e.div.style.opacity = (prim.opacity != null) ? String(prim.opacity) : "";
+    e.spawnId = spawn.id || null;
+    e.spawnRef = spawn;   // cue identity: layers of one spawn form one scene
+    // Scene identity for the cinematic camera: prims of one spawn that START
+    // together are one scene. estelle's sk3_2 packs FOUR sequential scenes
+    // into a single spawn via group-chained delays — keying on the spawn
+    // alone would union all four scenes' bounds into one wrong camera.
+    // Target-anchored spawns (hit flashes, on-enemy explosions) are NEVER
+    // cutaway scenes — in game they play over the field at the enemy's
+    // position without taking the camera. Some hit rigs carry huge screen-
+    // flash quads that beat any bounds threshold (ravi's hit_new_blunt_01
+    // suppressed her whole skill3_3 return), so gate on semantics, not size.
+    if (!spawn.__sid) spawn.__sid = ++sceneSeq;
+    e.sceneKey = spawn.tgt ? null : spawn.__sid + "~" + (prim.delay || 0);
+    e.gtStart = st.gt;
+    e.isCine = false; e.everLit = false;
+    e.loop = !!prim.loop;
+
+    // Anchor: world offset from cue x/y (+ cfx primitive x/y), an optional
+    // one-shot character-bone anchor, and the phantom-enemy offset for
+    // enemy-side effects (spawn.tgt — in game they anchor at the ENEMY's
+    // battle position; no enemy exists in the viewer, so land them a
+    // standard battle-distance to the right; NOT applied to timeline loc-5
+    // cues, which include ally-targeted heals that read best at origin).
+    // Applied by shifting THIS LAYER'S CAMERA opposite-wards in the
+    // per-frame viewport sync — NOT a CSS translate: moving the canvas
+    // hard-clipped the effect at the canvas edge AND the export composites
+    // (which drawImage the canvas at 0,0) silently dropped the offset.
+    e.offX = (spawn.x || 0) + (prim.x || 0) + (spawn.tgt ? FX_TARGET_DX() : 0);
+    e.offY = (spawn.y || 0) + (prim.y || 0);
+    if (spawn.bone) {
+      const b = charP.skeleton.findBone(spawn.bone);
+      if (b) { e.offX += b.worldX; e.offY += b.worldY; }
+    }
+    const sc = (spawn.scale || 1) * (prim.scale || 1);
+    e.player.skeleton.scaleX = sc;
+    e.player.skeleton.scaleY = (spawn.scale || 1) *
+      (prim.scaleY != null ? prim.scaleY : (prim.scale || 1));
+
+    // Animation sequence: cfx `ani` may be "intro,loop"; the last segment
+    // honours the primitive's loop flag. Unknown names fall back to the rig's
+    // sole/default "animation".
+    const have = new Set(e.player.skeleton.data.animations.map(a => a.name));
+    let seq = (prim.ani ? String(prim.ani).split(",") : ["animation"])
+      .map(s => s.trim()).filter(n => have.has(n));
+    if (!seq.length) {
+      if (have.has("animation")) seq = ["animation"];
+      else if (have.size) seq = [e.player.skeleton.data.animations[0].name];
+      else return;
+    }
+    e.seq = seq;   // for animated-bounds sampling in the cinematic pass
+    const animState = e.player.animationState;
+    animState.clearTracks();
+    e.player.skeleton.setToSetupPose();
+    let tr0 = null;
+    seq.forEach((n, i) => {
+      const loop = (i === seq.length - 1) && e.loop;
+      if (i === 0) tr0 = animState.setAnimation(0, n, loop);
+      else animState.addAnimation(0, n, loop, 0);
+    });
+    // Compensate rAF firing granularity so the effect stays phase-locked to
+    // the character even when we fire a frame late.
+    if (tr0 && lateBy > 0.001) tr0.trackTime = Math.min(lateBy, tr0.animation.duration);
+    if (prim.timeScale) animState.timeScale = prim.timeScale; else animState.timeScale = 1;
+    e.staticHold = seq.every(n => {
+      const a = e.player.skeleton.data.findAnimation(n);
+      return !a || a.duration < 0.01;
+    }) && !e.loop;
+    e.visible = true;
+    e.div.style.visibility = "visible";
+    e.player.play();
+    if (e.killTimer) clearTimeout(e.killTimer);
+    if (prim.lifeTime) e.killTimer = setTimeout(() => hideEntry(e), prim.lifeTime * 1000);
+    else if (e.staticHold) e.killTimer = setTimeout(() => hideEntry(e), 2500);
+  }
+
+  function doShake(s) {
+    const d = (s.duration && s.duration > 0) ? Math.min(s.duration, 2) : 0.4;
+    const px = Math.min(Math.abs(s.powerX || 5), 40);
+    const py = Math.min(Math.abs(s.powerY || 5), 40);
+    const t0 = performance.now();
+    (function jitter() {
+      const k = (performance.now() - t0) / 1000;
+      if (k >= d || !fxEngine) {
+        scaler.style.marginLeft = ""; scaler.style.marginTop = "";
+        return;
+      }
+      const f = 1 - k / d;   // decay
+      scaler.style.marginLeft = ((Math.random() * 2 - 1) * px * f).toFixed(1) + "px";
+      scaler.style.marginTop  = ((Math.random() * 2 - 1) * py * f).toFixed(1) + "px";
+      requestAnimationFrame(jitter);
+    })();
+  }
+
+  function fire(ev, lateBy) {
+    if (ev.kind === "spawn") startPrim(ev, lateBy);
+    else if (ev.kind === "remove") {
+      for (const e of pool.values()) if (e.spawnId === ev.id) hideEntry(e);
+    } else if (ev.kind === "shake") doShake(ev.shake);
+  }
+
+  // Per-frame driver keyed off the character's track. Handles: animation
+  // switches (from ANY setAnimation caller), loop wrap re-fire, the Skill FX
+  // toggle, viewport sync (auto-fit changes per animation) and pause sync.
+  // st.gt is a CONTINUOUS engine clock built from per-frame track deltas: it
+  // survives segment switches (which reset trackTime), pauses with the
+  // player, and drives the stateless particle sims + carried-over spawns.
+  const st = { anim: null, idx: 0, lastT: -1, raf: 0, pending: [], carry: [], gt: 0 };
+  // Does THIS rig's cutaway paint its own character anywhere? A field-
+  // replacing cinematic (estelle) represents the hero with painted
+  // `_character`/`_ch` layers, so the live rig is hidden through the WHOLE
+  // cutaway — including its no-character scenes (the old man, the chickens).
+  // A cutaway with no painted character (doris's tree) instead composites the
+  // LIVE rig into the scene by z-order. This is a per-rig property read once
+  // from the cues, NOT per-scene (a single scene lacking a `_ch` layer must
+  // not flash the live rig back mid-cutaway). `_ch(?![a-z])` won't hit
+  // `_chicken`.
+  const _CHAR_RE = /_character\b|_ch(?![a-z])/i;
+  st.cuesHaveCharLayer = Object.values(cues.anims || {}).some(arr =>
+    (arr || []).some(cue => ((cue.spawn || {}).prims || []).some(p =>
+      p.rig && _CHAR_RE.test(p.rig))));
+  // Cutaway authorization comes from the unit's stagept graph (BGSHOW-hide
+  // node => the skill actually cuts away from the field). Without it, NO
+  // effect may classify as a cinematic scene no matter how big its bounds:
+  // charlotte's 6000u finisher blast is a FIELD effect — sizing alone
+  // cannot separate it from a 3700u cutaway backdrop.
+  // In schedule mode (the bake) a known BGSHOW-hide TIME delays the
+  // authorization: before it the skill plays as FIELD framing (doris's
+  // flash/boots overlays run a second on the dimmed field before her tree
+  // cutaway) — the bake flips it on via _cutawayOn() at the authored beat.
+  // The live viewer plays single anims, not the stagept schedule, so it
+  // keeps the whole-skill flag.
+  const cutawayInit = () =>
+    !!cues.cutaway && !(window.__fxScheduleMode && cues.cutaway_t > 0);
+  st.cutawayOK = cutawayInit();
+  const _o2 = new spine.Vector2(), _s2 = new spine.Vector2();   // scratch
+  function tick() {
+    st.raf = requestAnimationFrame(tick);
+    const tr = charP.animationState.getCurrent(0);
+    if (!tr || !tr.animation) return;
+    const anim = tr.animation.name;
+    const dur = tr.animation.duration || 0;
+    // Non-loop tracks keep their UNCAPPED trackTime: the stagept choreography
+    // fires cues during engine HOLDS (track complete, last frame held — e.g.
+    // ras's S3 hits land 2.4-3.7 s into a 1.5 s animation), so capping at
+    // duration silently dropped them. Loops (the viewer's normal single-anim
+    // mode) still wrap and re-fire.
+    const t = (tr.loop && dur > 0) ? (tr.trackTime % dur) : tr.trackTime;
+    if (anim !== st.anim) {
+      // Schedule mode (window.__fxScheduleMode, set by the bake): segment
+      // switches are choreographed continuations, not user anim changes —
+      // visible effects keep playing, and cfx-DELAYED prims not yet fired
+      // carry over with their remaining countdown on the engine clock
+      // (ravi's smoke fires 0.9-3.8 s after an explosion cued at the LAST
+      // frame of skill3_1; the segment switches 0.1 s later).
+      const schedMode = !!window.__fxScheduleMode;
+      if (schedMode && st.anim && st.lastT >= 0) {
+        const evOld = events[st.anim] || [];
+        for (let i = st.idx; i < evOld.length; i++) {
+          const ev = evOld[i];
+          if (ev.kind === "spawn" && (ev.prim.delay || 0) > 0 && ev.t > st.lastT)
+            st.carry.push({ ev, at: st.gt + (ev.t - st.lastT) });
+        }
+        for (const ev of st.pending)
+          st.carry.push({ ev, at: st.gt + Math.max(0, ev.t - st.lastT) });
+      }
+      st.anim = anim; st.idx = 0; st.lastT = -1; st.pending = [];
+      if (!schedMode) { st.carry = []; hideAll(); }
+      ensureAnim(anim);   // scope the player pool to this animation's rigs
+    }
+    if (t < st.lastT - 1e-6) { st.idx = 0; st.pending = []; }   // loop wrapped: re-arm cues
+    if (st.lastT >= 0) st.gt += (t >= st.lastT ? t - st.lastT : t);
+    if (st.carry.length) {
+      const live = [];
+      for (const c of st.carry) {
+        if (st.gt >= c.at) {
+          const e = pool.get(primKey(c.ev.prim));
+          if (e && !e.ready) { live.push(c); continue; }   // still fetching
+          startPrim(c.ev, st.gt - c.at);
+        } else live.push(c);
+      }
+      st.carry = live;
+    }
+    if (st.pending.length) {
+      // spawns that fired before their rig finished loading
+      const still = [];
+      for (const ev of st.pending) {
+        const e = pool.get(primKey(ev.prim));
+        if (e && e.ready) { if (t >= ev.t - 1e-6) startPrim(ev, t - ev.t); }
+        else still.push(ev);
+      }
+      st.pending = still;
+    }
+    const ev = events[anim];
+    if (ev) {
+      // Sweep hidden entries with no remaining cue. Together with fire-time
+      // creation (startPrim) this keeps the live player count inside the
+      // browser's 16-WebGL-context budget while a 29-rig scene chain plays
+      // through. NO prefetch: creating the next scene early overlaps three
+      // scenes' contexts and the cascade blanks the older ones.
+      st.frame = (st.frame || 0) + 1;
+      if (st.frame % 15 === 0) {
+        const need = new Set();
+        for (let i = st.idx; i < ev.length; i++)
+          if (ev[i].kind === "spawn") need.add(primKey(ev[i].prim));
+        for (const c of st.carry) need.add(primKey(c.ev.prim));
+        for (const p of st.pending) need.add(primKey(p.prim));
+        for (const e2 of [...pool.values()])
+          if (!e2.visible && !need.has(e2.rig)) destroyEntry(e2);
+      }
+      if (!fxOn.checked) {
+        // disabled: consume past cues without firing so re-enabling doesn't
+        // replay half a skill's worth of effects at once
+        let any = false;
+        for (const e of pool.values()) if (e.visible) { any = true; break; }
+        if (any) hideAll();
+        while (st.idx < ev.length && ev[st.idx].t <= t) st.idx++;
+      } else {
+        while (st.idx < ev.length && ev[st.idx].t <= t) {
+          fire(ev[st.idx], t - ev[st.idx].t);
+          st.idx++;
+        }
+      }
+    }
+    // viewport + pause sync for live layers
+    const vp = charP.currentViewport;
+    // Cinematic fit-camera pass (TASKS #57 v3): screen-class rigs (authored
+    // 1.5x+ the effective viewport — estelle's sc05 kick is 3433x3746 world
+    // units, framed in-game by camera rigs we don't run) can't use the char
+    // camera: the export would show a tiny over-zoomed crop. All layers of
+    // the SAME spawn share one camera fitted to the union of its screen-class
+    // members' authored bounds — they were authored as one scene, framing
+    // them individually misregisters the composite.
+    const cineGroups = new Map();   // sceneKey -> union rect + scene start
+    if (vp && st.cutawayOK) {
+      const effW0 = vp.width + (vp.padLeft || 0) + (vp.padRight || 0);
+      const effH0 = vp.height + (vp.padTop || 0) + (vp.padBottom || 0);
+      // screen-class floor: bigger than the field viewport AND above any
+      // beefy hit flash (~1600u) — scene subject layers run 3000u+
+      const thW = Math.max(2400, effW0 * 1.5), thH = Math.max(2400, effH0 * 1.5);
+      for (const e of pool.values()) {
+        if (e.particle || !e.ready || !e.visible || !e.sceneKey) continue;
+        // EVERY layer of a spawn-scene joins its group — membership is by
+        // scene identity, never by the layer's own size: a scene's small
+        // layers (estelle's countryside vista, the beam, the old man) must
+        // ride the SAME camera as its screen-class backdrop or the
+        // composite misregisters. The size test below decides whether the
+        // whole GROUP is a cutaway.
+        const bd = sceneBounds(e);
+        // lit-gate: scene rigs run blank lead-ins (estelle's kick close-up
+        // attaches 3.1s into its 3.63s scene) — an unlit newcomer must not
+        // oust the held previous scene, and unlit groups don't win.
+        let lit = false;
+        try {
+          e.player.skeleton.getBounds(_o2, _s2, []);
+          lit = _s2.x > 0 && _s2.y > 0;
+        } catch (_) {}
+        e.everLit = e.everLit || lit;   // sticky: holds keep counting as a cut
+        let r = cineGroups.get(e.sceneKey);
+        if (!r) {
+          r = { gtStart: e.gtStart || 0, lit: false, ever: false, big: false,
+                x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity,
+                lx0: Infinity, lx1: -Infinity, ly0: Infinity, ly1: -Infinity };
+          cineGroups.set(e.sceneKey, r);
+        }
+        r.gtStart = Math.min(r.gtStart, e.gtStart || 0);
+        r.lit = r.lit || lit;
+        r.ever = r.ever || !!e.everLit;
+        // currently-LIT sane content (this frame's real bounds, not the
+        // median): drives the scene camera's follow — a spawn group can
+        // pack several self-sequencing scenes authored at different
+        // heights (estelle: tower y~0, chickens y~+300..2100, kick +450);
+        // a fixed window can't fit them all. Scale-trick outlier layers
+        // (26M-unit sweeps) stay excluded.
+        if (lit && _s2.x < 8000 && _s2.y < 8000) {
+          r.lx0 = Math.min(r.lx0, _o2.x);
+          r.lx1 = Math.max(r.lx1, _o2.x + _s2.x);
+          r.ly0 = Math.min(r.ly0, _o2.y);
+          r.ly1 = Math.max(r.ly1, _o2.y + _s2.y);
+          // per-layer boxes feed the group camera's MEDIAN box: union
+          // statistics are dragged around by single wide faint layers
+          // (estelle's finale smoke sweep pulls the union centre 1100u
+          // right of the in-game camera, and the dust scene's union keeps
+          // the zoom at the 3650 cap where the game frames ~3100), while
+          // per-edge medians across lit layer boxes matched the user's VOD
+          // within ~150u at every sampled moment — including the
+          // camera_scale self-framing scenes (kick close-up, finale),
+          // whose blow-up keys move every layer together.
+          const bx = r.bxs || (r.bxs = { x0: [], x1: [], y0: [], y1: [], cx: [], cy: [] });
+          bx.x0.push(_o2.x); bx.x1.push(_o2.x + _s2.x);
+          bx.y0.push(_o2.y); bx.y1.push(_o2.y + _s2.y);
+          bx.cx.push(_o2.x + _s2.x / 2); bx.cy.push(_o2.y + _s2.y / 2);
+          // anti-latch: this frame has real subject content (not just a stray
+          // transition spark/feather) worth re-framing onto. Below 2400u is the
+          // hit-flash / particle class the cutaway gate already treats as field.
+          if (_s2.x > 2400 || _s2.y > 2400) r.bigLitNow = true;
+        }
+        if (bd) {
+          r.x0 = Math.min(r.x0, bd.x); r.y0 = Math.min(r.y0, bd.y);
+          r.x1 = Math.max(r.x1, bd.x + bd.width);
+          r.y1 = Math.max(r.y1, bd.y + bd.height);
+          if (bd.width > thW || bd.height > thH) r.big = true;
+        }
+      }
+      // only screen-class groups are cutaways; the rest are field FX
+      for (const [k, g] of cineGroups) if (!g.big) cineGroups.delete(k);
+      // SOLID-INK BOX per group: attachment bounds over-claim (transparent
+      // slop — estelle's finale window drifted past the painted sky into
+      // blank space, and reveal cuts flashed empty margins), so measure
+      // where art ACTUALLY covers: composite the group's canvases onto a
+      // 64x40 probe and find the largest band of rows/columns that are
+      // >=90% inked across the window span (a plain alpha bbox fails — the
+      // finale's explosion plume pokes above the sky art and re-opens the
+      // empty band). All members share one viewport rect, so probe px map
+      // linearly to world; the window is the centre half (FX_OVERSCAN 2).
+      // A solid side touching the probe edge is OPEN (art continues beyond
+      // view) — never clamp against it. Throttled per group (~0.12s): a
+      // per-tick GPU readback quadrupled the bake time.
+      if (cineGroups.size) {
+        if (!st._inkCv) {
+          st._inkCv = document.createElement("canvas");
+          st._inkCv.width = 64; st._inkCv.height = 40;
+          st._inkCtx = st._inkCv.getContext("2d", { willReadFrequently: true });
+          st._inkCache = new Map();
+        }
+        const pctx = st._inkCtx;
+        for (const [k, g] of cineGroups) {
+          const cached = st._inkCache.get(k);
+          if (cached && st.gt - cached.gt < 0.12) { g.ink = cached.ink; continue; }
+          let vpc = null;
+          pctx.clearRect(0, 0, 64, 40);
+          for (const e of pool.values()) {
+            if (!e.visible || e.particle || !e.ready || e.sceneKey !== k) continue;
+            const cv = e.player && e.player.canvas;
+            const c = e.player && e.player.currentViewport;
+            if (!cv || !cv.width || !c || !c.width) continue;
+            if (!vpc) vpc = { x: c.x, y: c.y, w: c.width, h: c.height };
+            pctx.drawImage(cv, 0, 0, 64, 40);
+          }
+          if (!vpc) continue;
+          const d = pctx.getImageData(0, 0, 64, 40).data;
+          const a = (px, py) => d[(py * 64 + px) * 4 + 3] > 6;
+          // coverage of a row/column across the WINDOW span (centre half)
+          const rowCov = (py) => {
+            let n = 0;
+            for (let px = 16; px < 48; px++) if (a(px, py)) n++;
+            return n / 32;
+          };
+          const colCov = (px) => {
+            let n = 0;
+            for (let py = 10; py < 30; py++) if (a(px, py)) n++;
+            return n / 20;
+          };
+          let ty0 = 0; while (ty0 < 40 && rowCov(ty0) < 0.9) ty0++;
+          let ty1 = 39; while (ty1 >= 0 && rowCov(ty1) < 0.9) ty1--;
+          let tx0 = 0; while (tx0 < 64 && colCov(tx0) < 0.9) tx0++;
+          let tx1 = 63; while (tx1 >= 0 && colCov(tx1) < 0.9) tx1--;
+          let ink = null;
+          if (ty1 >= ty0 && tx1 >= tx0) {
+            ink = {   // canvas y down <-> world y up
+              x0: tx0 === 0 ? -Infinity : vpc.x + (tx0 / 64) * vpc.w,
+              x1: tx1 === 63 ? Infinity : vpc.x + ((tx1 + 1) / 64) * vpc.w,
+              y0: ty1 === 39 ? -Infinity : vpc.y + vpc.h - ((ty1 + 1) / 40) * vpc.h,
+              y1: ty0 === 0 ? Infinity : vpc.y + vpc.h - (ty0 / 40) * vpc.h,
+            };
+          }
+          if (ink) g.ink = ink;
+          st._inkCache.set(k, { gt: st.gt, ink });
+        }
+        for (const k of [...st._inkCache.keys()])
+          if (!cineGroups.has(k)) st._inkCache.delete(k);
+      }
+      // Scene camera per group: MEDIAN-FOLLOW + COVER-CLAMP. Position = the
+      // median of lit layer centres (VOD-matched; robust against wide faint
+      // sweep layers, and tracks the camera_scale self-framing scenes'
+      // content-side blow-ups for free). Zoom = "recrop like the game
+      // does": shrink the window (down to 0.55x) when the lit box is
+      // smaller so scene art covers the frame edge-to-edge (the
+      // empty-sliver / shake-jump / letterboxed-run complaints), clamping
+      // the centre so the window stays inside the lit box when the content
+      // is bigger. Snap on >900u jumps (authored cuts), ease 8%/frame.
+      if (!st.gcam) st.gcam = new Map();
+      // cinepan scenes (estelle) are authored full-bleed at a wider scale than
+      // the camera actually frames in-game: her panoramic backdrop keeps the
+      // cover-zoom pinned at the baseline so subjects never crop in (she fills
+      // ~50% of frame height where the game fills ~90%). A tighter base width
+      // for cinepan zooms the subject up to the in-game framing; cinecam rigs
+      // (with real authored camera nodes) keep the original 3650.
+      const BW0 = (cues.cinepan && !cues.cinecam) ? 2850 : 3650;
+      for (const [k, g] of cineGroups) {
+        let gs = st.gcam.get(k);
+        if (!gs) { gs = { x: 0, y: 0, w: BW0, init: false }; st.gcam.set(k, gs); }
+        // cinecam gate: graphs whose camera nodes are reset-only (doris)
+        // keep the FIXED origin window — the in-game camera never leaves
+        // the field, so content-following would invent moves (her giant
+        // boots overlay over-zoomed the early clip). Content-driven camera
+        // only when the graph really moves the camera (ZOOM/CAM/cm rigs).
+        if (!cues.cinecam && !cues.cinepan) { gs.init = true; continue; }
+        // cinepan/cinecam both run the content-follow cover-zoom; the ANTI-LATCH
+        // (g.bigLitNow gate below) is what makes cinepan safe on graphs with no
+        // authored camera nodes (estelle): during the descent->finale handoff the
+        // only lit layer is a tiny transient (a stray feather / light streak), and
+        // the bare cover-zoom blew it up to fullscreen. Holding the last framing
+        // until real subject content (a screen-class layer) is lit kills that.
+        // any member's canvas gives the AR (all match the stage box)
+        let car = 16 / 9;
+        for (const e of pool.values())
+          if (e.visible && e.sceneKey === k && !e.particle && e.player &&
+              e.player.canvas && e.player.canvas.height) {
+            car = e.player.canvas.width / e.player.canvas.height; break;
+          }
+        if (g.bigLitNow && g.bxs && g.lx1 > g.lx0) {
+          const med = (a) => {
+            a.sort((p, q) => p - q);
+            const m = a.length >> 1;
+            return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+          };
+          // median box: per-edge medians across the lit layers
+          const mx0 = med(g.bxs.x0), mx1 = med(g.bxs.x1);
+          const my0 = med(g.bxs.y0), my1 = med(g.bxs.y1);
+          const cw = Math.max(1, mx1 - mx0), ch = Math.max(1, my1 - my0);
+          const tw = Math.max(0.55 * BW0, Math.min(BW0, cw, ch * car));
+          const th = tw / car;
+          const cx = med(g.bxs.cx), cy = med(g.bxs.cy);
+          // wider content: keep the window inside the median box around the
+          // median centre; narrower: centre ON the box (off-centre windows
+          // leave one-sided empty margins — estelle's finale tail)
+          let tx = (cw > tw) ? Math.max(mx0 + tw / 2, Math.min(cx, mx1 - tw / 2))
+                             : (mx0 + mx1) / 2;
+          let ty = (ch > th) ? Math.max(my0 + th / 2, Math.min(cy, my1 - th / 2))
+                             : (my0 + my1) / 2;
+          let twi = tw;
+          // ink clamp: shrink to the inked span (cover), then keep the
+          // window inside it; an inverted clamp range (zoom floor > ink
+          // span) centres on the ink instead
+          if (g.ink) {
+            const sx = g.ink.x1 - g.ink.x0, sy = g.ink.y1 - g.ink.y0;
+            twi = Math.max(0.55 * BW0, Math.min(tw, sx, sy * car));
+            const thi = twi / car;
+            const xlo = g.ink.x0 + twi / 2, xhi = g.ink.x1 - twi / 2;
+            tx = (xlo > xhi) ? (g.ink.x0 + g.ink.x1) / 2
+                             : Math.max(xlo, Math.min(tx, xhi));
+            const ylo = g.ink.y0 + thi / 2, yhi = g.ink.y1 - thi / 2;
+            ty = (ylo > yhi) ? (g.ink.y0 + g.ink.y1) / 2
+                             : Math.max(ylo, Math.min(ty, yhi));
+          }
+          const twf = twi;
+          // STATIC-PER-SCENE CAMERA: the in-game camera doesn't continuously
+          // follow within a scene — it cuts to a framing and HOLDS it while the
+          // action plays. A per-frame content follow instead chases the
+          // subject's wobbling bounds every frame, which reads as camera shake
+          // (clean stills, jittery motion). So: settle onto the scene framing
+          // for a beat, then FREEZE and hold. A real cut (target jumps >900u —
+          // incl. the ricochet's authored sub-scene changes) re-settles.
+          // CUT = a SUDDEN single-frame target jump (a different scene appears),
+          // NOT accumulated distance: a blooming blast drifts its bounds far
+          // from the frozen window gradually, which must NOT re-settle (that was
+          // the finale shake) — only an abrupt jump (the ricochet's authored
+          // sub-scene changes) is a real cut.
+          // Once frozen, the bar to re-settle is MUCH higher: a settled scene
+          // should only break on a genuine authored cut, never on the finale
+          // blast's FX-noise bounds jumps (single-frame deltas up to ~1300 were
+          // tripping the 900 gate and re-settling mid-explosion = the shake).
+          const thr = gs.frozen ? 1700 : 900;
+          const cut = gs.init &&
+            (Math.abs(tx - (gs.ptx ?? tx)) > thr || Math.abs(ty - (gs.pty ?? ty)) > thr);
+          gs.ptx = tx; gs.pty = ty;
+          if (!gs.init || cut) {
+            gs.x = gs.stx = tx; gs.y = gs.sty = ty; gs.w = gs.stw = twf;
+            gs.init = true; gs.frozen = false; gs.settle = st.gt + 0.30;
+          } else if (!gs.frozen) {
+            // settle: converge quickly, smoothing out the per-frame wobble
+            gs.stx += (tx - gs.stx) * 0.25; gs.x += (gs.stx - gs.x) * 0.25;
+            gs.sty += (ty - gs.sty) * 0.25; gs.y += (gs.sty - gs.y) * 0.25;
+            gs.stw += (twf - gs.stw) * 0.25; gs.w += (gs.stw - gs.w) * 0.25;
+            if (st.gt > gs.settle) gs.frozen = true;
+          }   // frozen: hold gs untouched — the window is locked for the scene
+          // hard ink clamp on the REALIZED window too: easing through a
+          // transient target (the finale blow-up inflates the median box
+          // under the white-out, then settles) must never show past the
+          // painted art — the correction lands as an instant cut, which is
+          // the game's own cut language, instead of a slow pan over blank
+          // space (the user's "empty blue instead of the scene" class)
+          if (!gs.frozen && g.ink) {
+            const hw = gs.w / 2, hh = gs.w / car / 2;
+            const xl = g.ink.x0 + hw, xh = g.ink.x1 - hw;
+            gs.x = (xl > xh) ? (g.ink.x0 + g.ink.x1) / 2
+                             : Math.max(xl, Math.min(gs.x, xh));
+            // SUBJECT-FLOOR: the panoramic backdrop's painted ground can stop
+            // well above its bounding box (transparent below it), and the
+            // ink probe reads the explosion smoke that billows past it as
+            // "open" — so the window bottom drops under the standing
+            // character's feet and the dark backing shows as a strip
+            // (estelle's finale). g.ly0 is the lowest LIT subject (the wide
+            // backdrop quads are already excluded from it), so never let the
+            // window bottom fall below it.
+            const inkY0 = isFinite(g.ly0) ? Math.max(g.ink.y0, g.ly0) : g.ink.y0;
+            const yl = inkY0 + hh, yh = g.ink.y1 - hh;
+            gs.y = (yl > yh) ? (isFinite(inkY0) && isFinite(g.ink.y1)
+                                 ? (inkY0 + g.ink.y1) / 2 : gs.y)
+                             : Math.max(yl, Math.min(gs.y, yh));
+          }
+        }
+      }
+      for (const k of [...st.gcam.keys()])
+        if (!cineGroups.has(k)) st.gcam.delete(k);
+    }
+    // Newest LIT scene WINS: in schedule mode a fresher cinematic cut
+    // replaces a held older one (estelle's chained ricochet scenes, then the
+    // finale) — but only once its content actually shows, so the previous
+    // scene holds through the newcomer's blank lead-in like in-game.
+    if (window.__fxScheduleMode && cineGroups.size > 1) {
+      let win = null, newest = null;
+      for (const g of cineGroups.values()) {
+        if (g.lit && (!win || g.gtStart > win.gtStart)) win = g;
+        if (!newest || g.gtStart > newest.gtStart) newest = g;
+      }
+      // HOLD CAP: a finished older scene may bridge a successor's blank
+      // lead-in only briefly — in-game the cut lands within a few frames
+      // (estelle's kick close-up held ~0.45s over the finale's lead-in,
+      // reading as a freeze). Once the successor has existed 0.35s, the
+      // held scene yields even if the successor hasn't lit yet (the grace
+      // bridge keeps the field hidden across the dark beat, like in-game).
+      if (!win && newest && st.gt - newest.gtStart > 0.35) win = newest;
+      if (win) for (const [k, g] of cineGroups) {
+        if (g !== win && g.gtStart < win.gtStart - 0.05) {
+          for (const e of pool.values())
+            if (e.visible && e.sceneKey === k) hideEntry(e);
+          cineGroups.delete(k);
+        }
+      }
+    }
+    // flag members (the complete-listener holds cine layers in sched mode)
+    for (const e of pool.values())
+      if (e.visible && e.sceneKey) e.isCine = cineGroups.has(e.sceneKey);
+    // exports hide the field character while a cinematic cutaway is up —
+    // but only once a scene has SHOWN something: scene rigs spawn at t=0
+    // with authored blank lead-ins (wildred's landscape attaches ~2s in),
+    // and in-game the field + character stay up until the cut actually
+    // lands. `ever` is sticky so inter-scene attach gaps can't flash the
+    // character back for a frame.
+    const cineLit = [...cineGroups.values()].some(g => g.ever);
+    if (window.__fxScheduleMode && st.cutawayOK) {
+      // GRACE BRIDGE: between a retired scene (most end fully detached)
+      // and the next scene's blank lead-in NO group is up for a few frames
+      // — in-game the field stays hidden the whole stretch (BGSHOW hide ..
+      // show). Hold the cutaway across gaps up to 0.8s; the authored
+      // field-restore (_fieldBack) or the real end releases it.
+      if (cineLit) st.cineHold = st.gt + 0.8;
+      st.cineActive = cineLit || (st.cineHold != null && st.gt < st.cineHold);
+    } else {
+      st.cineActive = cineLit;
+    }
+    for (const e of pool.values()) {
+      if (!e.ready) continue;
+      if (e.particle) {
+        // stateless sim keyed off the engine clock: re-rendered every frame,
+        // inherently pause-correct and segment-switch-proof
+        if (e.visible && vp) renderParticleEntry(e, st.gt, vp);
+        continue;
+      }
+      if (vp && e.player.currentViewport) {
+        const c = e.player.currentViewport;
+        const effW = vp.width + (vp.padLeft || 0) + (vp.padRight || 0);
+        const effH = vp.height + (vp.padTop || 0) + (vp.padBottom || 0);
+        const cine = e.sceneKey && cineGroups.get(e.sceneKey);
+        if (cine && st.authCam) {
+          // AUTHORED camera replay (bake feeds the stagept CAM/ZOOM/SHAKE
+          // track via _setCam each frame). Two authored channels compose:
+          // (1) the scene's OWN camera rig — a `camera_scale*` bone chain
+          // keyed inside the scene's subject layer (sc05's camera_scale3
+          // rides to y≈5762 for the sky shots, drops 3115 for the street
+          // dive; the finale's camera_scale pulls back 13x→2.45x to frame
+          // the giant). Camera centre = the LEAF bone's world position,
+          // window = W0 × its world scale. Scenes with no camera bone run
+          // at the fixed design window (old man, chicken). (2) the .stg
+          // CAM/ZOOM tweens + cm-rig SHAKE path on top. W0 = 2850 world
+          // units at 1280 design px (VOD-measured on the zoom-1 scenes;
+          // the heuristic's fitted `cinepan 2850` sampled the same
+          // number). Replaces the content-follow state machine wholesale.
+          const cv = e.player.canvas;
+          const car = (cv && cv.height) ? cv.width / cv.height : 16 / 9;
+          const W0 = 2850, PX = W0 / 1280;
+          // scene camera bones are SEQUENTIAL SHOTS: each camera_scale*
+          // bone takes over at its first keyframe time (estelle sc05's
+          // three bones sit parked until the 3.0s street dive; the
+          // finale's activates at 0.57s for the giant pull-back). Before
+          // any activates, the default design window at the origin runs —
+          // the content itself sequences through it. Ties → higher index.
+          let camScale = 1, camX = 0, camY = 0;
+          for (const o of pool.values()) {
+            if (o.sceneKey !== e.sceneKey || !o.ready || o.particle) continue;
+            if (o._camBones === undefined) {          // once per entry
+              o._camBones = null;
+              const sk = o.player && o.player.skeleton;
+              const otr = o.player && o.player.animationState
+                          && o.player.animationState.getCurrent(0);
+              const anim = otr && otr.animation;
+              if (sk && anim) {
+                const cams = [];
+                for (let bi = 0; bi < sk.bones.length; bi++) {
+                  const b = sk.bones[bi];
+                  const m = /^camera_scale(\d*)$/.exec(b.data.name);
+                  if (!m) continue;
+                  let act = Infinity;    // first authored key on this bone
+                  for (const tl of anim.timelines)
+                    if (tl.boneIndex === bi && tl.frames && tl.frames.length)
+                      act = Math.min(act, tl.frames[0]);
+                  cams.push({ b, act, n: +(m[1] || 0) });
+                }
+                cams.sort((a, z) => a.act - z.act || a.n - z.n);
+                if (cams.length) o._camBones = cams;
+              }
+            }
+            if (o._camBones) {
+              const otr = o.player.animationState.getCurrent(0);
+              const tt = otr ? otr.trackTime : 0;
+              let pick = null;
+              for (const cb of o._camBones) if (tt >= cb.act) pick = cb;
+              if (pick) {
+                camX = pick.b.worldX + (o.offX || 0);
+                camY = pick.b.worldY + (o.offY || 0);
+                camScale = Math.sqrt(pick.b.a * pick.b.a + pick.b.c * pick.b.c) || 1;
+                // the bone is a BOTTOM-CENTRE anchor (cocos anchorPoint
+                // (0.5,0)): the view's bottom edge rides it. Proven on the
+                // finale pull-back — at scale 4.76/12.5 the bottom-anchored
+                // 16:9 window spans the growing giant's bounds EXACTLY
+                // (−322..7302 vs −463..7094); centre-anchor cuts her in
+                // half and undershoots the settled VOD framing by H/2.
+                camY += (W0 * camScale) / (2 * (16 / 9));
+              }
+              break;
+            }
+          }
+          const bw = (W0 * camScale) / (st.authCam.zoom || 1), bh = bw / car;
+          const cx = camX + (st.authCam.x || 0) * PX;
+          const cy = camY + (st.authCam.y || 0) * PX;
+          c.x = cx - (e.offX || 0) - (bw * FX_OVERSCAN) / 2;
+          c.y = cy - (e.offY || 0) - (bh * FX_OVERSCAN) / 2;
+          c.width = bw * FX_OVERSCAN; c.height = bh * FX_OVERSCAN;
+        } else if (cine) {
+          // Scene camera: a FIXED screen-scale window at the ORIGIN. The
+          // scenes' subject layers (old man, chickens, kick, explosion) are
+          // authored around the origin; backdrops are scaled-up quads that
+          // bleed off every edge; the in-game camera engine (camera_scale
+          // bones + cm rigs we don't run) adds pans/zooms on top. Content-
+          // fit cameras failed EVERY way tried: per-frame bounds unions are
+          // poisoned by scale-trick frames (sc05_back2 sweeps to 26M units
+          // — even its MEDIAN is 26M), per-rig medians span 278..62000+
+          // units for layers of ONE registered composite, so any derived
+          // window either explodes or splits the scene across cameras. The
+          // fixed window is the only registration-faithful base. 3650u
+          // (vs the old 4800) ≈ the authored backdrop width (estelle's
+          // sc03 is 3693x2710), so scene art fills the frame edge-to-edge
+          // like the in-game full-bleed look (user VOD) instead of
+          // floating against transparency. Height follows the CANVAS
+          // aspect: spine-player contain-fits the viewport, so matching
+          // its AR maps the window 1:1 onto the canvas (and the export's
+          // centre sample).
+          const cv = e.player.canvas;
+          const car = (cv && cv.height) ? cv.width / cv.height : 16 / 9;
+          const gs = st.gcam && st.gcam.get(e.sceneKey);
+          const bw = (gs && gs.init) ? gs.w : 3650, bh = bw / car;
+          c.x = (gs && gs.init ? gs.x : 0) - (e.offX || 0) - (bw * FX_OVERSCAN) / 2;
+          c.y = (gs && gs.init ? gs.y : 0) - (e.offY || 0) - (bh * FX_OVERSCAN) / 2;
+          c.width = bw * FX_OVERSCAN; c.height = bh * FX_OVERSCAN;
+        } else {
+          // The fx canvas is FX_OVERSCAN x the stage box (CSS), so its camera
+          // covers the same factor more world, centred on the character's
+          // effective viewport (pads folded in; aspect matches the stage so
+          // no letterboxing skew), shifted opposite the entry's world offset
+          // (phantom-enemy / cue x/y / bone anchor) so the effect content
+          // appears AT the offset — full extent, no clipping, export-correct.
+          c.x = (vp.x - (vp.padLeft || 0)) - effW * (FX_OVERSCAN - 1) / 2 - (e.offX || 0);
+          c.y = (vp.y - (vp.padBottom || 0)) - effH * (FX_OVERSCAN - 1) / 2 - (e.offY || 0);
+          c.width = effW * FX_OVERSCAN; c.height = effH * FX_OVERSCAN;
+        }
+        c.padLeft = 0; c.padRight = 0; c.padTop = 0; c.padBottom = 0;
+        e.player.previousViewport = null;   // no transition lerp on sync
+      }
+      if (e.visible && e.player.paused !== charP.paused) {
+        charP.paused ? e.player.pause() : e.player.play();
+      }
+    }
+    st.lastT = t;
+  }
+  tick();
+
+  fxOn.onchange = () => { if (!fxOn.checked) hideAll(); };
+
+  // ---- shared-GL export compositor (bake only: window.__fxSharedGL) --------
+  // Fixes the export compositing flaw: each rig renders alone to its own
+  // premultiplied canvas, and the export stacks those SOURCE-OVER — a slot
+  // authored additive/screen/multiply only ever blends against transparency
+  // inside its own canvas, never against the layers underneath (estelle's
+  // finale explosion core exported magenta instead of the in-game white).
+  // With __fxSharedGL, canvases() re-draws the visible spine FX entries into
+  // ONE WebGL framebuffer per depth bucket (a single one while the cutaway
+  // hides the char) honoring per-slot blend modes — game-correct compositing.
+  // The per-rig SpinePlayers keep running untouched: they still drive the
+  // cine camera, the ink probe and lit detection; only what the export
+  // composite samples changes. Poses are mirrored from each entry's live
+  // track (same setup-pose + apply technique as sceneBounds). Also honors
+  // prim.opacity (CSS-only on the DOM path — silently dropped by drawImage).
+  let sgl = null;
+  function sglInit() {
+    if (sgl !== null) return sgl.gl ? sgl : null;
+    try {
+      const cc = charP.canvas;
+      const w = Math.min(3200, (cc && cc.width) || 1600);
+      const h = Math.max(1, Math.round(w * ((cc && cc.width) ? cc.height / cc.width : 0.625)));
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true,
+                                              preserveDrawingBuffer: true });
+      if (!gl) { sgl = {}; return null; }
+      const blit = () => { const c = document.createElement("canvas");
+                           c.width = w; c.height = h; return c; };
+      sgl = { canvas, gl, renderer: new spine.webgl.SceneRenderer(canvas, gl),
+              am: new spine.webgl.AssetManager(gl, base + "/"),
+              skels: new Map(), back2d: blit(), front2d: blit() };
+      // preload every spine rig this unit's cues reference into the ONE
+      // shared context (no 16-context pressure here — it's a single context)
+      for (const rig of allRigs)
+        if (rig && !rig.startsWith("p~")) {
+          sgl.am.loadTextureAtlas(rig + ".atlas");
+          sgl.am.loadText(rig + ".json");
+        }
+      return sgl;
+    } catch (err) { console.warn("sharedGL init failed:", err); sgl = {}; return null; }
+  }
+  function sglSkel(rig) {
+    const s = sgl;
+    if (s.skels.has(rig)) return s.skels.get(rig);
+    const atlas = s.am.get(rig + ".atlas"), json = s.am.get(rig + ".json");
+    if (!atlas || !json) return null;          // still loading — per-rig fallback
+    let rec = null;
+    try {
+      const sj = new spine.SkeletonJson(new spine.AtlasAttachmentLoader(atlas));
+      const data = sj.readSkeletonData(typeof json === "string" ? JSON.parse(json) : json);
+      rec = { data, skeleton: new spine.Skeleton(data) };
+    } catch (err) { console.warn("sharedGL skel failed:", rig, err); }
+    s.skels.set(rig, rec);                     // cache failures as null too
+    return rec;
+  }
+  // Draw `entries` (already in stacking order) into the shared framebuffer,
+  // blit to `out2d`. Camera = the common base window these entries share,
+  // reconstructed from the first entry's realized per-rig viewport (its
+  // centre 1/FX_OVERSCAN sample with the entry's world offset added back) —
+  // identical framing to what the per-rig path exports. The per-entry world
+  // offset becomes a skeleton translation instead of a camera shift.
+  function sglDraw(entries, out2d) {
+    const s = sgl;
+    // track the char canvas backing (the Quality-2x dance grows it AFTER
+    // engine creation): keep the shared framebuffer at composite resolution
+    const cc = charP.canvas;
+    if (cc && cc.width) {
+      const w = Math.min(3200, cc.width);
+      const h = Math.max(1, Math.round(w * cc.height / cc.width));
+      if (s.canvas.width !== w || s.canvas.height !== h) {
+        s.canvas.width = w; s.canvas.height = h;
+        s.back2d.width = w; s.back2d.height = h;
+        s.front2d.width = w; s.front2d.height = h;
+      }
+    }
+    let ref = null;
+    for (const e of entries) if (e.player.currentViewport) { ref = e; break; }
+    if (!ref) return false;
+    const rc = ref.player.currentViewport;
+    const camW = rc.width / FX_OVERSCAN, camH = rc.height / FX_OVERSCAN;
+    const camX = rc.x + (rc.width - camW) / 2 + (ref.offX || 0) + camW / 2;
+    const camY = rc.y + (rc.height - camH) / 2 + (ref.offY || 0) + camH / 2;
+    const gl = s.gl, r = s.renderer, cam = r.camera;
+    gl.viewport(0, 0, s.canvas.width, s.canvas.height);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    cam.setViewport(s.canvas.width, s.canvas.height);
+    cam.position.x = camX; cam.position.y = camY;
+    cam.zoom = camW / s.canvas.width;
+    cam.update();
+    r.begin();
+    for (const e of entries) {
+      const rec = sglSkel(e.rig);
+      if (!rec) continue;
+      const src = e.player.skeleton, sk = rec.skeleton;
+      sk.scaleX = src.scaleX; sk.scaleY = src.scaleY;
+      sk.x = e.offX || 0; sk.y = e.offY || 0;
+      sk.setToSetupPose();
+      const tr = e.player.animationState.getCurrent(0);
+      if (tr && tr.animation) {
+        const anim = rec.data.findAnimation(tr.animation.name);
+        if (anim) {
+          const t = tr.loop && anim.duration > 0
+            ? tr.trackTime % anim.duration
+            : Math.min(tr.trackTime, anim.duration);
+          anim.apply(sk, 0, t, !!tr.loop, null, 1,
+                     spine.MixBlend.setup, spine.MixDirection.mixIn);
+        }
+      }
+      const op = parseFloat(e.div.style.opacity || "1");
+      sk.color.a = isNaN(op) ? 1 : op;
+      sk.updateWorldTransform();
+      r.drawSkeleton(sk, true);
+    }
+    r.end();
+    const g = out2d.getContext("2d");
+    g.clearRect(0, 0, out2d.width, out2d.height);
+    g.drawImage(s.canvas, 0, 0);
+    return true;
+  }
+  // eager init: start the shared context's atlas/json fetches at engine
+  // creation, not at the first capture — the bake's warm-up + settle then
+  // hides the load latency and capture frame 0 already has mirror skeletons
+  if (window.__fxSharedGL) sglInit();
+  // bake readiness gate: true once every spine rig's mirror skeleton is
+  // RESOLVED (built, or failed-and-cached-null so it stays on the per-rig
+  // fallback). Without this the capture can start while atlases are still
+  // fetching and mix per-rig source-over layers into shared frames mid-run.
+  function sglReady() {
+    if (!window.__fxSharedGL) return true;
+    const s = sglInit();
+    if (!s) return true;                       // no GL — permanent fallback
+    const errs = (s.am.getErrors && s.am.getErrors()) || {};
+    let done = true;
+    for (const rig of allRigs) {
+      if (!rig || rig.startsWith("p~") || s.skels.has(rig)) continue;
+      if (errs[base + "/" + rig + ".atlas"] || errs[base + "/" + rig + ".json"]) {
+        s.skels.set(rig, null);                // fetch failed — resolved as fallback
+        continue;
+      }
+      if (s.am.get(rig + ".atlas") && s.am.get(rig + ".json")) { sglSkel(rig); continue; }
+      done = false;
+    }
+    return done;
+  }
+
+  return {
+    _sglReady: sglReady,
+    // Authored-camera hook (bake-only): the bake replays the stagept
+    // CAM/ZOOM/SHAKE track per frame and pushes the current camera here
+    // ({x,y,zoom} in design px / abs scale, or null to release). While
+    // set, the cine tick uses it instead of the content-follow heuristic.
+    _setCam(cs) { st.authCam = cs || null; },
+    // debug: dump every visible rig's camera_scale*/top_move bone worlds
+    _camProbe() {
+      const out = [];
+      for (const [k, e] of pool) {
+        if (e.particle || !e.ready || !e.visible) continue;
+        const sk = e.player && e.player.skeleton;
+        if (!sk) continue;
+        const bd = {};
+        for (const b of sk.bones)
+          if (/^camera_scale\d*$|^top_move$/.test(b.data.name))
+            bd[b.data.name] = [Math.round(b.worldX), Math.round(b.worldY),
+                               +Math.sqrt(b.a * b.a + b.c * b.c).toFixed(3),
+                               +Math.sqrt(b.b * b.b + b.d * b.d).toFixed(3)];
+        let bb = null;
+        try {
+          e.player.skeleton.getBounds(_o2, _s2, []);
+          if (_s2.x > 0) bb = [Math.round(_o2.x), Math.round(_o2.y),
+                               Math.round(_s2.x), Math.round(_s2.y)];
+        } catch (_) {}
+        if (Object.keys(bd).length || bb)
+          out.push({ rig: e.rig || k, bones: bd, bounds: bb });
+      }
+      return out;
+    },
+    // visible fx layers for the export composites, split by depth. Each item
+    // is a draw spec: the source rect samples the CENTRE 1/FX_OVERSCAN of
+    // the overscanned canvas — the region that lines up with the stage box.
+    canvases() {
+      const back = [], front = [];
+      if (!fxOn.checked) return { back, front, cine: false };
+      const hideChar = !!(st.cineActive && st.cuesHaveCharLayer);
+      const useSgl = !!window.__fxSharedGL && !!sglInit();
+      const backE = [], frontE = [];
+      for (const e of pool.values()) {
+        if (!e.visible) continue;
+        // a fullscreen cutaway REPLACES the field view: field spine FX
+        // (estelle's finale hit flashes) land under it in-game, invisible.
+        // Particles stay — the finale's firework burst is authored as one.
+        if (st.cineActive && !e.particle && !e.isCine) continue;
+        const c = e.div.querySelector("canvas");
+        if (!c || !c.width) continue;
+        const isBack = +e.div.style.zIndex < 2;
+        // shared-GL path: spine entries whose mirror skeleton is ready are
+        // drawn together below; anything else keeps its per-rig spec
+        if (useSgl && !e.particle && sglSkel(e.rig)) {
+          (isBack ? backE : frontE).push(e);
+          continue;
+        }
+        const sw = c.width / FX_OVERSCAN, sh = c.height / FX_OVERSCAN;
+        const spec = { canvas: c, sx: (c.width - sw) / 2, sy: (c.height - sh) / 2,
+                       sw, sh };
+        (isBack ? back : front).push(spec);
+      }
+      if (useSgl && (backE.length || frontE.length)) {
+        const spec = (c) => ({ canvas: c, sx: 0, sy: 0, sw: c.width, sh: c.height });
+        if (hideChar) {
+          // char hidden (field-replacing cutaway): ONE framebuffer for every
+          // spine layer, back bucket first — cross-bucket additive (the
+          // finale explosion over its own village bg) blends game-correct.
+          if (sglDraw(backE.concat(frontE), sgl.front2d)) front.unshift(spec(sgl.front2d));
+        } else {
+          if (backE.length && sglDraw(backE, sgl.back2d)) back.push(spec(sgl.back2d));
+          if (frontE.length && sglDraw(frontE, sgl.front2d)) front.unshift(spec(sgl.front2d));
+        }
+      }
+      // cine = a cutaway is up (drives field-FX suppression + scene framing).
+      // hideChar = ALSO drop the live rig — only for field-replacing cutaways
+      // that paint their own character (estelle); a cutaway with no painted
+      // character (doris) keeps the live rig so she shows on her hill.
+      return { back, front, cine: !!st.cineActive, hideChar };
+    },
+    // bake: wipe runtime state between the warm-up and capture passes —
+    // without this the warm-up's HELD finale is still up (and cineActive
+    // suppresses the character) when capture frame 0 lands
+    _reset() {
+      hideAll();
+      st.carry = []; st.pending = []; st.idx = 0; st.lastT = -1;
+      st.cineActive = false; st.cineHold = null;
+      if (st.gcam) st.gcam.clear();
+      if (st._inkCache) st._inkCache.clear();
+      st.cutawayOK = cutawayInit();
+    },
+    // bake: stagept BGSHOW-hide beat — the cutaway starts HERE
+    _cutawayOn() { st.cutawayOK = !!cues.cutaway; },
+    // bake: stagept LAYOUT mode:1 = the authored "restore the field view"
+    // beat — end every cutaway scene (running or held) so the character
+    // returns for the skill's tail, exactly when the game does it. The
+    // restore is TERMINAL: big rigs spawning after it are field overlays
+    // (c1023_s01's closing petal storm), never a new cutaway.
+    _fieldBack() {
+      for (const e of pool.values())
+        if (e.visible && !e.particle && e.sceneKey) hideEntry(e);
+      st.cineActive = false; st.cineHold = null;
+      st.cutawayOK = false;
+    },
+    // bake/debug introspection: live engine + pool state
+    _debug() {
+      const vis = [];
+      for (const e of pool.values()) if (e.visible) {
+        let pose = null, cam = null;
+        if (!e.particle && e.ready) {
+          try {
+            const o = new spine.Vector2(), s = new spine.Vector2();
+            e.player.skeleton.getBounds(o, s, []);
+            pose = [o.x | 0, o.y | 0, s.x | 0, s.y | 0];
+            const c = e.player.currentViewport;
+            if (c) cam = [c.x | 0, c.y | 0, c.width | 0, c.height | 0];
+          } catch (_) {}
+        }
+        let tt = null, camBone = null;
+        if (!e.particle && e.ready) {
+          try {
+            const tr = e.player.animationState.getCurrent(0);
+            if (tr) tt = +tr.trackTime.toFixed(2);
+          } catch (_) {}
+          try {
+            const sk = e.player.skeleton;
+            const b = sk.findBone("camera_scale") || sk.findBone("camera");
+            if (b) camBone = { x: +b.worldX.toFixed(1), y: +b.worldY.toFixed(1),
+                               sx: +Math.sqrt(b.a * b.a + b.c * b.c).toFixed(3),
+                               sy: +Math.sqrt(b.b * b.b + b.d * b.d).toFixed(3) };
+          } catch (_) {}
+        }
+        vis.push({
+          rig: e.rig, key: e.sceneKey, cine: !!e.isCine, tt, camBone,
+          dr: e.player ? (e.player.__draws || 0) : -1,
+          pz: e.player ? !!e.player.paused : null,
+          gt0: +(e.gtStart || 0).toFixed(2), z: e.div.style.zIndex,
+          particle: !!e.particle, pose, cam,
+          bnds: e.bnds && e.bnds.rect
+            ? [e.bnds.rect.x | 0, e.bnds.rect.y | 0,
+               e.bnds.rect.width | 0, e.bnds.rect.height | 0] : null });
+      }
+      return { gt: +st.gt.toFixed(2), anim: st.anim,
+               cineActive: !!st.cineActive, idx: st.idx,
+               pending: st.pending.length, carry: st.carry.length, vis,
+               gcam: st.gcam ? [...st.gcam].map(([k, v]) =>
+                 [k, v.x | 0, v.y | 0, v.w | 0]) : null,
+               ink: st._inkCache ? [...st._inkCache].map(([k, v]) =>
+                 [k, ...(v.ink ? [v.ink.x0, v.ink.x1, v.ink.y0, v.ink.y1]
+                   .map(n => isFinite(n) ? n | 0 : (n > 0 ? "inf" : "-inf"))
+                   : ["none"])]) : null };
+    },
+    // The ground a composited live character stands on, for the bake to make
+    // the live rig RIDE the scene floor (instead of floating statically while
+    // the mesh animates under it — the doris tree cutaway). The floor = the
+    // active cutaway scene layer carrying a `bottom` ground bone; its bone
+    // screen-Y (_bboneNy) is the motion signal. Returned in NORMALISED export-
+    // screen coords [0..1] (centre-half of the overscan cam, matching the
+    // export sample). null when no floor is up, so non-floor cutaways (estelle,
+    // painted-character scenes) are no-ops.
+    _floorAnchor() {
+      if (!st.cineActive) return null;
+      for (const e of pool.values()) {
+        if (!e.visible || e.particle || !e.ready || !e.isCine) continue;
+        const sk = e.player && e.player.skeleton;
+        const c = e.player && e.player.currentViewport;
+        if (!sk || !c || !c.width) continue;
+        if (!sk.findBone("bottom")) continue;
+        // RENDERED ground extent, not the bone's mesh-fill scale: the `bottom`
+        // bone's world scale runs 14..47x (it blows a 32px quad to screen
+        // size) — riding THAT balloons the character. getBounds is the actual
+        // on-screen mesh rect, whose width ratio is the perceptual zoom and
+        // whose centre is the pan. Surface anchor stays the on-ground weed
+        // centroid (where the subject stands), not the bounds centre (which
+        // sinks into the dead-zone below the hill).
+        const bbot = sk.findBone("bottom");
+        let bw;
+        try { const o = new spine.Vector2(), s2 = new spine.Vector2();
+              sk.getBounds(o, s2, []); bw = s2.x; } catch (_) { continue; }
+        if (!(bw > 0)) continue;
+        const wx0 = c.x + c.width / 4, ww = c.width / 2;
+        const wy0 = c.y + c.height / 4, wh = c.height / 2;
+        // _bboneNy: the `bottom` bone's normalised screen-Y. Its rise (glides
+        // 1.9→0.7 over the scene) IS the floor's motion the char rides — the
+        // getBounds WIDTH (ns) saturates after a few frames so it gives no
+        // motion. ns kept only as the floor-present gate.
+        return { ns: bw / ww, _bboneNy: 1 - (bbot.worldY - wy0) / wh };
+      }
+      return null;
+    },
+    _slots(rig) {
+      const e = pool.get(rig);
+      if (!e || e.particle || !e.ready) return null;
+      const sk = e.player.skeleton, out = [];
+      for (const slot of sk.slots) {
+        const a = slot.getAttachment();
+        if (!a) continue;
+        let v = null;
+        try {
+          if (a.worldVerticesLength != null) {
+            v = new Array(a.worldVerticesLength);
+            a.computeWorldVertices(slot, 0, a.worldVerticesLength, v, 0, 2);
+          } else if (a.computeWorldVertices) {
+            v = new Array(8);
+            a.computeWorldVertices(slot.bone, v, 0, 2);
+          }
+        } catch (_) {}
+        if (!v) continue;
+        let mnx = 1e12, mny = 1e12, mxx = -1e12, mxy = -1e12;
+        for (let i = 0; i < v.length; i += 2) {
+          mnx = Math.min(mnx, v[i]); mxx = Math.max(mxx, v[i]);
+          mny = Math.min(mny, v[i + 1]); mxy = Math.max(mxy, v[i + 1]);
+        }
+        out.push({ slot: slot.data.name, att: a.name,
+                   x: mnx | 0, y: mny | 0, w: (mxx - mnx) | 0, h: (mxy - mny) | 0,
+                   a: +slot.color.a.toFixed(2) });
+      }
+      return out;
+    },
+    destroy() {
+      cancelAnimationFrame(st.raf);
+      scaler.style.marginLeft = ""; scaler.style.marginTop = "";
+      for (const e of pool.values()) {
+        if (e.killTimer) clearTimeout(e.killTimer);
+        if (e.player) { try { e.player.stopRendering(); } catch (_) {} }
+        e.div.remove();
+      }
+      pool.clear();
+    },
+  };
+}
+
 function disposePlayers() {
   // Best-effort teardown. spine-player exposes stopRendering() to halt its
   // animation loop; clearing the host div removes the canvas. The internal
@@ -1027,6 +2712,7 @@ function disposePlayers() {
   // spine-player.js:11174). The bg's resize handler is therefore stomped by
   // the character's, which is intentional: bg's canvas auto-resizes inside
   // its own draw loop too.
+  destroyFxEngine();
   if (player) { try { player.stopRendering(); } catch(_) {} player = null; }
   if (bgPlayer) { try { bgPlayer.stopRendering(); } catch(_) {} bgPlayer = null; }
   stage.innerHTML = "";
@@ -1104,12 +2790,22 @@ function loadCharacter(bgViewport) {
     // the character projects through the same camera. When standalone, fall
     // back to the historical absolute-unit padding that frames the rig
     // tightly.
-    const charViewport = bgViewport
+    // When a PRIMARY_SWAP backdrop is paired, we initially lock the character
+    // camera to the backdrop's world rect so the two canvases composite. That
+    // lock MUST be lifted when the user Hide-FX/BG (or Fit) wants a tight
+    // character frame — spine-player's setAnimation prefers config.viewport
+    // x/y/width/height over calculateAnimationViewport whenever those four
+    // are set, so a locked stage viewport keeps the character tiny even after
+    // the FX slots are stripped from getBounds(). See __reframeOnVisible.
+    const lockedStageVp = bgViewport
       ? { x: bgViewport.x, y: bgViewport.y,
           width: bgViewport.width, height: bgViewport.height,
           padLeft: bgViewport.padLeft, padRight: bgViewport.padRight,
           padTop: bgViewport.padTop, padBottom: bgViewport.padBottom,
           debugRender: false }
+      : null;
+    const charViewport = lockedStageVp
+      ? Object.assign({}, lockedStageVp)
       : { padLeft: 80, padRight: 80, padTop: 40, padBottom: 80, debugRender: false };
     player = new spine.SpinePlayer("stage", {
       jsonUrl:  `${spineBase}/${rigPath}/${rigBase}.json`,
@@ -1146,30 +2842,42 @@ function loadCharacter(bgViewport) {
         applySpineVer();
         animSel.innerHTML = anims.map(n => `<option value="${n}">${n}</option>`).join("");
         skinSel.innerHTML = skins.map(n => `<option value="${n}">${n}</option>`).join("");
-        // E7 rigs layer their look across three skins: default (body chassis),
-        // normal (neutral eyes/lip/brow), and an expression (smile/angry/etc
-        // that fills the face silhouette or the lit-face overlay). Most rigs
-        // look correct with just default+normal; only "broken-by-design" rigs
-        // (where face features live only in expression skins, see
-        // tools/audit_skins.py for the heuristic) need the third layer. The
-        // skin dropdown lets the user override the expression layer.
+        // Face / emotion skins.
+        //
+        // Blink lives on skin "normal" only. Emotion skins (smile/angry/…) are
+        // alternate faces that are NOT meant to blink — stacking "normal"
+        // under them is what produced double eyes. Treat them as exclusive:
+        //
+        //   resting / "normal":  default (body) + normal (face + blink)
+        //   emotion:             default (body) + <emotion> only
+        //
+        // default is an empty face plate; it never supplies mouth/eyes.
+        // setup alpha=0 on face slots is intentional blink hide/swap — leave it.
+        //
+        // Broken-by-design rigs (face only in expression skins) still auto-pick
+        // an expression for resting; see tools/audit_skins.py.
         const data = p.skeleton.data;
         const EXPR_ORDER = ["smile", "angry", "panic", "sad", "special"];
         const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;
         const CRIT_SETUP_RE = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|1|\d)$/;
-        // Per-slug overrides for rigs whose missing-face slot does NOT match
-        // the regex above. See tools/audit_skins.py EXPRESSION_FORCE.
-        const EXPRESSION_FORCE = new Set(["npc1366", "npc1038", "npc1152", "npc1160", "npc1235", "npc1277", "c1153_s01", "c4141", "c1117", "c1138", "c1128"]);
-        // Second heuristic: rigs with no neutral face anywhere in
-        // default+normal but expressions provide one. See tools/audit_skins.py.
+        // Cleared 2026-07-18 with special_process disable — see audit_skins.py.
+        const EXPRESSION_FORCE = new Set();
         const FACE_PIECE_RE = /^(?:[a-z]+\/)?(face|head|eye|mouth|lip|brow|eyebrow|nose|cheek)(?:[A-Z\d]|[_/]\w+)?$/i;
+        const SPLIT_FACE_RE = /^normal(?:\d+|c)$/i;
         const EXPR_SKIN_NAMES = ["smile","angry","panic","sad","special","special2","special3"];
+        function skinSlotFilled(skin, slotIndex) {
+          if (!skin || !skin.attachments || !skin.attachments[slotIndex]) return false;
+          const entry = skin.attachments[slotIndex];
+          if (typeof entry.size === "number") return entry.size > 0;
+          return Object.keys(entry).length > 0;
+        }
         function skinHasFacePiece(skinName) {
           const sk = data.findSkin(skinName);
           if (!sk) return false;
-          for (let i = 0; i < sk.attachments.length; i++) {
-            if (!sk.attachments[i]) continue;
-            if (FACE_PIECE_RE.test(data.slots[i].name)) return true;
+          for (let i = 0; i < data.slots.length; i++) {
+            if (!skinSlotFilled(sk, i)) continue;
+            const n = data.slots[i].name;
+            if (FACE_PIECE_RE.test(n) || SPLIT_FACE_RE.test(n)) return true;
           }
           return false;
         }
@@ -1180,6 +2888,8 @@ function loadCharacter(bgViewport) {
         }
         function needsExpressionLayer() {
           if (EXPRESSION_FORCE.has(slug)) return true;
+          // Neutral face already present — do not auto-pick smile.
+          if (skinHasFacePiece("default") || skinHasFacePiece("normal")) return false;
           if (needsLayerNoNeutralFace()) return true;
           const defSkin = data.findSkin("default");
           const normSkin = data.findSkin("normal");
@@ -1203,65 +2913,53 @@ function loadCharacter(bgViewport) {
           return null;
         }
         const autoNeedsExpr = needsExpressionLayer();
-        // Track the last expr passed to applyCombined so toggles that need to
-        // refresh the active skin (e.g. the "Hide scene" workaround) can reuse
-        // the same layering. The skin <select>'s value isn't sufficient here:
-        // at initial load it shows "default" while the actual rendered combo
-        // is "default+normal" — passing skinSel.value as expr would strip
-        // normal and reset the face.
+        function defaultFaceSkin() {
+          if (autoNeedsExpr) {
+            const auto = pickExpression();
+            if (auto) return auto;
+          }
+          if (data.findSkin("normal")) return "normal";
+          if (data.findSkin("default")) return "default";
+          return (data.skins[0] && data.skins[0].name) || "default";
+        }
         let lastExpr = null;
         function applyCombined(expr, force) {
-          lastExpr = expr;
-          // expr can be: null/"" (auto-pick), "default" (no combine),
-          // "normal" (default+normal only), or any expression skin name.
-          // `force` (true when the user picks from the dropdown) bypasses
-          // the needsExpressionLayer check, so users can preview expressions
-          // on rigs whose default+normal already looks correct.
-          //
-          // Layering rule:
-          //   - resting pose (expr null/"normal"):   default + normal
-          //   - broken-by-design + expression:       default + normal + <expr>
-          //       (expression doesn't carry a full face; normal supplies the
-          //       base that the expression overlays.)
-          //   - working rig + expression preview:    default + <expr>
-          //       (expression IS a full alternative face on c1171/c5110/etc.
-          //       Layering normal too keeps normal's attachments visible on
-          //       different slot names and visually duplicates eyebrows/eyes.)
+          let face = (expr == null || expr === "") ? defaultFaceSkin() : expr;
+          if (face !== "default" && !data.findSkin(face)) face = defaultFaceSkin();
+          lastExpr = face;
+
+          const isEmotion = !!(face && face !== "default" && face !== "normal" && data.findSkin(face));
           const layers = [];
           if (data.findSkin("default")) layers.push("default");
-          if (expr === "default") {
-            // user explicitly wants the bare default skin
-          } else if (!expr || expr === "normal") {
-            // resting pose
+
+          if (face === "default") {
+            // bare body only (already pushed)
+          } else if (isEmotion) {
+            // Emotion is a full alternate face plate on the shared face slot.
+            // Do NOT stack normal under it: normal also fills that slot (mouth)
+            // plus blink pieces, and stacking causes double eyes. Body stays
+            // from default. Emotions typically don't blink in this layout.
+            layers.push(face);
+          } else if (face === "normal" || !face) {
+            // Resting: mouth + eyes + blink (normalc alpha swap). Converter
+            // must keep normal's face slot — do not re-enable special_process.
             if (data.findSkin("normal")) layers.push("normal");
-            if (autoNeedsExpr && !expr) {
-              const auto = pickExpression();
-              if (auto) layers.push(auto);
-            }
-          } else if (data.findSkin(expr) && expr !== "default") {
-            // user picked an expression
-            if (autoNeedsExpr) {
-              // broken-by-design: keep normal as the face base
-              if (data.findSkin("normal")) layers.push("normal");
-            }
-            layers.push(expr);
+          } else if (data.findSkin(face)) {
+            layers.push(face);
           }
+
           if (layers.length > 1) {
             const combo = new spine.Skin("combo");
             for (const n of layers) combo.addSkin(data.findSkin(n));
             p.skeleton.setSkin(combo);
-          } else if (layers.length === 1 && layers[0] !== "default") {
-            p.skeleton.setSkinByName(layers[0]);
           } else if (layers.length === 1) {
-            p.skeleton.setSkinByName("default");
+            p.skeleton.setSkinByName(layers[0]);
           }
           p.skeleton.setSlotsToSetupPose();
         }
-        applyCombined(null);
-        if (autoNeedsExpr) {
-          const initialExpr = pickExpression();
-          if (initialExpr) skinSel.value = initialExpr;
-        }
+        const loadFace = defaultFaceSkin();
+        applyCombined(loadFace);
+        if (data.findSkin(loadFace)) skinSel.value = loadFace;
         const pick = anims.find(n => /idle|wait|stand/i.test(n)) || anims[0];
         if (pick) { p.setAnimation(pick); animSel.value = pick; }
         else if (allAnims.length) {
@@ -1273,15 +2971,40 @@ function loadCharacter(bgViewport) {
           p.setAnimation(allAnims[0].name);
         }
         animSel.onchange = () => p.setAnimation(animSel.value);
-        // Reframe hook for the fit/reset button: re-running setAnimation makes
-        // spine-player recompute its auto-fit viewport from the live skeleton,
-        // so slots hidden via the Assets picker / Hide FX·BG toggle drop out of
-        // getBounds() and the character frames tight instead of being shrunk by
-        // an off-screen halo/backdrop.
+        // Reframe hook for the fit/reset button AND Hide FX/BG.
+        // spine-player.setAnimation() only uses live getBounds() when
+        // config.viewport lacks a fixed x/y/width/height. With ?stage= we
+        // start locked to the backdrop rect (for composite alignment); for a
+        // tight character crop we must drop that lock so calculateAnimation-
+        // Viewport samples the currently-visible attachments.
         window.__reframeOnVisible = function () {
+          const vp = p.config.viewport || (p.config.viewport = {});
+          const wantTight = !!(sceneOnInput && sceneOnInput.checked);
+          if (wantTight || !lockedStageVp) {
+            // Free camera: pad-only viewport → setAnimation uses skeleton bounds.
+            delete vp.x;
+            delete vp.y;
+            delete vp.width;
+            delete vp.height;
+            if (typeof vp.padLeft === "undefined") vp.padLeft = 80;
+            if (typeof vp.padRight === "undefined") vp.padRight = 80;
+            if (typeof vp.padTop === "undefined") vp.padTop = 40;
+            if (typeof vp.padBottom === "undefined") vp.padBottom = 80;
+            // Instant snap (no 0.2s lerp from the huge stage rect into the
+            // tight crop — that lerp made the fit look like it "didn't work").
+            if (p.config.viewport) p.config.viewport.transitionTime = 0;
+          } else {
+            // Restore stage-synced framing for composite alignment.
+            Object.assign(vp, lockedStageVp);
+            if (p.config.viewport) p.config.viewport.transitionTime = 0.2;
+          }
           const a = animSel.value || (allAnims[0] && allAnims[0].name);
           if (a) p.setAnimation(a);
         };
+        // Skill-FX compositing: only for the unit's primary combat rig — a
+        // dual-rig secondary (c2185_1-style `<slug>__<label>` file) has its
+        // own .timeline that isn't compiled into this fx/cues.json.
+        if (isCombat && rigBase === slug) initCombatFx(p);
         skinSel.onchange = () => applyCombined(skinSel.value, true);
 
         // Slot-hiding infrastructure shared between the "Hide FX*" toggle
@@ -1370,17 +3093,31 @@ function loadCharacter(bgViewport) {
         }
         if (thumbHideIdx.length) {
           sceneLabel.hidden = false;
-          sceneOnInput.checked = false;
-          sceneOnInput.onchange = () => {
-            if (window.__slotPickerSnapshot) window.__slotPickerSnapshot();
-            if (sceneOnInput.checked) {
+          // Global preference (default ON) — same for every unit, not per-rig.
+          sceneOnInput.checked = getHideFxPref();
+          const applyHideFx = (on) => {
+            if (on) {
               for (const i of thumbHideIdx) hideSet.add(i);
             } else {
               for (const i of thumbHideIdx) if (!excludeSet.has(i)) hideSet.delete(i);
             }
             syncHidden();
             if (window.__slotPickerRefresh) window.__slotPickerRefresh();
+            // Drop (or restore) the stage-locked camera, then setAnimation so
+            // bounds come from visible slots only. Without clearing the fixed
+            // x/y/width/height from ?stage=, fit keeps the backdrop framing
+            // and the character never zooms in.
+            if (window.__reframeOnVisible) window.__reframeOnVisible();
+            resetView();
+            window.dispatchEvent(new Event("resize"));
           };
+          sceneOnInput.onchange = () => {
+            if (window.__slotPickerSnapshot) window.__slotPickerSnapshot();
+            setHideFxPref(sceneOnInput.checked);
+            applyHideFx(sceneOnInput.checked);
+          };
+          // Honour the saved/default preference on this rig load.
+          if (sceneOnInput.checked) applyHideFx(true);
         }
 
         // Populate the slot picker for this rig. Always visible — every rig
