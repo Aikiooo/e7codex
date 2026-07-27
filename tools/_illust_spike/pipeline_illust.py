@@ -521,6 +521,11 @@ def _bake_env(p: dict, extra: dict | None = None) -> dict:
     anim = p.get("anim") or p.get("idle_anim")
     if anim:
         env["E7_LAYER_ANIM"] = anim
+    # One-shot enter/touch: layers that carry the clip play it once (no loop);
+    # others keep their idle (rec.html ACTANIM path).
+    act = p.get("actanim")
+    if act:
+        env["E7_ACTANIM"] = act
     if extra:
         env.update(extra)
     return env
@@ -621,6 +626,8 @@ def cmd_bake(packs: list[dict], dry: bool) -> int:
                     *keep,
                 ],
                 dry=dry,
+                # E7_LAYER_ANIM / scales — same env as lobby (intro cut-ins need anim=intro)
+                env=_bake_env(p),
             )
             # bake.js historically joins ROOT/out — move if needed
             if not dry and Path(out).is_absolute():

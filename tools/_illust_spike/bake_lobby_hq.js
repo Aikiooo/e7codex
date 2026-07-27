@@ -99,12 +99,16 @@ async function loadPage(port, base, order, viewW, viewH) {
   const anim = process.env.E7_LAYER_ANIM
     ? "&anim=" + encodeURIComponent(process.env.E7_LAYER_ANIM)
     : "";
+  // One-shot enter/touch: layers that carry it play once (rec.html ACTANIM).
+  const actanim = process.env.E7_ACTANIM
+    ? "&actanim=" + encodeURIComponent(process.env.E7_ACTANIM)
+    : "";
   // Load at a modest probe size first; __reframe will resize wrap + viewports.
   const loadW = Math.min(viewW, 2000);
   const loadH = Math.min(viewH, 1400);
   const url =
     `http://localhost:${port}/rec.html?base=${encodeURIComponent(base)}` +
-    `&order=${encodeURIComponent(order)}&w=${loadW}&h=${loadH}${pma}${pmaoff}${scales}${anim}`;
+    `&order=${encodeURIComponent(order)}&w=${loadW}&h=${loadH}${pma}${pmaoff}${scales}${anim}${actanim}`;
   await page.goto(url, { waitUntil: "networkidle0", timeout: 120000 });
   await page.waitForFunction("window.__ready === true", { timeout: 120000 });
   const err = await page.evaluate(() => window.__err || []);
@@ -114,6 +118,9 @@ async function loadPage(port, base, order, viewW, viewH) {
   }
   if (process.env.E7_LAYER_ANIM) {
     console.log("layer anim:", process.env.E7_LAYER_ANIM);
+  }
+  if (process.env.E7_ACTANIM) {
+    console.log("act anim:", process.env.E7_ACTANIM);
   }
   // Log chosen clip + phase-lock policy (rec.html __seek) so mismatched
   // durations never ship silently (Luluca 6s waves vs 8s body).
