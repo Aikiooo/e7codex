@@ -93,7 +93,10 @@ function spineZ(i) { return PRE_DIR ? i * 2 + (i >= PRE_Z ? 2 : 0) : i; }
 const preZpx = PRE_Z * 2 + 1;  // odd z: between order[PRE_Z-1]*2 and order[PRE_Z]*2+2
 function pmaFor(stem) {
   if (!PMA) return false;
-  return PMAOFF.some((t) => stem.includes(t)) ? false : true;
+  // Token ending in "|" is an EXACT stem match (substring matching is too
+  // blunt when stems share prefixes, e.g. environment_f vs environment_f_02).
+  return PMAOFF.some((t) => t.endsWith("|") ? stem === t.slice(0, -1)
+                                            : stem.includes(t)) ? false : true;
 }
 /** Prefer common idle names; many event UI stacks lack literal `animation`. */
 function pickIdleAnim(anims) {
@@ -451,6 +454,39 @@ window.__char_skel_aabb = function () {
   });
   const best = scored[0];
   return { x: best.x, y: best.y, width: best.sw, height: best.sh };
+};
+
+// Composite framing: union of EVERY layer's current mesh/region world bounds.
+// Used by still wallpapers to frame the full authored scene (bg plates + FX)
+// at the seek time — no screenshot crop constants. Mirrors __char_skel_aabb's
+// per-slot vertex walk but unions across all players/slots instead of scoring.
+window.__union_aabb = function () {
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9, n = 0;
+  for (const p of window.__players) {
+    const sk = p.skeleton; if (!sk) continue;
+    sk.updateWorldTransform();
+    for (const slot of sk.slots) {
+      const att = slot.getAttachment && slot.getAttachment();
+      if (!att) continue;
+      let wv;
+      try {
+        if (typeof att.worldVerticesLength === "number") {
+          const nv = att.worldVerticesLength; wv = new Array(nv);
+          att.computeWorldVertices(slot, 0, nv, wv, 0, 2);
+        } else {
+          wv = new Array(8);
+          att.computeWorldVertices(slot.bone, wv, 0, 2);
+        }
+      } catch (e) { continue; }
+      for (let i = 0; i < wv.length; i += 2) {
+        minX = Math.min(minX, wv[i]); maxX = Math.max(maxX, wv[i]);
+        minY = Math.min(minY, wv[i + 1]); maxY = Math.max(maxY, wv[i + 1]);
+        n++;
+      }
+    }
+  }
+  return n ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2,
+               width: maxX - minX, height: maxY - minY } : null;
 };
 
 // Resize the crop box + every layer to newW x newH and pin all players to the

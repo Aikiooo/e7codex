@@ -63,7 +63,8 @@ def pack_map(data: dict) -> dict[str, dict]:
 
 def resolve_order(pack: dict) -> list[dict]:
     excl = set(pack.get("exclude") or [])
-    return merge_order(pack["cfx"], exclude=excl)
+    only = set(pack.get("only") or [])
+    return merge_order(pack["cfx"], exclude=excl, only=only or None)
 
 
 def order_csv(pack: dict) -> str:
@@ -463,11 +464,18 @@ def _preview_bake(p: dict) -> None:
             f"{p['outH']} {p['fps']} {p['crf']} {p['workers']} "
             f"{p['anchor']} {p.get('res', '1920x1080')}"
         )
+    elif p["bake"] == "still":
+        # still-only wallpaper: single composite via dbg.js (no webm encode).
+        print(
+            f"    node dbg.js {p['stage_dir']} {order} {out} "
+            f"{p.get('still_t', 0.5)} {p['anchor']} {crop_for(p)} {p['outH']} "
+            f"{p.get('actanim', '')} {p.get('aspect', 'auto')}"
+        )
     else:
         print(
             f"    node bake.js {p['stage_dir']} {order} {out} "
-            f"{p['fps']} {p['anchor']} {p['outH']} {crop_for(p)} "
-            f"{p.get('max_sec', 30)} {p['crf']} {p['workers']}"
+            f"{p.get('fps', 30)} {p['anchor']} {p['outH']} {crop_for(p)} "
+            f"{p.get('max_sec', 30)} {p.get('crf', 24)} {p.get('workers', 6)}"
         )
 
 
@@ -590,6 +598,8 @@ def cmd_still(packs: list[dict], dry: bool) -> int:
             still_t = str(p.get("still_t", 0.5))
             # Pass actanim via env for dbg when present (dbg reads argv actanim).
             act = p.get("actanim") or ""
+            # Optional target aspect (wallpapers): trims the union to that aspect.
+            aspect = str(p.get("aspect", "auto"))
             rc = run(
                 [
                     "node",
@@ -602,6 +612,7 @@ def cmd_still(packs: list[dict], dry: bool) -> int:
                     crop_for(p),
                     str(p["outH"]),
                     act,
+                    aspect,
                 ],
                 dry=dry,
                 env=_bake_env(p),

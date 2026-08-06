@@ -440,6 +440,13 @@ const stageLabel = document.getElementById("stage-label");
 const stageOnInput = document.getElementById("stage-on");
 const sceneLabel = document.getElementById("scene-label");
 const sceneOnInput = document.getElementById("scene-on");
+// Backdrop visibility is controlled by the Stage toggle ONLY. Hide FX/BG
+// (scene-on) strips FX/aura/scene slots inside the CHARACTER rig and never
+// touches the separate backdrop player. Recompute on Stage toggle / (re)load.
+function syncStageVisibility() {
+  if (!stageSlug) return;
+  stageBg.style.display = stageOnInput.checked ? "" : "none";
+}
 const slotPickerBtn = document.getElementById("slot-picker-btn");
 const slotPickerCount = document.getElementById("slot-picker-count");
 const slotPicker = document.getElementById("slot-picker");
@@ -530,6 +537,20 @@ function _thumbShouldHide(name, protectNumeric, slug) {
 
 let player = null;
 let bgPlayer = null;
+// Backdrop world-rect the character camera locks to while ?stage= is active
+// (set at character load from the backdrop's auto-fit viewport). Restored by
+// __reframeOnVisible for the composite alignment; cleared/ignored when the
+// user explicitly wants a tight character frame (Fit / Hide FX/BG).
+let stageLockVp = null;
+// Build the stage camera-lock rect from a viewport object (the backdrop's
+// auto-fit viewport or its live currentViewport) — shared by loadCharacter
+// and the Stage toggle handler.
+function stageVpFrom(v) {
+  return v ? { x: v.x, y: v.y, width: v.width, height: v.height,
+               padLeft: v.padLeft, padRight: v.padRight,
+               padTop: v.padTop, padBottom: v.padBottom,
+               debugRender: false } : null;
+}
 let zoom = 1, panX = 0, panY = 0;
 const ZMIN = 0.3, ZMAX = 5;
 
@@ -1081,11 +1102,39 @@ if (!slug) {
   // The toggle just shows/hides the backdrop canvas — no reload, no reframe.
   if (stageSlug) {
     stageLabel.hidden = false;
-    // Toggle defaults OFF (HTML default). The backdrop still loads behind the
-    // scenes so the character viewport stays synced to its projection — only
-    // the canvas visibility flips.
-    stageOnInput.onchange = () => {
-      stageBg.style.display = stageOnInput.checked ? "" : "none";
+    // Default the Stage toggle OFF. The backdrop is loaded lazily the first
+    // time the user enables the toggle — nothing is fetched or rendered for
+    // it while off. Turning it on locks the character camera to the backdrop
+    // projection (forced, even with Hide FX/BG on) so the composite refits
+    // and aligns; turning it off drops the lock so the character refits to
+    // its own bounds again.
+    stageOnInput.checked = false;
+    stageOnInput.onchange = async () => {
+      if (stageOnInput.checked) {
+        if (!bgPlayer) {
+          const bgViewport = await loadBackdrop();
+          // User toggled it back off while the backdrop was loading.
+          if (!stageOnInput.checked) { syncStageVisibility(); return; }
+          stageLockVp = stageVpFrom(bgViewport);
+        } else if (bgPlayer && bgPlayer.currentViewport) {
+          // Backdrop already loaded (re-toggle): re-derive the lock from its
+          // live viewport so the camera lock re-applies every enable.
+          stageLockVp = stageVpFrom(bgPlayer.currentViewport);
+        }
+        if (stageLockVp && window.__reframeOnVisible) {
+          // forceLock=true: __reframeOnVisible's wantTight branch (Hide
+          // FX/BG) must NOT skip the lock — otherwise the character stays
+          // free-fitted and drifts off the backdrop (c5190_1).
+          window.__reframeOnVisible(true);
+        }
+        syncStageVisibility();
+      } else {
+        // Back to the standalone character view: drop the stage camera lock
+        // and reframe free (auto-fit on visible slots), hide the backdrop.
+        stageLockVp = null;
+        if (window.__reframeOnVisible) window.__reframeOnVisible();
+        syncStageVisibility();
+      }
     };
   }
   loadScene();
@@ -2730,14 +2779,17 @@ function disposePlayers() {
 function loadScene() {
   disposePlayers();
   if (stageSlug) {
-    // Load the backdrop first so its auto-fit viewport can be reused for the
-    // character. Identical viewports → identical projection → the rigs line
-    // up in shared world coordinates (they were authored together as one
-    // Spine scene; PRIMARY_SWAP just split the export by visible slots).
-    // The Stage toggle hides/shows the backdrop canvas via CSS; the character
-    // viewport stays synced either way (see the toggle wiring above).
-    stageBg.style.display = stageOnInput.checked ? "" : "none";
-    loadBackdrop().then((bgViewport) => loadCharacter(bgViewport));
+    // Lazy backdrop: load it only when the Stage toggle is already on at
+    // load time. When off, the character loads standalone and spine-player
+    // auto-fits it to the canvas (the refit the user expects on load);
+    // turning the toggle on loads the backdrop and locks the character
+    // camera to its projection (see the stage-on change handler).
+    syncStageVisibility();
+    if (stageOnInput.checked) {
+      loadBackdrop().then((bgViewport) => loadCharacter(bgViewport));
+    } else {
+      loadCharacter(null);
+    }
   } else {
     loadCharacter(null);
   }
@@ -2797,13 +2849,10 @@ function loadCharacter(bgViewport) {
     // x/y/width/height over calculateAnimationViewport whenever those four
     // are set, so a locked stage viewport keeps the character tiny even after
     // the FX slots are stripped from getBounds(). See __reframeOnVisible.
-    const lockedStageVp = bgViewport
-      ? { x: bgViewport.x, y: bgViewport.y,
-          width: bgViewport.width, height: bgViewport.height,
-          padLeft: bgViewport.padLeft, padRight: bgViewport.padRight,
-          padTop: bgViewport.padTop, padBottom: bgViewport.padBottom,
-          debugRender: false }
-      : null;
+    const lockedStageVp = stageVpFrom(bgViewport);
+    // Module-level mirror of the lock so the Stage toggle handler can set it
+    // when the backdrop loads lazily after the character (see stageLockVp).
+    stageLockVp = lockedStageVp;
     const charViewport = lockedStageVp
       ? Object.assign({}, lockedStageVp)
       : { padLeft: 80, padRight: 80, padTop: 40, padBottom: 80, debugRender: false };
@@ -2977,10 +3026,10 @@ function loadCharacter(bgViewport) {
         // start locked to the backdrop rect (for composite alignment); for a
         // tight character crop we must drop that lock so calculateAnimation-
         // Viewport samples the currently-visible attachments.
-        window.__reframeOnVisible = function () {
+        window.__reframeOnVisible = function (forceLock) {
           const vp = p.config.viewport || (p.config.viewport = {});
-          const wantTight = !!(sceneOnInput && sceneOnInput.checked);
-          if (wantTight || !lockedStageVp) {
+          const wantTight = !!(sceneOnInput && sceneOnInput.checked) && !forceLock;
+          if (wantTight || !stageLockVp) {
             // Free camera: pad-only viewport → setAnimation uses skeleton bounds.
             delete vp.x;
             delete vp.y;
@@ -2995,7 +3044,7 @@ function loadCharacter(bgViewport) {
             if (p.config.viewport) p.config.viewport.transitionTime = 0;
           } else {
             // Restore stage-synced framing for composite alignment.
-            Object.assign(vp, lockedStageVp);
+            Object.assign(vp, stageLockVp);
             if (p.config.viewport) p.config.viewport.transitionTime = 0.2;
           }
           const a = animSel.value || (allAnims[0] && allAnims[0].name);
@@ -3094,6 +3143,8 @@ function loadCharacter(bgViewport) {
         if (thumbHideIdx.length) {
           sceneLabel.hidden = false;
           // Global preference (default ON) — same for every unit, not per-rig.
+          // Hide FX/BG only strips slots inside THIS rig; the paired backdrop
+          // is owned by the Stage toggle (see syncStageVisibility).
           sceneOnInput.checked = getHideFxPref();
           const applyHideFx = (on) => {
             if (on) {
@@ -3116,8 +3167,19 @@ function loadCharacter(bgViewport) {
             setHideFxPref(sceneOnInput.checked);
             applyHideFx(sceneOnInput.checked);
           };
-          // Honour the saved/default preference on this rig load.
-          if (sceneOnInput.checked) applyHideFx(true);
+          // Honour the saved/default preference on this rig load — apply the
+          // hidden slots. For stage-locked rigs do NOT reframe: the stage
+          // projection already frames the character at its composite position
+          // (unlocking drifted split rigs off the backdrop — c5190_1 sits
+          // right because the stage extends left). Non-stage rigs keep the
+          // historical tight re-fit on the hidden set. The user's own
+          // Hide FX/BG / Fit interaction still reframes either way.
+          if (sceneOnInput.checked) {
+            for (const i of thumbHideIdx) hideSet.add(i);
+            syncHidden();
+            if (window.__slotPickerRefresh) window.__slotPickerRefresh();
+            if (!stageLockVp && window.__reframeOnVisible) window.__reframeOnVisible();
+          }
         }
 
         // Populate the slot picker for this rig. Always visible — every rig
