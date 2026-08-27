@@ -18,7 +18,7 @@ Usage:
   python tools/extract_voice_audio.py --langs en --slugs c1001 c1017 c1158   # pilot
   python tools/extract_voice_audio.py --langs en ja ko --all                  # full
 """
-import struct, glob, os, re, json, subprocess, argparse, sys, tempfile
+import struct, glob, os, re, json, subprocess, argparse, sys, tempfile, shutil
 from pathlib import Path
 from collections import defaultdict
 
@@ -176,6 +176,36 @@ def rebuild_catalog(langs):
     json.dump(catalog, open(site_json, 'w', encoding='utf-8'),
               ensure_ascii=False, indent=0, sort_keys=True)
     print(f'wrote {site_json} ({len(catalog)} slugs)')
+    stage_oggs_to_site(langs, unrel if unrel_p.exists() else set())
+
+
+def stage_oggs_to_site(langs, unrel: set) -> None:
+    """Copy extracted OGGs into site/voice/ (what deploy rclone's to R2).
+
+    extract writes _voice_work/out/; R2 is fed from site/voice/. Without this
+    copy, new clips exist locally and in voices_audio.json but 404 on the CDN
+    (2026-08-27 Lisette / Luna skin).
+    """
+    site_voice = REPO / 'site' / 'voice'
+    copied = skipped = 0
+    for lang in langs:
+        src_dir = OUTROOT / lang
+        dst_dir = site_voice / lang
+        if not src_dir.is_dir():
+            continue
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for src in src_dir.glob('voc_*.ogg'):
+            m = SAMPLE_RX.match(src.stem)
+            slug = m.group(1) if m else ''
+            if slug and any(slug == u or slug.startswith(u + '_') for u in unrel):
+                skipped += 1
+                continue
+            dst = dst_dir / src.name
+            if dst.exists() and dst.stat().st_size == src.stat().st_size:
+                continue
+            shutil.copy2(src, dst)
+            copied += 1
+    print(f'staged {copied} ogg(s) -> {site_voice}  (skipped unreleased={skipped})')
 
 if __name__ == '__main__':
     main()

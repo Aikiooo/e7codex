@@ -78,8 +78,9 @@ UNRELEASED_NAME = 'Unknown Hero'   # game's placeholder for unannounced units
 # so we hide these by hand until launch, then DELETE the entry here. Use base slugs
 # — build_index drops by slug OR base, so a base covers its skins/variants/_1 sibling.
 MANUAL_UNRELEASED = {
-    'c5069',   # added 2026-05-30 — announced, not yet released
+    # c5069 Aubade Ludwig released 2026-06-11 — blockage dropped
     # c2185 Rhianna & Luciella released 2026-06-04 — blockage dropped
+    "c5112",  # Uncharted Pioneer Politis — named in 2026-08-27 pack; DRUP is 9/3
 }
 
 # ---- cipher primitives (verbatim from build_voices.py) ----

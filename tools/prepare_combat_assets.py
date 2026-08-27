@@ -590,6 +590,8 @@ def main() -> None:
             skip += 1
             continue
         if not c:
+            print(f"[skip] {stem}: no c-slug mapping (model_map / kebab miss — "
+                  f"often Stage 2 running before build_names)")
             skip += 1
             continue
         if stem in INCOMPATIBLE_STEMS:

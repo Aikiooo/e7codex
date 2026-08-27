@@ -80,6 +80,7 @@ UNRELEASED_ARTIFACTS: set[str] = {
     # art0243 "Aubade Orb" released 2026-06-11 with Aubade Ludwig (c5069)
     # art0245 "Intoxicating Indulgence" (Aube) — unheld 2026-07-18 with c5190;
     #          public as ANNOUNCED until banner day (see ANNOUNCED below).
+    "art0249",  # Light and Darkness — ranger 5★, Politis exclusive; hold with c5112 until 9/3
 }
 
 # Officially announced but not yet in gacha / fully live. Public on the site
@@ -1348,11 +1349,25 @@ def build(img: Path, raw: Path, out: Path) -> None:
     seen_dst: set[str] = set()
     STORY_BG_SKIP = re.compile(r"(?:^|/|_)(?:silhouette|blur|_th)|_th\.|_blur\.", re.I)
 
+    BANNER_WALLPAPERS = [
+        "ai_match_event_bg_1.png",
+        "ai_match_event_bg_2.png",
+        "promo_pvp_chaos_bg.png",
+        "promo_e7wc_2026_preliminary_bg.png",
+        "event_2026e7wc_cheering.png",
+        "evert_8yr_bg.png",
+    ]
+    IMG_WALLPAPERS = [
+        "bg_monolith_main.png",
+        "event_payback_enhance_bg.png",
+    ]
+
     def humanise(stem: str, category: str) -> str:
         # Strip the dump-side prefixes that aren't part of the human name.
         s = stem
         if category == "event":
             s = re.sub(r"^lp_", "", s, flags=re.I)
+            s = re.sub(r"_bg(?:_\d+)?$", "", s, flags=re.I)
         elif category == "episode":
             s = re.sub(r"^(?:_cm_|cimg_|img_)", "", s, flags=re.I)
         elif category == "story":
@@ -1418,6 +1433,20 @@ def build(img: Path, raw: Path, out: Path) -> None:
             if p.stem.lower() in {"black", "white"}:
                 continue   # solid-colour utility screens — not real backgrounds
             add_wallpaper(p, "story")
+
+    banner_dir = img / "banner"
+    if banner_dir.exists():
+        for name in BANNER_WALLPAPERS:
+            p = banner_dir / name
+            if p.is_file() and p.suffix.lower() in IMG_EXT:
+                add_wallpaper(p, "event")
+
+    img_dir = img / "img"
+    if img_dir.exists():
+        for name in IMG_WALLPAPERS:
+            p = img_dir / name
+            if p.is_file() and p.suffix.lower() in IMG_EXT:
+                add_wallpaper(p, "event")
 
     # Safety net: force infinite loop on EVERY staged animated WebP, whichever
     # step copied it. Newer packs ship cut-ins/emotes/etc. with loop=1 (play once
