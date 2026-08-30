@@ -7,10 +7,12 @@
   .layer{position:absolute;left:0;top:0}
   .layer .spine-player{background:transparent!important}
   .layer canvas{background:transparent!important}
-  #rec{position:absolute;left:0;top:0;display:none}
+  #rec{position:absolute;left:0;top:0;z-index:100000;background:transparent}
+  /* #rec is the blend-run composite canvas (see __composite): it sits opaque on
+     top of the layer divs so wrap.screenshot captures the faithful composite
+     (additive runs composited "lighter", normal runs "source-over"). */
 </style></head><body>
-<div id="wrap"></div>
-<canvas id="rec"></canvas>
+<div id="wrap"><canvas id="rec"></canvas></div>
 <script src="spine-player.js"></script>
 <script>
 const params = new URLSearchParams(location.search);
@@ -39,6 +41,9 @@ const ACTANIM = params.get("actanim") || "";
 // this timeline; using short `animation` on char layers while FX play story_*
 // desyncs attachments (tears leave the eyes). Empty → pickIdleAnim per layer.
 const WANTANIM = params.get("anim") || "";
+// comp=0 → legacy single-pass source-over composite (pre blend-run A/B control).
+const COMP_SIMPLE = params.get("comp") === "0";
+window.__COMPOSITE_SIMPLE = COMP_SIMPLE;
 // Per-layer preferred clip (stem:anim,stem:anim) from CFX primitive `ani` (rank-2).
 // Takes precedence over ACTANIM/WANTANIM when the stem has a mapping and the
 // skeleton ships that clip. Needed for intro packs where char uses intro_1_en
@@ -124,6 +129,88 @@ const baseStem = "uieff_illust_" + base;
 const wrap = document.getElementById("wrap");
 wrap.style.width = W + "px"; wrap.style.height = H + "px";
 window.__ready = false; window.__err = []; window.__players = [];
+window.__fw = W; window.__fh = H;
+
+/**
+ * Slot blend runs in draw order: contiguous groups of same-blend slots.
+ * Additive slots get their own "add" run; everything else (normal, multiply,
+ * screen) folds into the "norm" run. Multiply renders to zero on the layer
+ * canvas under spine-player 3.8 (DST_COLOR src over a transparent clear), so
+ * folding it into norm keeps today's output byte-identical there.
+ */
+function buildRuns(slotDataList) {
+  const runs = [];
+  let cur = null;
+  for (const sd of slotDataList) {
+    const kind = sd.blendMode === spine.BlendMode.Additive ? "add" : "norm";
+    if (!cur || cur.kind !== kind) {
+      cur = { kind, names: new Set() };
+      runs.push(cur);
+    }
+    cur.names.add(sd.name);
+  }
+  return runs;
+}
+
+/**
+ * Deterministic blend-run composite onto #rec: for each layer in z order, render
+ * each slot run to its canvas (hide the other slots), then draw the canvas with
+ * the run's composite op — "lighter" for additive (engine gl.SRC_ALPHA/ONE),
+ * "source-over" for normal. Slot colors are restored from the colors captured
+ * at __seek (post-EHIDE), so the per-run hides never leak into the next frame.
+ * #rec is opaque on top of the layer divs, so the harnesses' wrap.screenshot
+ * captures exactly this composite.
+ */
+window.__composite = function (bg) {
+  const fw = window.__fw || W, fh = window.__fh || H;
+  const rec = document.getElementById("rec");
+  rec.width = fw; rec.height = fh;
+  rec.style.width = fw + "px"; rec.style.height = fh + "px";
+  const ctx = rec.getContext("2d");
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = bg || "#13141d";
+  ctx.fillRect(0, 0, fw, fh);
+  const layers = [...document.querySelectorAll(".layer")].sort(
+    (a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0));
+  // comp=0: legacy single source-over per layer (pre blend-run) — A/B control.
+  if (window.__COMPOSITE_SIMPLE) {
+    for (const el of layers) {
+      const c = el.querySelector("canvas");
+      if (!c) continue;
+      ctx.globalCompositeOperation = "source-over";
+      try { ctx.drawImage(c, 0, 0, fw, fh); } catch (e) {}
+    }
+    ctx.globalCompositeOperation = "source-over";
+    return;
+  }
+  for (const el of layers) {
+    const c = el.querySelector("canvas");
+    if (!c) continue;
+    const stem = el.dataset.stem;
+    const p = window.__byStem && window.__byStem[stem];
+    if (!p || !p.__runs || !p.__savedColors) {
+      ctx.globalCompositeOperation = "source-over";
+      try { ctx.drawImage(c, 0, 0, fw, fh); } catch (e) {}
+      continue;
+    }
+    const slots = p.skeleton.slots;
+    const saved = p.__savedColors;
+    for (const run of p.__runs) {
+      const inRun = run.names;
+      for (let i = 0; i < slots.length; i++) {
+        if (!inRun.has(slots[i].data.name)) slots[i].color.a = 0;
+      }
+      p.drawFrame(false);
+      ctx.globalCompositeOperation = run.kind === "add" ? "lighter" : "source-over";
+      try { ctx.drawImage(c, 0, 0, fw, fh); } catch (e) {}
+      for (let i = 0; i < slots.length; i++) {
+        const s = saved[i];
+        slots[i].color.set(s[0], s[1], s[2], s[3]);
+      }
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+};
 
 function mk(stem, z, viewport) {
   return new Promise((res) => {
@@ -140,6 +227,14 @@ function mk(stem, z, viewport) {
       backgroundColor: "#00000000", showControls: false,
       success: (p) => {
         p.__stem = stem;
+        window.__byStem = window.__byStem || {};
+        window.__byStem[stem] = p;
+        // Slot blend runs (slot draw order): additive slots are composited
+        // "lighter" (true additive, matches engine SRC_ALPHA/ONE); normal /
+        // multiply / screen slots stay "source-over" (multiply renders to 0 on
+        // the layer canvas under this runtime, so folding it into the normal
+        // run preserves today's output exactly).
+        p.__runs = buildRuns(p.skeleton.data.slots);
         const idle = pickIdleAnim(p.skeleton.data.animations);
         if (idle) {
           try {
@@ -300,6 +395,16 @@ window.__seek = function (t) {
     p.paused = true;
     const tr = p.animationState.getCurrent(0);
     if (tr && tr.animation) {
+      // Finish the widget's initial crossfade NOW: setAnimation() starts a
+      // 0.25s mix (defaultMix) from the clip the widget auto-played, but with
+      // rAF stopped and trackTime seeked directly, animationState.update()
+      // never advances mixTime — every color timeline would apply at ~1%
+      // strength forever while attachment timelines swap at full strength
+      // (flashes pop in at their frozen from-clip color = the ON/OFF bug).
+      for (let e = tr; e; e = e.mixingFrom) {
+        e.mixTime = e.mixDuration;
+        e.mixDuration = 0;
+      }
       const dur = tr.animation.duration;
       if (dur > 0 && master > 0) {
         if (dur >= master * PHASE_NEAR_RATIO) {
@@ -345,6 +450,18 @@ window.__seek = function (t) {
     p.skeleton.updateWorldTransform();
     p.drawFrame(false);
   }
+  // Capture per-slot colors (post-EHIDE) for the blend-run composite, then
+  // composite the final frame onto #rec (opaque top layer under #wrap).
+  for (const p of window.__players) {
+    const slots = p.skeleton.slots;
+    const saved = new Array(slots.length);
+    for (let i = 0; i < slots.length; i++) {
+      const col = slots[i].color;
+      saved[i] = [col.r, col.g, col.b, col.a];
+    }
+    p.__savedColors = saved;
+  }
+  window.__composite();
   drawPre(t);
 };
 
@@ -495,6 +612,7 @@ window.__union_aabb = function () {
 // crop = {t,b,l,r} fractions of the rectangle to trim from each edge.
 window.__reframe = function (aabb, newW, newH, pad, crop) {
   pad = pad || 0; crop = crop || {};
+  window.__fw = newW; window.__fh = newH;
   const ct = crop.t || 0, cb = crop.b || 0, cl = crop.l || 0, cr = crop.r || 0;
   const fullW = aabb.width * (1 + pad), fullH = aabb.height * (1 + pad);
   // full rectangle edges (spine Y is up: top = cy + h/2)
@@ -535,12 +653,7 @@ window.__record = function (durationMs, fps, bg) {
     const canvasOf = (el) => el.querySelector("canvas");
     let raf;
     function draw() {
-      ctx.fillStyle = bg || "#13141d";
-      ctx.fillRect(0, 0, W, H);
-      for (const el of layers) {
-        const c = canvasOf(el);
-        if (c) try { ctx.drawImage(c, 0, 0, W, H); } catch (e) {}
-      }
+      window.__composite(bg);
       raf = requestAnimationFrame(draw);
     }
     draw();

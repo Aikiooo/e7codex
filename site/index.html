@@ -1974,6 +1974,11 @@ let voiceLang = "en";
 function voiceFor(u) { return VOICES[u.id] || VOICES[u.base_id] || null; }
 function clipsFor(u) {
   if (VOICE_CLIPS[u.id]) return [u.id, VOICE_CLIPS[u.id]];
+  // PRIMARY_SWAP-promoted units keep their `_1` rig id (e.g. c2113_s01_1),
+  // but voice banks key clips by the bare skin slug — peel and retry so the
+  // variant tab actually swaps to the skin's own voice bank.
+  if (u.id.endsWith("_1") && VOICE_CLIPS[u.id.slice(0, -2)])
+    return [u.id.slice(0, -2), VOICE_CLIPS[u.id.slice(0, -2)]];
   if (u.base_id && VOICE_CLIPS[u.base_id]) return [u.base_id, VOICE_CLIPS[u.base_id]];
   return [null, null];
 }

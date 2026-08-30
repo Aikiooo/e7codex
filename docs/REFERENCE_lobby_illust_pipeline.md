@@ -147,6 +147,65 @@ ships the same story clip. Do not hardcode `animation` in SpinePlayer.
 
 ---
 
+## CRITICAL: the frozen-mix bug (color timelines at ~1% strength) — FIXED 2026-08-30
+
+**If a bake shows FX "teleporting"/ON-OFF, lights popping in fully bright, FX
+"missing", or eyelids/face colors wrong — check this FIRST before blaming the
+data, the curve decode, or the clip choice.** This bug cost a multi-day hunt
+(2026-08-28 → 2026-08-30, epsb Lisette lobby) and was nearly misattributed to
+authored `stepped` curves, wrong idle clip, and blend/PMA issues.
+
+### Root cause
+
+`rec.html` stops the player's rAF loop and drives frames by setting
+`trackTime` directly (`__seek`), never calling `animationState.update()`.
+But the spine-player widget auto-plays its own picked clip at load; when the
+harness calls `setAnimation()` for the recipe clip, spine starts a **crossfade
+mix** (`defaultMix = 0.25s`) from the widget's clip. With `update()` never
+running, `mixTime` freezes at ~0.003 forever:
+
+- **Color/TwoColor timelines** are applied with `entry.alpha × mix` ≈ **1.2%
+  strength** — every slot color stays ~99% at its frozen from-clip/setup value.
+- **Attachment timelines have no alpha** — they swap at **full strength**.
+
+Result: an attachment pops in carrying its frozen (setup-bright) color →
+instant ON/OFF "teleporting" light; a slot whose timeline should fade 0→141
+stays stuck at 8 → "missing FX". Bone timelines are also near-frozen, which
+read as "timejumps / too static".
+
+### The fix (in `rec.html` `__seek`, applied to every seek)
+
+```js
+for (let e = tr; e; e = e.mixingFrom) {
+  e.mixTime = e.mixDuration;   // finish the crossfade instantly
+  e.mixDuration = 0;
+}
+```
+
+Deterministic, no `setToSetupPose` (that path must stay banned — it freezes
+multi-turn bone spins, see the note in `__seek`).
+
+### Wrong turns that wasted days (do not repeat)
+
+- **Not** the `stepped` curve decode — byte-audited `E7_Scsp2Json.py` against
+  the `.scsp` (19-float stride, curve types, RGBA): converter is correct, and
+  stepped keys render as authored holds once colors apply at full strength.
+- **Not** the idle-clip choice (`animation` vs `intro` vs `story_ja`).
+- **Not** blend/PMA: `buildRuns` lighter = engine `SRC_ALPHA,ONE` composite.
+- Engine RE (Ghidra) is **unnecessary** for this class of symptom: the game was
+  right, our harness was.
+
+### Verification recipe (kept in `_scratch/` as of 2026-08-30)
+
+1. **Slot probe** (`probe_slots.js` / `probe_fresh.js`): load one layer in
+   `rec.html`, `__seek(t)`, dump `slot.color.a` + attachment names vs the
+   values computed from the staged JSON. Frozen mix ⇒ colors ~99% at setup.
+2. **Pop metric** (`pop_metric2.py` / `scan_frames2.py`): consecutive-frame
+   diff; pops = isolated 1-frame spikes (authored glides = multi-frame ramps).
+   Compare against a game capture the same way.
+3. After the fix: epsb `bg_f` ISO max frame-diff p99 went 115 → 8; full bake
+   0 pops; motion p99 38 vs game capture 34.
+
 ## Layer order = CFX `z` (rank 2)
 
 Merge all `cfx` roots in the recipe; sort primitives by `z` ascending (back→front).
@@ -394,3 +453,16 @@ python run_batch_bake.py --skip-stage c1153 c2066
 - Batch bake started for 21 active packs; c2181 succeeded (~7 MB).
 - Aube world0 HQ already on disk at `_scratch/lobby_aube/aube_lobby_idle_hq.webm` (~107 MB).
 - Hosting decision pending product wiring: **R2 for 100 MB+**, Pages for sub-25 MiB intimacy.
+
+---
+
+## Session handoff addendum (2026-08-30)
+
+- **Frozen-mix harness bug found + fixed** (see the CRITICAL section above) - all
+  pre-fix bakes had color timelines at ~1% strength; older bakes looked plausible
+  only because their from-clip colors happened to match. Re-bake candidates if
+  FX ever looks off: anything with attachment-swap FX or big color timelines.
+- epsb_01_lobby (Lisette) idle re-baked clean with the fix (69 MB @2160p60).
+  Its story_ja (27s episode cutscene) renders faithfully but the authored
+  opening is ~13s of zoomed sky establishing shots (shared bone = camera,
+  scale up to 9.7x) meant to carry game dialogue text - NOT shipped per user QA.
