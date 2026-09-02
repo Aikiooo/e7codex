@@ -80,7 +80,7 @@ UNRELEASED_NAME = 'Unknown Hero'   # game's placeholder for unannounced units
 MANUAL_UNRELEASED = {
     # c5069 Aubade Ludwig released 2026-06-11 — blockage dropped
     # c2185 Rhianna & Luciella released 2026-06-04 — blockage dropped
-    "c5112",  # Uncharted Pioneer Politis — named in 2026-08-27 pack; DRUP is 9/3
+    # c5112 Uncharted Pioneer Politis unheld 2026-09-02 — ANNOUNCED until DRUP 9/3
 }
 
 # ---- cipher primitives (verbatim from build_voices.py) ----

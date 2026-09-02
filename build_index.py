@@ -80,7 +80,7 @@ UNRELEASED_ARTIFACTS: set[str] = {
     # art0243 "Aubade Orb" released 2026-06-11 with Aubade Ludwig (c5069)
     # art0245 "Intoxicating Indulgence" (Aube) — unheld 2026-07-18 with c5190;
     #          public as ANNOUNCED until banner day (see ANNOUNCED below).
-    "art0249",  # Light and Darkness — ranger 5★, Politis exclusive; hold with c5112 until 9/3
+    # art0249 Light and Darkness unheld 2026-09-02 with c5112 (ANNOUNCED until 9/3)
 }
 
 # Officially announced but not yet in gacha / fully live. Public on the site
@@ -90,6 +90,14 @@ UNRELEASED_ARTIFACTS: set[str] = {
 # Optional `video` = official kit/preview URL (shown on detail + artifact zoom).
 ANNOUNCED: dict[str, dict] = {
     # c5190 Aube + art0245 released 2026-07-23 — entry dropped (NEW takes over).
+    "c5112": {
+        "release": "2026-09-03",
+        "video": "https://www.youtube.com/watch?v=XpCW93B138g",
+    },
+    "art0249": {
+        "release": "2026-09-03",
+        "video": "https://www.youtube.com/watch?v=XpCW93B138g",
+    },
 }
 
 # Manual unit base → signature art#### (keep in sync with
@@ -101,6 +109,7 @@ SIGNATURE_ARTIFACTS: dict[str, list[str]] = {
     "c5069": ["art0243"],  # Aubade Ludwig — Aubade Orb
     "c2185": ["art0244"],  # Rhianna & Luciella — Butterfly's Baptism
     "c5190": ["art0245"],  # Aube — Intoxicating Indulgence
+    "c5112": ["art0249"],  # Uncharted Pioneer Politis — Light and Darkness
     # Early covenant timeline mispairs (see tools/repair_artifact_owners.py):
     "c1023": ["art0109"],  # Kayron — Shepherd of the Hollow (NOT Celestine)
     "c1076": ["art0032"],  # Diene — Celestine (NOT Noble Oath)
@@ -1352,6 +1361,7 @@ def build(img: Path, raw: Path, out: Path) -> None:
     BANNER_WALLPAPERS = [
         "ai_match_event_bg_1.png",
         "ai_match_event_bg_2.png",
+        "gacha_c5112_01_bg.png",  # Uncharted Pioneer Politis gacha BG (ANNOUNCED)
         "promo_pvp_chaos_bg.png",
         "promo_e7wc_2026_preliminary_bg.png",
         "event_2026e7wc_cheering.png",
