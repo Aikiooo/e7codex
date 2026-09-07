@@ -43,8 +43,8 @@ def detect_version(scsp: Path) -> str | None:
     except Exception:
         return None
     if b"2.1.27.scsp" in body: return "2.1.27"
-    # Match any 3.8.x / 4.x.y patch (a few rigs are 3.8.95 rather than .99;
-    # future 4.2.44+ exports should still route to the 4.2 converter).
+    # Match any 3.8.x / 4.x.y patch (e.g. c1076_s01 is 3.8.95, not .99; future
+    # 4.2.44+ exports should still route to the 4.2 converter).
     import re
     m = re.search(rb"3\.8\.\d+", body)
     if m: return m.group().decode()
@@ -124,9 +124,17 @@ def post_process_2_1_27(out_json: Path) -> None:
     # — visible as upside-down heads, broken sword/weapon multi-bone setups,
     # mis-rotated hair strands. The converter only emits the booleans when False
     # (defaults are inheritScale=true, inheritRotation=true), so presence == false.
+    setup_flip_x = []
+    setup_flip_y = []
     for bone in data.get("bones", []):
-        bone.pop("flipX", None)
-        bone.pop("flipY", None)
+        # Residual flipX/flipY fields crash spine-player 3.8. Setup FlipX/Y
+        # from the 2.1.27 bone record are carried as `_e7_setup_flip*` and
+        # merged into `_e7_flips` below (world-axis XOR, not scaleX — children
+        # with transform:noScale would not inherit a baked scale).
+        if bone.pop("flipX", None) or bone.pop("_e7_setup_flipX", None):
+            setup_flip_x.append(bone.get("name", ""))
+        if bone.pop("flipY", None) or bone.pop("_e7_setup_flipY", None):
+            setup_flip_y.append(bone.get("name", ""))
         ir_false = bone.pop("inheritRotation", True) is False
         is_false = bone.pop("inheritScale", True) is False
         if ir_false and is_false:
@@ -431,6 +439,36 @@ def post_process_2_1_27(out_json: Path) -> None:
                 continue
             _e7_apply_mix_to_bone(tls, rec.get("frames", []))
 
+    # Setup-pose FlipX/Y: Spine 2.1 holds these on BoneData. With no timeline,
+    # the pose stays flipped for the whole clip; with a timeline that starts
+    # after t=0, setup applies until the first key. Merge into `_e7_flips`.
+    if _flip_resolve and (setup_flip_x or setup_flip_y):
+        for anim in data.get("animations", {}).values():
+            flips = list(anim.get("_e7_flips") or [])
+            have = {(f.get("bone"), f.get("axis", "x")) for f in flips}
+
+            def _ensure(name, axis, setup_on, _flips=flips, _have=have):
+                if not name:
+                    return
+                key = (name, axis)
+                if key not in _have:
+                    _flips.append({"bone": name, "axis": axis,
+                                   "frames": [0, 1.0 if setup_on else 0.0]})
+                    _have.add(key)
+                    return
+                rec = next(f for f in _flips
+                           if f.get("bone") == name and f.get("axis", "x") == axis)
+                fr = rec.get("frames") or []
+                if len(fr) >= 2 and (fr[0] or 0) > 0:
+                    rec["frames"] = [0, 1.0 if setup_on else 0.0] + fr
+
+            for nm in setup_flip_x:
+                _ensure(nm, "x", True)
+            for nm in setup_flip_y:
+                _ensure(nm, "y", True)
+            if flips:
+                anim["_e7_flips"] = flips
+
     # Per-animation drawOrder timeline (2026-05-25, mode-6 revision).
     #
     # The 2.1.27 reader now decodes timeline mode 6 as the DrawOrder timeline.
@@ -540,9 +578,9 @@ def convert(scsp: Path, out_json: Path) -> str:
     if ver is not None and ver.startswith("4."):
         # Spine 4.2 container: the decompressed body is a 16-byte E7 header +
         # stock 4.2 .skel. skel42_to_json38 parses it directly and emits
-        # 3.8-player-compatible JSON. Down-conversion is lossy for 4.x-only
-        # features (physics, sequences, single-axis curve splits) — those are
-        # surfaced as _e7_spine42_warnings in the output JSON.
+        # 3.8-player-compatible JSON (TASKS #54). Down-conversion is lossy for
+        # 4.x-only features (physics, sequences, single-axis curve splits) —
+        # those are surfaced as _e7_spine42_warnings in the output JSON.
         import skel42_to_json38, json as _json
         out = skel42_to_json38.convert_skel42(scsp.read_bytes())
         out_json.parent.mkdir(parents=True, exist_ok=True)

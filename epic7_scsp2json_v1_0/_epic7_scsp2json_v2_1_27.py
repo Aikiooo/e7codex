@@ -425,7 +425,12 @@ def _scsp_readBones(input, refStrings_raw, count_bones, pos4start=88):
     if (bone_rotation != 0):       bones["rotation"]        = bone_rotation
     if (bone_scaleX != 1):         bones["scaleX"]          = bone_scaleX
     if (bone_scaleY != 1):         bones["scaleY"]          = bone_scaleY
-    # bone_FlipX / bone_FlipY intentionally not emitted: Spine 3.8 removed per-bone flip fields
+    # Spine 3.8 has no per-bone flipX/flipY. Do NOT bake into scaleX (children
+    # with transform:noScale would not inherit it — c2066_s01_1 forearm vanished).
+    # Carry setup flip for post_process to merge into `_e7_flips` (XOR world
+    # mirror in the patched player, same path as mode 9/10).
+    if bone_FlipX:                 bones["_e7_setup_flipX"] = True
+    if bone_FlipY:                 bones["_e7_setup_flipY"] = True
     # Translate Spine 2.x inherit booleans into Spine 3.8 `transform` enum.
     # Spine 3.8's runtime ignores inheritRotation/inheritScale; emitting them is
     # a no-op and causes upside-down heads, split weapons, drifting hair on rigs
@@ -871,7 +876,19 @@ def _scsp_readAnimations(input, refStrings_raw, pos4RefStrings, size4RefStrings,
               _v = _att.get(_k)
               if _v: bone_slot_names.add(_v)
 
-  while (animation_ind < count_animations) and (input.tell() < pos4RefStrings):
+  # The loop runs once per HEADER or per ITEM, and animation_ind increments on
+  # the header — so the old `animation_ind < count_animations` condition exited
+  # right after reading the FINAL animation's header, before any of its items.
+  # Net effect: the last declared animation of EVERY 2.1.27 rig parsed empty.
+  # Combat rigs mostly hid it (the binary order often ends on a minor anim —
+  # though c1019 Ravi's skill3_3 was a real lost skill phase), and the
+  # single-animation EFFECT rigs (skill-FX compositing, TASKS #58) lost their
+  # ONLY animation — every skeff rig converted as a static sticker. The second
+  # clause keeps consuming items while the final animation is mid-parse.
+  anim_items_ind   = 0
+  anim_items_count = 0
+  while ((animation_ind < count_animations)
+         or (anim_items_ind < anim_items_count)) and (input.tell() < pos4RefStrings):
 
     if (animation_ind == 0):
       _scsp_funcs._scsp_skipUnknowns(input, 4)
@@ -1043,16 +1060,24 @@ def _scsp_readAnimations(input, refStrings_raw, pos4RefStrings, size4RefStrings,
           # The converter historically mislabeled mode 5 as FLIPX and under-read it.
           # Real layout (FUN_14032bc30 case 5): u32 count; count × f32 times;
           # count × { u32, u32, u32 string-ref(0xFFFFFFFF=null), u16 event-def idx }.
-          # Events don't drive rendering; we read the exact stride so the item
-          # stream stays aligned (the old misread desynced everything after it).
+          # Events don't drive rendering, but their TIMES anchor the stagept
+          # choreography (ANI_SCOPE from/to name animation events like
+          # jump/jump_max/landing — TASKS #57). Stored under _e7_events with
+          # the event-def INDEX; ConvertSCSPtoJSON resolves names from the
+          # ordered events block and emits the Spine 3.8 `events` timeline.
           entry_count = _scsp_funcs._scsp_readInt(input)
+          _e7_ev_times = []
           for _e7_i in range(entry_count):
-            _scsp_funcs._scsp_readFloat(input)        # time
+            _e7_ev_times.append(round(_scsp_funcs._scsp_readFloat(input), 4))
+          _e7_ev_records = []
           for _e7_i in range(entry_count):
             _scsp_funcs._scsp_readInt(input)          # value a (int/float bits)
             _scsp_funcs._scsp_readInt(input)          # value b
             _scsp_funcs._scsp_readInt(input)          # string ref
-            _scsp_funcs._scsp_readShortInt(input)     # event-def index (u16)
+            _e7_ev_def = _scsp_funcs._scsp_readShortInt(input)  # event-def index (u16)
+            _e7_ev_records.append({"time": _e7_ev_times[_e7_i], "def": _e7_ev_def})
+          if _e7_ev_records:
+            animations[animation_name].setdefault("_e7_events", []).extend(_e7_ev_records)
 
         elif (animation_mode == 6): # DRAWORDER timeline (Ghidra: SCSLoader readAnimation case 6)
           # The converter historically mislabeled mode 6 as FLIPY, which both lost
@@ -1295,7 +1320,25 @@ def ConvertSCSPtoJSON(filename4scsp, argv_e7herder):
   skins, skins4ffds = _scsp_readSkins     (mfile, refStrings_raw, bones, slots, count_skins)
   events            = _scsp_readEvents    (mfile, refStrings_raw, count_events)
   animations        = _scsp_readAnimations(mfile, refStrings_raw, pos4RefStrings, size4RefStrings, bones, slots, skins4ffds, count_animations, skins)
-  
+
+  # Resolve mode-5 event timelines (TASKS #57): _e7_events carries the raw
+  # event-def INDEX per keyframe; the events block is insertion-ordered, so
+  # index -> name is just the key order. Emitted as the standard Spine 3.8
+  # per-animation `events` timeline (spine-player parses it; the stagept
+  # choreography parser reads the times for ANI_SCOPE anchors).
+  _e7_event_names = list(events.keys())
+  for _e7_anim in animations.values():
+    _e7_recs = _e7_anim.pop("_e7_events", None)
+    if not _e7_recs:
+      continue
+    _e7_out = []
+    for _e7_r in _e7_recs:
+      if 0 <= _e7_r["def"] < len(_e7_event_names):
+        _e7_out.append({"time": _e7_r["time"], "name": _e7_event_names[_e7_r["def"]]})
+    if _e7_out:
+      _e7_out.sort(key=lambda r: r["time"])
+      _e7_anim["events"] = _e7_out
+
   # вписываем полученные массивы в skeleton
   prep4json["bones"]      = bones
   prep4json["slots"]      = slots
