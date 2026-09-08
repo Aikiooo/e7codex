@@ -90,14 +90,7 @@ UNRELEASED_ARTIFACTS: set[str] = {
 # Optional `video` = official kit/preview URL (shown on detail + artifact zoom).
 ANNOUNCED: dict[str, dict] = {
     # c5190 Aube + art0245 released 2026-07-23 — entry dropped (NEW takes over).
-    "c5112": {
-        "release": "2026-09-03",
-        "video": "https://www.youtube.com/watch?v=XpCW93B138g",
-    },
-    "art0249": {
-        "release": "2026-09-03",
-        "video": "https://www.youtube.com/watch?v=XpCW93B138g",
-    },
+    # c5112 Uncharted Pioneer Politis + art0249 released 2026-09-03 — NEW.
 }
 
 # Manual unit base → signature art#### (keep in sync with

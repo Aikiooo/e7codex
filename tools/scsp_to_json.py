@@ -88,6 +88,49 @@ def convert_3_8(scsp: Path, out_json: Path) -> bool:
         shutil.copy2(produced, out_json)
         return True
 
+# spine-player Color.setFromString: r=hex[0:2], g=[2:4], b=[4:6],
+# a = hex[6:8] only when len==8 else a=1. The 2.1.27 converter used to emit
+# '{:x}' of the packed RRGGBBAA int, which drops leading zero bytes:
+#   (0,0,0,0) -> "0"   (Roana c1102 pelvis shadow = opaque black square)
+#   (0,0,0,1) -> "FF"  (Doris c4044 skill-3 bottom = solid RED)
+#   (0,204,255,168) -> "CCFFA8" (alpha shifted into B)
+# Emit/repair as 8-digit RRGGBBAA. 6-digit values from this converter are
+# unpadded 00RRGGBB (R was 0), not Spine's optional RGB shorthand.
+_HEX_COLOR_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _e7_pad_hex_color(val):
+    """Left-pad a packed-RGBA hex string to 8 digits. Returns (new, changed)."""
+    if isinstance(val, int) and 0 <= val <= 0xFFFFFFFF:
+        s = format(val, "X").zfill(8)
+        return s, True
+    if not isinstance(val, str) or not val:
+        return val, False
+    if len(val) >= 8 or any(c not in _HEX_COLOR_CHARS for c in val):
+        return val, False
+    return val.upper().zfill(8), True
+
+
+def _e7_pad_colors(obj) -> int:
+    """Walk JSON; pad short hex on color/light/dark keys. Returns field count."""
+    n = 0
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k in ("color", "light", "dark"):
+                nv, ch = _e7_pad_hex_color(v)
+                if ch:
+                    obj[k] = nv
+                    n += 1
+                else:
+                    n += _e7_pad_colors(v)
+            else:
+                n += _e7_pad_colors(v)
+    elif isinstance(obj, list):
+        for item in obj:
+            n += _e7_pad_colors(item)
+    return n
+
+
 def post_process_2_1_27(out_json: Path) -> None:
     """Patch 2.1.27 converter output for spine-player 3.8.99 compatibility.
 
@@ -568,6 +611,8 @@ def post_process_2_1_27(out_json: Path) -> None:
     for anim in data.get("animations", {}).values():
         _prune_empty_bone_timelines(anim)
         _prune_empty_slot_timelines(anim)
+
+    _e7_pad_colors(data)
 
     out_json.write_text(_json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 

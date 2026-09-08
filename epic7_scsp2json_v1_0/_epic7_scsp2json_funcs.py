@@ -46,7 +46,8 @@ def _scsp_4fuckingfloats2rgba(fR_, fG_, fB_, fA_): # i hate that genius dude, wh
   RBGa_ = (RBGa_ + round(fB_ * 255)) << 8 # B
   RBGa_ = (RBGa_ + round(fA_ * 255))      # A
   
-  return '{:x}'.format(RBGa_).upper() # text like: FF5BA125
+  # MUST zero-pad to 8 hex digits (RRGGBBAA). '{:x}' drops leading-zero bytes.
+  return '{:08X}'.format(RBGa_) # text like: FF5BA125
   
 def _scsp_remove_float_zero (fl_var_): # clean values like 0.0, 3.0, 7.0 etc to like > 0, 3, 7
   import math
