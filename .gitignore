@@ -9,6 +9,7 @@ site/assets/
 site/data/*
 !site/data/strip_patterns.json
 !site/data/slot_excludes.json
+!site/data/community_requests.json
 site/og-card.png
 *.scsp
 *.sct
@@ -85,3 +86,6 @@ tools/_illust_spike/_r2_illust_stage/
 site/assets/_illust/
 # Catalog is local/private deploy data (unit slugs + event titles)
 site/data/lobby_anims.json
+
+# Community-requests publish tree
+dist-requests/

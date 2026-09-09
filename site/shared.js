@@ -208,6 +208,32 @@ const E7 = (() => {
     nf_title: "404 · not found", nf_sub: "nothing here",
     nf_body: "This path doesn’t lead anywhere in the codex. Maybe a stale link, or a unit slug that doesn’t exist.",
     nf_back: "‹ back to codex",
+    // About contact
+    contact_open: "Reports or suggestions",
+    contact_close: "Close",
+    contact_kind_bug: "Bug",
+    contact_kind_idea: "Suggestion",
+    contact_kind_asset: "Asset request",
+    contact_kind_other: "Other",
+    contact_msg_ph: "what’s going on…",
+    contact_reply_label: "How to reach you (optional)",
+    contact_reply_ph: "email or Discord @handle",
+    contact_reply_hint: "Only if you want a reply. Leave blank to send anonymously.",
+    contact_send: "Send",
+    contact_sent: "Got it — thanks.",
+    contact_need_msg: "Write a message first.",
+    contact_fail: "Couldn’t send — try Discord @aikio or email.",
+    contact_local_note: "Local preview — messages stay on this browser until a backend is wired.",
+    // Community requests overlay (#/about/requests) — data/community_requests.json
+    req_title: "Community requests",
+    req_status_shipped: "Shipped",
+    req_status_planned: "Planned",
+    req_requested: "requested {d}",
+    req_shipped: "shipped {d}",
+    req_days: "{n} day{s}",
+    req_same_day: "same day",
+    req_empty: "Nothing listed yet.",
+    req_open_link: "open →",
   };
 
   let _lang = "en";

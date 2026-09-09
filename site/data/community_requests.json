@@ -1,0 +1,11 @@
+[
+ {
+  "id": "notos-domain-rig",
+  "title": "Notos: attack animations missing for his S3 domain form in the combat viewer",
+  "status": "shipped",
+  "requested": "2026-09-08",
+  "shipped": "2026-09-09",
+  "link": "viewer.html?slug=c2181_1&rig=combat",
+  "note": "The domain form is a separate skeleton, so it needed a character switcher rather than extra animations."
+ }
+]

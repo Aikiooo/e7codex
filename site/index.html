@@ -58,20 +58,6 @@
   nav button{background:none;border:1px solid transparent;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;padding:9px 16px;cursor:pointer;border-radius:2px;transition:.2s;flex:0 0 auto;display:inline-flex;align-items:center;gap:7px}
   nav button:hover{color:var(--text)}
   nav button.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.06)}
-  /* Small gold dot on Wallpapers nav — dismisses after first open, max ~2 weeks */
-  nav button .nav-pastille{
-    width:7px;height:7px;border-radius:50%;flex:0 0 auto;
-    background:linear-gradient(145deg,#f3d79a,#e6b86e);
-    box-shadow:0 0 0 1px rgba(13,14,22,.45),0 0 8px rgba(230,184,110,.45);
-    animation:nav-pastille-blink 1.6s ease-in-out infinite;
-  }
-  @keyframes nav-pastille-blink{
-    0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 1px rgba(13,14,22,.45),0 0 8px rgba(230,184,110,.45)}
-    50%{opacity:.35;transform:scale(.88);box-shadow:0 0 0 1px rgba(13,14,22,.45),0 0 3px rgba(230,184,110,.2)}
-  }
-  @media (prefers-reduced-motion:reduce){
-    nav button .nav-pastille{animation:none}
-  }
   .lang-sel{background:rgba(255,255,255,.02);border:1px solid var(--gold-dim);color:var(--gold);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.08em;padding:8px 10px;margin-left:6px;border-radius:2px;cursor:pointer;flex:0 0 auto;align-self:center}
   .lang-sel:hover{color:var(--text)}
   .lang-sel option{background:var(--ink,#14151d);color:var(--text)}
@@ -388,6 +374,8 @@
   .wallpaper-cell{position:relative;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--ink-2);transition:.2s;cursor:pointer;aspect-ratio:16/9}
   .wallpaper-cell:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
   .wallpaper-cell img{width:100%;height:100%;display:block;object-fit:cover}
+  /* Ultra-wide stills (Epic Dash panos ~3.5:1) are cropped by 16:9 cover.
+     Pan left↔right so the full strip is visible; pause on hover. */
   .wallpaper-cell.is-pano img{
     object-position:left center;
     animation:wp-pano-pan var(--pano-dur,14s) linear infinite alternate;
@@ -708,6 +696,72 @@
   .about-line strong{color:var(--gold);font-weight:600}
   .about-line a,.about-para a{color:var(--gold);border-bottom:1px solid var(--gold-dim)}
   .about-line a:hover,.about-para a:hover{color:var(--text);border-color:var(--text)}
+  .contact-open{margin:10px 0 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .contact-actions{display:inline-flex;align-items:center;gap:2px}
+  .contact-discord{font-family:'Outfit',sans-serif;font-size:14px;color:var(--text);line-height:1.65;margin:0}
+  .contact-discord strong{color:var(--gold);font-weight:600}
+  .contact-form{margin:4px 0 22px;display:flex;flex-direction:column;gap:10px}
+  .contact-form[hidden]{display:none!important}
+  .contact-kinds{display:flex;flex-wrap:wrap;gap:6px}
+  .contact-kinds button{background:var(--ink-2);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em;padding:6px 12px;border-radius:2px;cursor:pointer;text-transform:uppercase}
+  .contact-kinds button:hover{color:var(--text)}
+  .contact-kinds button.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.08)}
+  .contact-form textarea,.contact-form input[type=text]{
+    width:100%;background:var(--ink-2);border:1px solid var(--line);color:var(--text);
+    font-family:'Outfit',sans-serif;font-size:14px;line-height:1.5;padding:11px 13px;border-radius:3px;resize:vertical}
+  .contact-form textarea:focus,.contact-form input[type=text]:focus{outline:none;border-color:var(--gold-dim)}
+  .contact-form textarea{min-height:120px}
+  .contact-reply-lbl{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:4px 0 0}
+  .contact-hint{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.02em;margin:0}
+  .contact-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .contact-status{font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--mut)}
+  .contact-status.ok{color:var(--teal)}
+  .contact-status.err{color:var(--rose)}
+  .contact-hp{position:absolute;left:-9999px;height:0;width:0;opacity:0;pointer-events:none}
+  /* Compact sibling of Reports — gold chevron, no pill border. */
+  a.req-tab{display:inline-flex;align-items:center;justify-content:center;border:0;background:none;color:var(--gold);padding:4px 6px;margin:0;font-family:'Outfit',sans-serif;font-size:22px;font-weight:600;line-height:1;text-decoration:none;min-width:28px;min-height:36px;border-radius:0;cursor:pointer;opacity:.9}
+  a.req-tab:hover{color:var(--text);opacity:1}
+  a.req-tab:focus-visible{outline:1px solid var(--gold-dim);outline-offset:3px}
+  /* Overlay: same ink/gold language as About, not a mint-chip card. */
+  .req-overlay{position:fixed;inset:0;z-index:90;background:rgba(8,9,14,.82);backdrop-filter:blur(4px);display:none;place-items:center;padding:24px;overscroll-behavior:contain}
+  .req-overlay.open{display:grid}
+  .req-panel{background:var(--ink);border:1px solid var(--line);border-radius:3px;width:min(780px,100%);max-height:min(86vh,820px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px -20px rgba(0,0,0,.85)}
+  .req-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .req-head-title{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;letter-spacing:.03em;margin:0;color:var(--gold);line-height:1.15}
+  .req-close{background:none;color:var(--mut);border:0;width:36px;height:36px;cursor:pointer;font-size:22px;line-height:1;flex:none}
+  .req-close:hover{color:var(--gold)}
+  .req-close:focus-visible{outline:1px solid var(--gold-dim);outline-offset:3px}
+  .req-panel-body{overflow-y:auto;padding:8px 10px 16px;min-height:0;flex:1 1 auto;-webkit-overflow-scrolling:touch}
+  .req-ul{list-style:none;margin:0;padding:0}
+  .req-row{border-top:1px solid var(--line)}
+  .req-row:first-child{border-top:0}
+  .req-row.open{background:var(--ink-2)}
+  .req-row-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:10px 14px;width:100%;padding:14px 14px;margin:0;background:none;border:0;color:var(--text);text-align:left;cursor:pointer;font:inherit}
+  .req-row-head:hover{background:rgba(216,176,106,.04)}
+  .req-row-head:focus-visible{outline:1px solid var(--gold-dim);outline-offset:-2px}
+  .req-title{display:block;font-family:'Outfit',sans-serif;font-size:16px;font-weight:600;line-height:1.4;overflow-wrap:anywhere;color:var(--text)}
+  .req-chev{color:var(--gold-dim);font-weight:600;font-size:20px;line-height:1;transition:transform .15s ease;flex:none;margin-top:4px}
+  .req-chev.open{transform:rotate(90deg);color:var(--gold)}
+  .req-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 0}
+  .req-status{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:3px 8px;border-radius:2px;white-space:nowrap;border:1px solid var(--line);color:var(--mut);background:transparent}
+  .req-status.shipped{color:var(--teal);border-color:var(--teal)}
+  .req-status.planned{color:var(--gold);border-color:var(--gold-dim)}
+  .req-dl{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--text);letter-spacing:.02em}
+  .req-dk{color:var(--gold-dim);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-right:6px}
+  .req-days{color:var(--gold-dim);letter-spacing:.04em}
+  .req-body{padding:0 14px 16px 14px}
+  .req-note{font-family:'Outfit',sans-serif;font-size:14px;color:var(--text);line-height:1.65;margin:0 0 12px}
+  .req-open{display:inline-flex;align-items:center;color:var(--gold);font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;border-bottom:1px solid var(--gold-dim);padding:0;background:none}
+  .req-open:hover{color:var(--text);border-color:var(--text)}
+  .req-empty{color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:13px;padding:28px 8px;text-align:center}
+  @media(max-width:720px){
+    .req-overlay{padding:10px}
+    .req-panel{max-height:min(94vh,100%)}
+    .req-head{padding:12px 14px}
+    .req-head-title{font-size:22px}
+    .req-panel-body{padding:4px 6px 12px}
+    .req-row-head,.req-body{padding-left:12px;padding-right:12px}
+  }
   .demo{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--gold-dim);border:1px dashed var(--gold-dim);padding:10px 14px;border-radius:3px;margin-bottom:22px;letter-spacing:.04em}
   /* Lightbox modal — intercepts clicks on a[data-zoom] anywhere on the page
      and shows the asset at max viewport size with a download button. Falls
@@ -820,6 +874,17 @@
        <button data-v="about" data-i18n="nav_about">About</button></nav>
 </header>
 <main id="app"><p class="empty">loading…</p></main>
+<div id="reqOverlay" class="req-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="reqHeadTitle">
+  <div class="req-panel" id="reqPanel">
+    <div class="req-head">
+      <h2 class="req-head-title" id="reqHeadTitle" data-i18n="req_title">Community requests</h2>
+      <button type="button" class="req-close" id="reqClose" aria-label="close" data-i18n-attr="aria-label:lb_close">×</button>
+    </div>
+    <div class="req-panel-body">
+      <div class="req-list" id="requestList"></div>
+    </div>
+  </div>
+</div>
 <div id="lightbox" class="lightbox" role="dialog" aria-hidden="true">
   <button class="lb-close" id="lbClose" aria-label="close" data-i18n-attr="aria-label:lb_close">×</button>
   <a class="lb-download" id="lbDownload" download aria-label="download" title="download" data-i18n-attr="aria-label:lb_download,title:lb_download"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></a>
@@ -923,6 +988,31 @@ const dataJson = (url, fallback) =>
     .then(r => { if (!r.ok) throw new Error(url); return r.json(); })
     .catch(() => fallback);
 
+// Community requests overlay (#/about/requests). Published to its own Pages
+// project so editing the list never needs a full site deploy
+// (tools/publish_requests.py); bundled data/community_requests.json is the
+// fallback. Loaded lazily when the overlay opens.
+const REQUESTS_URL = "https://e7codex-requests.pages.dev/requests.json";
+let REQUESTS = null;              // null until loaded; [] means loaded + empty
+let _requestsPromise = null;
+function ensureRequests() {
+  if (!_requestsPromise) {
+    const remote = new Promise(resolve => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 2500);
+      fetch(REQUESTS_URL, { cache: "no-cache", signal: ctrl.signal })
+        .then(r => { if (!r.ok) throw new Error("remote"); return r.json(); })
+        .then(j => { resolve(Array.isArray(j) ? j : null); })
+        .catch(() => resolve(null))
+        .finally(() => clearTimeout(t));
+    });
+    _requestsPromise = remote
+      .then(list => list || dataJson("data/community_requests.json", []))
+      .then(list => { REQUESTS = Array.isArray(list) ? list : []; });
+  }
+  return _requestsPromise;
+}
+
 // voices.json (~680 KB) + voices_audio.json (~720 KB) feed only the detail
 // page's voice section — don't make every hub visit pay for them at boot.
 // detail() kicks this off on first use and re-renders once it resolves.
@@ -1024,62 +1114,11 @@ function applyStaticChrome() {
   E7.applyI18n(document);   // sweep all [data-i18n] / [data-i18n-attr] chrome
   const ls = document.getElementById("langSel");
   if (ls) ls.value = E7.lang.get();
-  updateWallpapersNavBadge();
 }
 
-/** Card/sub-tab NEW chips — separate from the nav pastille. */
+/** Card/sub-tab NEW chips (animated-wallpaper tab). */
 function lobbyAnimsHasNew() {
   return (LOBBY_ANIMS || []).some((a) => a.new);
-}
-/** Newest `new_since` among flagged wallpapers / lobby packs (ISO date wave id). */
-function wallpapersNavWaveId() {
-  let best = "";
-  for (const w of WALLPAPERS || []) {
-    if (w.new && w.new_since && w.new_since > best) best = w.new_since;
-  }
-  for (const a of LOBBY_ANIMS || []) {
-    if (a.new && a.new_since && a.new_since > best) best = a.new_since;
-  }
-  return best;
-}
-const WP_NAV_PASTILLE_DAYS = 14;
-const WP_NAV_SEEN_KEY = "e7_wp_nav_seen";
-/** Dot on Wallpapers nav: only while a wave is ≤2 weeks old and not yet opened. */
-function wallpapersNavPastilleActive() {
-  const wave = wallpapersNavWaveId();
-  if (!wave) return false;
-  const t0 = Date.parse(wave + "T00:00:00");
-  if (Number.isNaN(t0)) return false;
-  if (Date.now() - t0 > WP_NAV_PASTILLE_DAYS * 864e5) return false;
-  try {
-    if (localStorage.getItem(WP_NAV_SEEN_KEY) === wave) return false;
-  } catch (_) {}
-  return true;
-}
-function markWallpapersNavSeen() {
-  const wave = wallpapersNavWaveId();
-  if (!wave) return;
-  try { localStorage.setItem(WP_NAV_SEEN_KEY, wave); } catch (_) {}
-  updateWallpapersNavBadge();
-}
-/**
- * Gold dot on Wallpapers nav (not the full NEW chip).
- * Label stays in a child [data-i18n] span so applyI18n does not wipe the pastille.
- */
-function updateWallpapersNavBadge() {
-  const btn = document.querySelector('nav button[data-v="wallpapers"]');
-  if (!btn) return;
-  let pill = btn.querySelector(":scope > .nav-pastille");
-  if (!wallpapersNavPastilleActive()) {
-    if (pill) pill.remove();
-    return;
-  }
-  if (!pill) {
-    pill = document.createElement("span");
-    pill.className = "nav-pastille";
-    pill.setAttribute("aria-hidden", "true");
-    btn.appendChild(pill);
-  }
 }
 
 const $ = (s) => document.querySelector(s);
@@ -1517,7 +1556,7 @@ function hub(opts) {
   try { if (keepFocus && typeof prevQ.selectionStart === "number") caret = prevQ.selectionStart; } catch (_) {}
 
   $("#app").innerHTML = `
-    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img /path/to/img_output --raw /path/to/output --out ./site</code> then reload.</div>` : ""}
+    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site</code> then reload.</div>` : ""}
     <div class="bar" id="hubBar">
       <div class="q-wrap">
         <input id="q" placeholder="${escapeHtml(E7.t('hub_search_ph'))}" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
@@ -2965,8 +3004,9 @@ function unitResolve(slug) {
   const hrefSlug = (u && (u.base || u.id)) || slug;
   return { name, href: `#/u/${hrefSlug}` };
 }
-/** Newest `released` (YYYY-MM-DD) among linked units; empty → sort last. */
+/** Catalog `released` if set, else newest linked unit `released`; empty → sort last. */
 function lobbyAnimSortKey(a) {
+  if (a.released) return a.released;
   let best = "";
   for (const slug of a.units || []) {
     let u = (UNITS || []).find(x => x.id === slug || x.base_id === slug || x.base === slug);
@@ -3037,8 +3077,6 @@ function wallpapersPane() {
 
 function wallpapers() {
   setNav("wallpapers");
-  // First open of this content wave dismisses the nav pastille.
-  markWallpapersNavSeen();
   const anims = LOBBY_ANIMS || [];
   const hasAnim = anims.length > 0;
   const hasStatic = WALLPAPERS.length > 0;
@@ -3130,6 +3168,8 @@ function wallpapers() {
   document.querySelectorAll(".wallpaper-cell img").forEach(img => {
     const tag = () => {
       const w = img.naturalWidth, h = img.naturalHeight;
+      // 16:9 cover hides (1 - (16/9)/r) of width. Pan only if ≥30% is cropped
+      // → r ≥ (16/9)/0.70 ≈ 2.54 (Epic Dash 3.5:1 yes; typical 21:9 / 2:1 no).
       if (!w || !h || w / h < 16 / 9 / 0.7) return;
       const cell = img.closest(".wallpaper-cell");
       if (!cell) return;
@@ -3262,8 +3302,32 @@ function about() {
     <div class="about-wrap">
       <p class="section-label first">Contact</p>
       <p class="about-line">Email — <a href="mailto:contact@e7codex.com">contact@e7codex.com</a> · copyright inquiries, takedown requests, anything formal</p>
-      <p class="about-line">Discord — <strong>@aikio</strong> · asset requests, bug reports, feature suggestions</p>
       <p class="about-line">Ko-fi — <a href="https://ko-fi.com/aikio" target="_blank" rel="noopener">ko-fi.com/aikio</a></p>
+      <p class="contact-open">
+        <span class="contact-actions">
+          <button type="button" class="ext" id="contactToggle" aria-expanded="false" aria-controls="contactForm" data-i18n="contact_open">Reports or suggestions</button>
+          <a class="req-tab" id="reqTab" href="#/about/requests" data-i18n-attr="aria-label:req_title,title:req_title" aria-label="Community requests" title="Community requests">›</a>
+        </span>
+        <span class="contact-discord">or Discord — <strong>@aikio</strong></span>
+      </p>
+      <form class="contact-form" id="contactForm" hidden novalidate>
+        <div class="contact-kinds" id="contactKinds" role="group" aria-label="kind">
+          <button type="button" data-k="bug" class="on" data-i18n="contact_kind_bug">Bug</button>
+          <button type="button" data-k="idea" data-i18n="contact_kind_idea">Suggestion</button>
+          <button type="button" data-k="asset" data-i18n="contact_kind_asset">Asset request</button>
+          <button type="button" data-k="other" data-i18n="contact_kind_other">Other</button>
+        </div>
+        <textarea id="contactMsg" name="message" required maxlength="4000" data-i18n-attr="placeholder:contact_msg_ph" placeholder="what’s going on…"></textarea>
+        <p class="contact-reply-lbl" data-i18n="contact_reply_label">How to reach you (optional)</p>
+        <input type="text" id="contactReply" name="reply" maxlength="200" autocomplete="email" data-i18n-attr="placeholder:contact_reply_ph" placeholder="email or Discord @handle">
+        <p class="contact-hint" data-i18n="contact_reply_hint">Only if you want a reply. Leave blank to send anonymously.</p>
+        <input class="contact-hp" type="text" id="contactHp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <div class="contact-row">
+          <button type="submit" class="ext" id="contactSend" data-i18n="contact_send">Send</button>
+          <span class="contact-status" id="contactStatus" role="status"></span>
+        </div>
+        ${E7.isLocal ? `<p class="contact-hint" data-i18n="contact_local_note">Local preview — messages stay on this browser until a backend is wired.</p>` : ""}
+      </form>
 
       <p class="section-label">Affiliation</p>
       <p class="about-para">E7 Codex is an independent fan project and is not affiliated with, endorsed by, or connected to any other Epic Seven community resource.<br>This includes <a href="https://ceciliabot.github.io" target="_blank" rel="noopener">ceciliabot.github.io</a>, which this site links to for hero details and artifact pages.<br>All third-party links open external sites operated by their respective owners.</p>
@@ -3279,6 +3343,216 @@ function about() {
       <p class="about-line">epic7_scsp2json (Russian community) &amp; E7_Scsp2Json (Chinese community) — third-party SCSP → Spine JSON converters, patched in-tree for current spine-player 3.8 / E7 build compatibility</p>
       <p class="about-line"><a href="https://esotericsoftware.com/spine-player" target="_blank" rel="noopener">spine-player</a> by Esoteric Software — the runtime that drives the live viewer</p>
     </div>`;
+  E7.applyI18n(document.getElementById("app"));
+  bindContactForm();
+  if (location.hash === "#/about/requests") openReqOverlay();
+  else closeReqOverlay({ silent: true });
+}
+
+function bindContactForm() {
+  const form = document.getElementById("contactForm");
+  if (!form) return;
+  const toggle = document.getElementById("contactToggle");
+  if (toggle) {
+    toggle.onclick = () => {
+      const open = form.hasAttribute("hidden");
+      form.toggleAttribute("hidden", !open);
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.textContent = E7.t(open ? "contact_close" : "contact_open");
+      if (open) document.getElementById("contactMsg")?.focus();
+    };
+  }
+  const kinds = document.getElementById("contactKinds");
+  const msgEl = document.getElementById("contactMsg");
+  const replyEl = document.getElementById("contactReply");
+  const hpEl = document.getElementById("contactHp");
+  const status = document.getElementById("contactStatus");
+  const send = document.getElementById("contactSend");
+  let kind = "bug";
+  kinds.querySelectorAll("button").forEach(b => {
+    b.onclick = () => {
+      kind = b.dataset.k;
+      kinds.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    };
+  });
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    const message = (msgEl.value || "").trim();
+    const reply = (replyEl.value || "").trim();
+    status.className = "contact-status";
+    if (hpEl && hpEl.value) {
+      status.textContent = E7.t("contact_sent");
+      status.classList.add("ok");
+      return;
+    }
+    if (!message) {
+      status.textContent = E7.t("contact_need_msg");
+      status.classList.add("err");
+      msgEl.focus();
+      return;
+    }
+    const payload = {
+      ts: new Date().toISOString(),
+      kind,
+      message,
+      reply: reply || null,
+      href: location.href,
+      ref: document.referrer || null,
+    };
+    const finishOk = () => {
+      msgEl.value = "";
+      status.textContent = E7.t("contact_sent");
+      status.classList.add("ok");
+    };
+    const finishFail = () => {
+      status.textContent = E7.t("contact_fail");
+      status.classList.add("err");
+    };
+    send.disabled = true;
+    if (E7.isLocal) {
+      try {
+        const key = "e7_contact_inbox";
+        const prev = JSON.parse(localStorage.getItem(key) || "[]");
+        prev.push(payload);
+        localStorage.setItem(key, JSON.stringify(prev.slice(-50)));
+      } catch (err) {}
+      finishOk();
+      setTimeout(() => { send.disabled = false; }, 800);
+      return;
+    }
+    fetch("/api/contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        kind,
+        message,
+        reply: reply || "",
+        href: payload.href,
+        ref: payload.ref || "",
+        website: (hpEl && hpEl.value) || "",
+      }),
+    }).then((r) => {
+      if (!r.ok) throw new Error("http");
+      return r.json();
+    }).then((j) => {
+      if (j && j.ok) finishOk();
+      else throw new Error("api");
+    }).catch(finishFail)
+      .finally(() => { send.disabled = false; });
+  };
+}
+
+// Community requests overlay. Hand-curated JSON — no report text, reply, or
+// page URL. Rows expand in place (mtcoe NewsRow). Hash #/about/requests opens
+// the panel over About; #/about closes it. The › link is a real hash href so
+// middle-click / open-in-new-tab works without replacing About as the page.
+let reqOpen = new Set();
+function reqT(k, fb, p) { return E7.t(k, p || {}, fb); }
+function reqOverlayEl() { return document.getElementById("reqOverlay"); }
+function openReqOverlay() {
+  const ov = reqOverlayEl();
+  if (!ov) return;
+  ov.classList.add("open");
+  ov.setAttribute("aria-hidden", "false");
+  E7.applyI18n(ov);
+  reqLoad();
+}
+function closeReqOverlay(opts) {
+  const ov = reqOverlayEl();
+  if (ov) {
+    ov.classList.remove("open");
+    ov.setAttribute("aria-hidden", "true");
+  }
+  if (!opts || !opts.silent) {
+    if (location.hash === "#/about/requests") location.hash = "#/about";
+  }
+}
+function reqRenderList() {
+  const box = document.getElementById("requestList");
+  if (!box) return;
+  const list = REQUESTS;
+  box.innerHTML = list === null
+    ? `<p class="req-empty">${escapeHtml(reqT("loading", "loading…"))}</p>`
+    : list.length
+      ? `<ul class="req-ul">${list.map(reqRow).join("")}</ul>`
+      : `<p class="req-empty">${escapeHtml(reqT("req_empty", "Nothing listed yet."))}</p>`;
+  box.querySelectorAll(".req-row-head").forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.req;
+      const wasOpen = reqOpen.has(id);
+      // mtcoe NewsRow pattern: re-render (conditional body), not hide/show —
+      // a collapsed row is truly empty, so there is no hidden-state drift.
+      wasOpen ? reqOpen.delete(id) : reqOpen.add(id);
+      reqRenderList();
+    };
+  });
+}
+function reqLoad() {
+  if (REQUESTS === null) {
+    ensureRequests().then(() => {
+      reqRenderList();
+    });
+  } else reqRenderList();
+}
+
+(function bindReqOverlayChrome() {
+  const ov = reqOverlayEl();
+  if (!ov) return;
+  document.getElementById("reqClose")?.addEventListener("click", () => closeReqOverlay());
+  ov.addEventListener("click", (e) => { if (e.target === ov) closeReqOverlay(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && ov.classList.contains("open")) {
+      e.preventDefault();
+      closeReqOverlay();
+    }
+  });
+})();
+
+function reqRow(r) {
+  const shipped = r.status === "shipped";
+  const open = reqOpen.has(r.id);
+  const statusLbl = reqT(shipped ? "req_status_shipped" : "req_status_planned",
+    shipped ? "Shipped" : "Planned");
+  const days = shipped ? daySpan(r.requested, r.shipped) : "";
+  // Strip the "{d}" slot so the label and the ISO day can sit in separate nodes.
+  const reqLabel = reqT("req_requested", "requested {d}", { d: "" }).replace(/\s*\{d\}\s*/g, "").trim() || "requested";
+  const shipLabel = reqT("req_shipped", "shipped {d}", { d: "" }).replace(/\s*\{d\}\s*/g, "").trim() || "shipped";
+  const datesHtml = `<span class="req-dl">
+      <span><span class="req-dk">${escapeHtml(reqLabel)}</span> ${escapeHtml(r.requested)}</span>
+      ${shipped && r.shipped ? `<span><span class="req-dk">${escapeHtml(shipLabel)}</span> ${escapeHtml(r.shipped)}</span>` : ""}
+      ${days ? `<span class="req-days">${escapeHtml(days)}</span>` : ""}
+    </span>`;
+  return `<li class="req-row${open ? " open" : ""}">
+    <button type="button" class="req-row-head" data-req="${escapeHtml(r.id)}" aria-expanded="${open ? "true" : "false"}">
+      <span>
+        <span class="req-title">${escapeHtml(r.title)}</span>
+        <span class="req-meta"><span class="req-status ${shipped ? "shipped" : "planned"}">${escapeHtml(statusLbl)}</span>${datesHtml}</span>
+      </span>
+      <span class="req-chev${open ? " open" : ""}" aria-hidden="true">›</span>
+    </button>
+    ${open ? reqBodyHtml(r) : ""}
+  </li>`;
+}
+
+/** Detail block (note + link). Built once per open row; hidden/shown after. */
+function reqBodyHtml(r) {
+  // The codex links into the live viewer with target="_blank" (its own back nav
+  // handles the in-tab case), so mirror that for viewer links here.
+  const target = /(^|\/)viewer\.html/.test(r.link || "") ? ` target="_blank" rel="noopener"` : "";
+  const openLbl = reqT("req_open_link", "open →");
+  return `<div class="req-body">
+      ${r.note ? `<p class="req-note">${escapeHtml(r.note)}</p>` : ""}
+      ${r.link ? `<a class="req-open" href="${escapeHtml(r.link)}"${target}>${escapeHtml(openLbl)}</a>` : ""}
+    </div>`;
+}
+
+/** Days between two YYYY-MM-DD strings, as a localized label ("" if invalid). */
+function daySpan(a, b) {
+  const ms = Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z");
+  if (!isFinite(ms)) return "";
+  const n = Math.round(ms / 86400000);
+  if (n <= 0) return reqT("req_same_day", "same day");
+  return reqT("req_days", "{n} day{s}", { n, s: n === 1 ? "" : "s" });
 }
 
 // ===== Story book (LOCAL ONLY) =====================================
@@ -3499,7 +3773,8 @@ function renderStoryChapter(cid, meta, flat, idx, beats) {
 
 function route() {
   const h = location.hash;
-  const isHub = !(h.startsWith("#/u/") || h.startsWith("#/story") || h.startsWith("#/updates") || h === "#/emotes" || h.startsWith("#/wallpapers") || h === "#/artifacts" || h === "#/about");
+  if (h !== "#/about/requests") closeReqOverlay({ silent: true });
+  const isHub = !(h.startsWith("#/u/") || h.startsWith("#/story") || h.startsWith("#/updates") || h === "#/emotes" || h.startsWith("#/wallpapers") || h === "#/artifacts" || h === "#/about" || h.startsWith("#/about/"));
   // Release IntersectionObserver references to the previous hub render before
   // any view swaps in — otherwise the detached <img> nodes stay pinned.
   if (!isHub && _hubImgObs) { _hubImgObs.disconnect(); _hubImgObs = null; }
@@ -3513,7 +3788,7 @@ function route() {
   else   if (h === "#/emotes")     emotes();
   else   if (h === "#/wallpapers" || h.startsWith("#/wallpapers/")) wallpapers();
   else   if (h === "#/artifacts")  artifacts();
-  else   if (h === "#/about")      about();
+  else   if (h === "#/about" || h.startsWith("#/about/")) about();
   else                              hub();
 }
 
