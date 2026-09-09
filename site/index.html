@@ -388,6 +388,18 @@
   .wallpaper-cell{position:relative;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--ink-2);transition:.2s;cursor:pointer;aspect-ratio:16/9}
   .wallpaper-cell:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
   .wallpaper-cell img{width:100%;height:100%;display:block;object-fit:cover}
+  .wallpaper-cell.is-pano img{
+    object-position:left center;
+    animation:wp-pano-pan var(--pano-dur,14s) linear infinite alternate;
+  }
+  .wallpaper-cell.is-pano:hover img{animation-play-state:paused}
+  @keyframes wp-pano-pan{
+    from{object-position:left center}
+    to{object-position:right center}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .wallpaper-cell.is-pano img{animation:none;object-fit:contain;object-position:center}
+  }
   .wallpaper-cell .wp-name{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(13,14,22,.92) 10%,transparent 90%);padding:14px 14px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
   .wallpaper-cell .wp-cat{position:absolute;top:6px;left:6px;background:rgba(13,14,22,.78);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;letter-spacing:.1em;text-transform:uppercase}
   /* Animated lobby section — equal-height posters; unit links only in lightbox */
@@ -3115,6 +3127,18 @@ function wallpapers() {
 
   document.querySelectorAll(".kinds button").forEach(b =>
     b.onclick = () => { wpCatF = b.dataset.c; wallpapers(); });
+  document.querySelectorAll(".wallpaper-cell img").forEach(img => {
+    const tag = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h || w / h < 16 / 9 / 0.7) return;
+      const cell = img.closest(".wallpaper-cell");
+      if (!cell) return;
+      cell.classList.add("is-pano");
+      img.style.setProperty("--pano-dur", Math.min(28, Math.max(10, (w / h) * 5)).toFixed(1) + "s");
+    };
+    if (img.complete) tag();
+    else img.addEventListener("load", tag, { once: true });
+  });
 }
 
 // Lobby horizontal cut + portrait full-art shown side-by-side in a grid.

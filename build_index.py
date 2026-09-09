@@ -108,6 +108,22 @@ SIGNATURE_ARTIFACTS: dict[str, list[str]] = {
     "c1076": ["art0032"],  # Diene — Celestine (NOT Noble Oath)
 }
 
+UPDATE_EXTRA_STORY: dict[str, list[str]] = {
+    "vsu4aa": [
+        "img/bg_epicdash_main.png",
+        "story/bg/img_epicdash_2024.webp",
+    ],
+    "vsu5aa": [
+        "story/bg/img_event_epicdash.webp",
+        "story/bg/img_epicdash_2025.webp",
+    ],
+    "vsu6aa": [
+        "img/bg_epicdash_main_1.png",
+        "img/bg_epicdash_main_2.png",
+        "img/bg_epicdash_moonlight.png",
+    ],
+}
+
 # A playable unit / artifact carries a "NEW" badge (and sorts to the top of its
 # list) for this many days after it first appears released. See apply_new_flags.
 NEW_WINDOW_DAYS = 21
@@ -1192,6 +1208,26 @@ def build(img: Path, raw: Path, out: Path) -> None:
                     except OSError: continue
                 story_per_code[c].append(f"assets/_updates/{c}/{p.name}")
 
+    for code, rels in UPDATE_EXTRA_STORY.items():
+        if code not in event_labels:
+            continue
+        for rel in rels:
+            src = img / rel.replace("\\", "/")
+            if not src.is_file() or src.suffix.lower() not in IMG_EXT:
+                continue
+            if refs_unreleased(src.name):
+                continue
+            dst = updates_dir / code / src.name
+            dst.parent.mkdir(exist_ok=True)
+            if not dst.exists():
+                try:
+                    shutil.copy2(src, dst)
+                except OSError:
+                    continue
+            rec = f"assets/_updates/{code}/{src.name}"
+            if rec not in story_per_code[code]:
+                story_per_code[code].append(rec)
+
     # Step 4b: artifacts — copy art####_fu.png (portrait full art) + matching
     # art####_l.jpg (horizontal lobby cut) into site/assets/_artifacts/.
     # Name/rarity/role enriched from ceciliabot's Artifacts.json snapshot.
@@ -1363,6 +1399,10 @@ def build(img: Path, raw: Path, out: Path) -> None:
     IMG_WALLPAPERS = [
         "bg_monolith_main.png",
         "event_payback_enhance_bg.png",
+        "bg_epicdash_main.png",
+        "bg_epicdash_main_1.png",
+        "bg_epicdash_main_2.png",
+        "bg_epicdash_moonlight.png",
     ]
 
     def humanise(stem: str, category: str) -> str:
