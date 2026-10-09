@@ -81,6 +81,14 @@ def xxtea_dec(v, k):
     return v
 
 def load_keymap():
+    """Per-collection XXTEA keymap (output/pass/public.pass).
+
+    The 2026-09-10 pack dropped `pass/public.pass`: every DB row is plaintext on
+    the current schema, so the map is neither shipped nor
+    consulted any more. An empty map is therefore correct — decrypt_value still
+    fails CLOSED if an encrypted row ever reappears."""
+    if not PASS.exists():
+        return {}
     pk = PASS.read_bytes()
     return {struct.unpack_from('<I', pk, i)[0]: struct.unpack_from('<4I', pk, i + 4)
             for i in range(0, len(pk), 20)}
@@ -94,7 +102,12 @@ def decrypt_value(V, keymap):
            ^ struct.unpack_from('<I', D, ld - 8)[0]
            ^ struct.unpack_from('<I', D, ld - 4)[0] ^ 0xd12dfd15) & M
     key = DEFAULT_KEY if idv == 0 else keymap.get(idv)
-    if key is None: return None
+    if key is None:
+        if idv != 0 and not keymap:
+            raise SystemExit('%s is absent, but this pack still carries '
+                             'XXTEA-encrypted rows — restore pass/public.pass '
+                             'before building' % PASS)
+        return None
     dec = xxtea_dec(list(struct.unpack_from('<%dI' % n, D, 0)), key)
     last = dec[-1]
     if not (nbytes - 7 <= last <= nbytes - 4): return None
