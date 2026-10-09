@@ -390,6 +390,24 @@
   }
   .wallpaper-cell .wp-name{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(13,14,22,.92) 10%,transparent 90%);padding:14px 14px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
   .wallpaper-cell .wp-cat{position:absolute;top:6px;left:6px;background:rgba(13,14,22,.78);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;letter-spacing:.1em;text-transform:uppercase}
+  /* Battle/stage backgrounds. Unlike the 16:9 wallpaper cells these keep a
+     uniform frame and letterbox with object-fit:contain — scene aspect ratios
+     run from ~0.9 to ~3.6 and cover-cropping them would hide the art. The 2:1
+     frame sits closest to how the scenes actually compose. */
+  .bg-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  .bg-cell{position:relative;display:block;border:1px solid var(--line);border-radius:5px;overflow:hidden;
+    background:#07070c;aspect-ratio:2/1;transition:.2s;cursor:pointer}
+  .bg-cell:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+  .bg-cell img{width:100%;height:100%;display:block;object-fit:contain}
+  .bg-cell .bg-name{position:absolute;left:0;right:0;bottom:0;padding:16px 12px 7px;
+    background:linear-gradient(0deg,rgba(7,7,12,.94) 8%,transparent 95%);
+    font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
+  .bg-cell .bg-meta{position:absolute;top:6px;right:6px;background:rgba(7,7,12,.78);color:var(--mut);
+    font-family:'Spline Sans Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;letter-spacing:.1em}
+  .bg-cell .bg-opt{position:absolute;top:6px;left:6px;background:rgba(7,7,12,.78);color:var(--mut);
+    font-family:'Spline Sans Mono',monospace;font-size:9px;padding:2px 7px;border-radius:2px;
+    letter-spacing:.1em;border:0;cursor:pointer}
+  .bg-cell .bg-opt:hover,.bg-cell .bg-opt.on{color:var(--gold);border:1px solid var(--gold-dim)}
   /* Animated lobby section — equal-height posters; unit links only in lightbox */
   .wp-anim-block{margin:0 0 8px}
   .wp-anim-block .section-label{margin-bottom:6px}
@@ -942,6 +960,9 @@ const VARIANT_LABELS = {
 };
 
 let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], LOBBY_ANIMS = [], ARTIFACTS = [], PATCHES = [], VOICES = {}, VOICE_CLIPS = {}, BY_BASE = new Map(), demo = false;
+// Battle/stage backgrounds: one flattened Spine render per scene, staged by
+// tools/bg_stage.py + baked by tools/render_backgrounds.js.
+let BACKGROUNDS = [];
 // Story book (LOCAL ONLY — story_index.json is gitignored + held aside on deploy,
 // so this stays null in production and the Story tab never appears).
 let STORY_INDEX = null, storyLang = "en", STORY_CHAPTERS = {};
@@ -953,6 +974,8 @@ let storyVoiceLang = "ja";   // story voice: en/ja/ko (default original JA)
 // R2 CDN. Host detection lives in shared.js (same logic the viewer uses).
 const VOICE_BASE = E7.voiceBase;
 let kindF = "all", searchQ = "", currentVariant = "", wpCatF = "all";
+// Battle-backgrounds view state (see backgrounds()).
+let bgQ = "", bgSort = "az";
 // Hub sort mode: "timeline" (default — by release date, newest first) or "az"
 // (alphabetical by hero name). Persisted per browser; release dates come from
 // units.json `released` (baked from timeline/timeline.json by build_index.py).
@@ -3180,6 +3203,73 @@ function wallpapers() {
     if (img.complete) tag();
     else img.addEventListener("load", tag, { once: true });
   });
+}
+
+// Battle / stage backgrounds. Unlike the Wallpapers stills (which are single
+// flat images already shipped by the game), these are REBUILT scenes: a stage
+// is a stack of Spine layers (tools/bg_stage.py merges them into one skeleton,
+// tools/render_backgrounds.js bakes the union to a PNG). Cell art is the
+// 480 px thumb; the lightbox opens the 1600 px still.
+function backgrounds() {
+  setNav("bgs");
+  if (!BACKGROUNDS.length) {
+    $("#app").innerHTML = `<p class="empty">${E7.t("empty_backgrounds", {},
+      "No backgrounds staged yet — run tools/bg_stage.py, then tools/render_backgrounds.js.")}</p>`;
+    return;
+  }
+  const T = (k, fb, p) => E7.t(k, p || {}, fb);
+  const q = bgQ.trim().toLowerCase();
+  const list = BACKGROUNDS
+    .filter(b => !q || b.label.toLowerCase().includes(q) || b.name.includes(q))
+    .slice()
+    .sort(bgSort === "layers"
+      ? (a, b) => (b.layers || 0) - (a.layers || 0) || a.label.localeCompare(b.label)
+      : (a, b) => a.label.localeCompare(b.label));
+
+  $("#app").innerHTML = `
+    <div class="upd-intro">
+      <h2>${escapeHtml(T("bgs_page_title", "Battle Backgrounds"))}</h2>
+      <p>${escapeHtml(T("bgs_page_blurb",
+        "Every battle and stage background in the game, rebuilt from its own Spine layer stack — the same art that plays behind your units in battle."))}</p>
+    </div>
+    <div class="upd-subnav" role="group" aria-label="${escapeHtml(T("bgs_page_title", "Battle Backgrounds"))}"
+         style="gap:10px;align-items:center;flex-wrap:wrap">
+      <input id="bgQ" type="search" value="${escapeHtml(bgQ)}"
+             placeholder="${escapeHtml(T("bgs_search", "Filter backgrounds…"))}"
+             aria-label="${escapeHtml(T("bgs_search", "Filter backgrounds…"))}"
+             style="flex:1 1 240px;min-width:200px;background:var(--ink-2);border:1px solid var(--line);
+                    border-radius:4px;color:var(--fg);font:inherit;font-size:13px;padding:8px 10px">
+      <div class="kinds" style="margin:0">
+        <button data-bgsort="az" class="${bgSort === "az" ? "on" : ""}">A→Z</button>
+        <button data-bgsort="layers" class="${bgSort === "layers" ? "on" : ""}">${escapeHtml(T("bgs_sort_layers", "Layers"))}</button>
+      </div>
+    </div>
+    <p class="section-label first">${escapeHtml(T("bgs_count",
+      "{n} backgrounds · click any to open full-size", { n: BACKGROUNDS.length }))}</p>
+    <div class="bg-grid">${list.map(b => `
+      <a class="bg-cell" href="${escapeHtml(b.file)}" data-zoom
+         data-cap="${escapeHtml(b.label)}${b.layers ? " · " + b.layers + " layers" : ""}" target="_blank" rel="noopener">
+        <img loading="lazy" src="${escapeHtml(b.thumb || b.file)}" alt="${escapeHtml(b.label)}"
+             width="${b.w || ""}" height="${b.h || ""}">
+        ${b.layers ? `<span class="bg-opt">${b.layers} layers</span>` : ""}
+        <span class="bg-meta">${b.w && b.h ? `${b.w}×${b.h}` : ""}</span>
+        <span class="bg-name">${escapeHtml(b.label)}</span>
+      </a>`).join("")}</div>
+    ${list.length ? "" : `<p class="empty">${escapeHtml(T("bgs_none", "Nothing matches that filter."))}</p>`}`;
+
+  const input = document.getElementById("bgQ");
+  if (input) {
+    // Re-render on filter change, then restore focus + caret (the whole pane is
+    // innerHTML-rebuilt, so the input node is replaced).
+    input.oninput = () => {
+      bgQ = input.value;
+      backgrounds();
+      const el = document.getElementById("bgQ");
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    };
+  }
+  document.querySelectorAll("[data-bgsort]").forEach(b =>
+    b.onclick = () => { bgSort = b.dataset.bgsort; backgrounds(); });
 }
 
 // Lobby horizontal cut + portrait full-art shown side-by-side in a grid.
