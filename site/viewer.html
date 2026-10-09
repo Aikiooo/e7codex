@@ -23,16 +23,13 @@
     --gold:#d8b06a;--gold-dim:#9a824e;--text:#e7e5dd;--mut:#8d8c9c}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:radial-gradient(900px 600px at 80% -10%,rgba(216,176,106,.08),transparent 60%),var(--ink);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden}
-  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
-  header a.back{font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.12em;color:var(--mut);text-decoration:none}
-  header a.back:hover{color:var(--gold)}
-  header .small{font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);letter-spacing:.18em;text-transform:uppercase}
-  .lang-sel{margin-left:auto;background:rgba(255,255,255,.02);border:1px solid var(--gold-dim,rgba(216,176,106,.35));color:var(--gold,#d8b06a);font-family:'Spline Sans Mono',monospace;font-size:12px;padding:6px 9px;border-radius:2px;cursor:pointer;align-self:center}
-  .lang-sel option{background:var(--ink-2,#14151d);color:var(--text)}
-  header .id{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--gold);margin-left:auto}
-  main{max-width:1300px;margin:0 auto;padding:14px;display:grid;gap:12px}
-  #stage-wrap{position:relative;background:var(--ink-2);border:1px solid var(--line);border-radius:6px;height:78vh;min-height:480px;overflow:hidden;touch-action:none}
   #stage-scaler{position:absolute;left:0;top:0;transform-origin:0 0;transition:transform .15s ease-out;will-change:transform}
+/* Hero View Background Pack plate. Sits OUTSIDE #stage-scaler on purpose: in
+the game the background is the anchor — it fills the frame and never moves,
+while the character pans and zooms inside it. Anything inside the scaler would
+be carried along by the pan/zoom transform (which is what a unit's own backdrop
+rig wants, and why that one stays in #stage-bg). */
+#pack-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none;z-index:0}
   #stage{position:absolute;inset:0;z-index:2}
   /* Backdrop player sits behind the character at the same coordinates so the
      character renders on top. pointer-events:none so the wrap-level pan/zoom
@@ -55,31 +52,6 @@
      puts it inside our pan/zoom transform — the bar moves with the character
      and gets clipped when the user pans. We relocate it to a wrapper *outside*
      the transformed scaler so it stays put and is always reachable. */
-  /* z-index:20 lifts the spine-player's popup menus (animation/skin chooser,
-     settings cog — they open *upward* from the bar) above the .zoom-controls
-     stack (z:10) inside #stage-wrap. Without this, the popups render visually
-     but the zoom buttons sit on top and intercept the click. */
-  .spine-controls-host{margin-top:8px;background:var(--ink-2);border:1px solid var(--line);border-radius:5px;padding:8px 10px;min-height:46px;position:relative;z-index:20}
-  .spine-controls-host .spine-player-controls{position:static!important;display:block!important;opacity:1!important;background:transparent!important}
-  .spine-controls-host .spine-player-controls-hidden{opacity:1!important}
-  .zoom-controls{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px;z-index:10}
-  .zoom-controls button{width:42px;height:42px;background:rgba(13,14,22,.85);backdrop-filter:blur(6px);border:1px solid var(--line);color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:18px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;touch-action:manipulation}
-  .zoom-controls button:hover{border-color:var(--gold-dim);color:var(--gold)}
-  .zoom-controls button:active{transform:scale(.94)}
-  .zoom-controls button:disabled{cursor:default}
-  .zoom-controls button.active{border-color:var(--gold-dim);color:var(--gold)}
-  @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
-  .zoom-controls .label{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);text-align:center;margin-top:2px;font-family:'Spline Sans Mono',monospace}
-  .zoom-pct{position:absolute;left:10px;bottom:10px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--mut);background:rgba(13,14,22,.85);padding:6px 11px;border-radius:3px;border:1px solid var(--line);letter-spacing:.05em;z-index:10}
-  .info{display:flex;gap:10px;flex-wrap:wrap;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--mut)}
-  .info span{padding:5px 11px;border:1px solid var(--line);border-radius:2px;background:var(--ink-2)}
-  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-  .controls label{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.12em;color:var(--mut);text-transform:uppercase}
-  .controls select{background:var(--ink-2);border:1px solid var(--line);color:var(--text);padding:7px 11px;border-radius:2px;font-family:'Spline Sans Mono',monospace;font-size:12px;min-width:160px}
-  .controls select:focus{outline:none;border-color:var(--gold-dim)}
-  /* Export popup: opens to the left of the zoom-controls button column. */
-  .export-menu{position:absolute;right:62px;bottom:10px;z-index:12;width:236px;display:flex;flex-direction:column;gap:9px;padding:13px;background:rgba(13,14,22,.96);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 28px rgba(0,0,0,.45)}
-  .export-menu[hidden]{display:none}
   .em-title{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
   .exp-opt{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--ink-2);border:1px solid var(--line);border-radius:4px;padding:9px 12px;cursor:pointer;transition:.15s;font-family:'Outfit',sans-serif}
   .exp-opt:hover{border-color:var(--gold-dim)}
@@ -93,53 +65,53 @@
   .exp-nolimit{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.02em;color:var(--mut);transition:color .15s}
   .exp-nolimit:hover{color:var(--text)}
   .exp-nolimit input{accent-color:var(--gold);cursor:pointer;margin:0;flex:0 0 auto}
-  @media (max-width:640px){ .export-menu{width:210px} }
-  .stage-toggle{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;padding:6px 10px;border:1px solid var(--line);border-radius:2px;background:var(--ink-2);transition:border-color .15s}
-  .stage-toggle:hover{border-color:var(--gold-dim)}
-  .stage-toggle input{accent-color:var(--gold);cursor:pointer;margin:0}
-  .stage-toggle[hidden]{display:none}
-  /* Slot picker panel — slides in from the right edge of the viewport.
-     Pinned outside the transformed stage so pan/zoom doesn't move it. */
-  #slot-picker-btn{background:var(--ink-2);border:1px solid var(--line);color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:6px 10px;border-radius:2px;cursor:pointer;transition:border-color .15s;text-transform:uppercase}
-  #slot-picker-btn:hover{border-color:var(--gold-dim);color:var(--gold)}
-  #slot-picker-btn .pcount{color:var(--gold);margin-left:6px}
-  #slot-picker{position:fixed;top:0;right:0;bottom:0;width:320px;background:var(--ink-2);border-left:1px solid var(--line);z-index:30;display:flex;flex-direction:column;box-shadow:-12px 0 30px rgba(0,0,0,.5);transform:translateX(100%);transition:transform .22s ease-out;font-family:'Outfit',sans-serif}
-  #slot-picker.open{transform:translateX(0)}
-  .sp-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
-  .sp-head .sp-title{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--gold);flex:1}
-  .sp-head .sp-close{background:transparent;border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:14px;cursor:pointer;width:28px;height:28px;border-radius:2px;line-height:1}
-  .sp-head .sp-close:hover:not(:disabled){color:var(--gold);border-color:var(--gold-dim)}
-  .sp-head .sp-close:disabled{opacity:.35;cursor:default}
-  .sp-controls{padding:10px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
-  .sp-controls input[type="search"]{background:var(--ink);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:2px;font-family:'Spline Sans Mono',monospace;font-size:12px;outline:none}
-  .sp-controls input[type="search"]:focus{border-color:var(--gold-dim)}
-  .sp-bulk{display:flex;gap:6px;flex-wrap:wrap}
-  .sp-bulk button{background:var(--ink);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.05em;padding:5px 9px;border-radius:2px;cursor:pointer;text-transform:uppercase;flex:1;min-width:0}
-  .sp-bulk button:hover{color:var(--gold);border-color:var(--gold-dim)}
-  .sp-list{flex:1;overflow-y:auto;padding:6px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px}
+  /* Assets: an inline panel section (was a slide-in overlay). It takes the
+     panel's leftover height and only the slot list scrolls, independently of
+     the page and of the panel. */
+  .sec-assets{flex:1 1 0;min-height:auto;display:flex;flex-direction:column;padding-bottom:16px}
+  .sec-assets.collapsed{flex:0 0 auto;padding-bottom:12px}
+  .sec-assets.collapsed .sp-body{display:none}
+  .sp-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .sec-assets.collapsed .sp-head{margin-bottom:0}
+  .sec-h.sp-toggle{flex:1;min-width:0;min-height:32px;margin:0;padding:0;background:transparent;border:0;cursor:pointer;text-align:left;align-items:center}
+  .sec-h.sp-toggle::after{order:2}
+  .sp-toggle .pcount{order:1;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--gold)}
+  .sp-caret{order:3;flex:0 0 auto;width:7px;height:7px;margin:0 4px 0 2px;border-right:1.5px solid var(--gold-dim);border-bottom:1.5px solid var(--gold-dim);transform:translateY(-2px) rotate(45deg);transition:transform .18s}
+  .sec-assets.collapsed .sp-caret{transform:translateY(2px) rotate(-135deg)}
+  .sp-toggle:hover{color:var(--text)}
+  .sp-toggle:focus-visible,.sp-iconbtn:focus-visible{outline:2px solid var(--gold-dim);outline-offset:2px}
+  .sp-iconbtn{flex:0 0 auto;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;padding:0;background:transparent;border:1px solid var(--line);border-radius:3px;color:var(--text);font-size:15px;line-height:1;cursor:pointer;transition:.15s}
+  .sp-iconbtn:hover:not(:disabled){color:var(--gold);border-color:var(--gold-dim)}
+  .sp-iconbtn:disabled{opacity:.3;cursor:default}
+  .sp-body{flex:1 1 0;min-height:auto;display:flex;flex-direction:column;gap:8px}
+  #sp-search{flex:0 0 auto;width:100%;height:38px;padding:0 12px 0 34px;background:var(--ink) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238d8c9c' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-4-4'/%3E%3C/svg%3E") no-repeat 12px center;border:1px solid var(--line);border-radius:3px;color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
+  #sp-search::placeholder{color:var(--mut)}
+  #sp-search:hover,#sp-search:focus{border-color:var(--gold-dim)}
+  /* Bulk actions as one segmented strip (same idiom as the layer toggles). */
+  .sp-bulk{flex:0 0 auto;display:flex;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .sp-bulk button{flex:1 1 0;min-width:0;height:32px;padding:0 6px;background:var(--ink);border:0;color:var(--mut);font-family:'Outfit',sans-serif;font-size:12.5px;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:color .15s}
+  .sp-bulk button:hover{color:var(--gold)}
+  .sp-list{flex:1 1 0;min-height:132px;overflow-y:auto;overscroll-behavior:contain;padding:4px;background:var(--ink);border:1px solid var(--line);border-radius:3px;font-family:'Spline Sans Mono',monospace;font-size:11.5px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
   .sp-list::-webkit-scrollbar{width:8px}
   .sp-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
-  .sp-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:2px;cursor:pointer;line-height:1.3}
-  .sp-row:hover{background:var(--ink)}
+  .sp-row{display:flex;align-items:center;gap:9px;min-height:28px;padding:3px 8px;border-radius:2px;cursor:pointer;line-height:1.3}
+  .sp-row:hover{background:rgba(216,176,106,.06)}
   .sp-row.hidden-slot .sp-name{color:var(--mut);text-decoration:line-through}
   .sp-row input[type="checkbox"]{accent-color:var(--gold);cursor:pointer;flex:0 0 auto;margin:0}
-  .sp-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .sp-meta{color:var(--mut);font-size:9px;letter-spacing:0;flex:0 0 auto}
-  .sp-foot{padding:10px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
-  .sp-foot button{background:var(--ink);border:1px solid var(--line);color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:8px 10px;border-radius:2px;cursor:pointer;text-transform:uppercase}
-  .sp-foot button:hover{color:var(--gold);border-color:var(--gold-dim)}
-  .sp-foot .sp-hint{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.02em;line-height:1.5}
-  .sp-excluded{border-top:1px solid var(--line);flex:0 0 auto;max-height:38%;display:flex;flex-direction:column}
+  .sp-name{flex:1;min-width:0;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sp-meta{color:var(--mut);font-size:9.5px;letter-spacing:0;flex:0 0 auto;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sp-excluded{flex:0 0 auto;max-height:30%;display:flex;flex-direction:column;background:var(--ink);border:1px solid var(--line);border-radius:3px}
   .sp-excluded[hidden]{display:none}
-  .sp-excluded-head{background:transparent;border:none;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .sp-excluded-head{background:transparent;border:none;color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:8px 10px;cursor:pointer;display:flex;align-items:center;gap:6px}
   .sp-excluded-head:hover{color:var(--gold)}
   .sp-ex-caret{display:inline-block;transition:transform .15s;font-size:9px}
   .sp-excluded-head[aria-expanded="true"] .sp-ex-caret{transform:rotate(90deg)}
   .sp-ex-count{color:var(--gold-dim)}
-  .sp-excluded-list{overflow-y:auto;padding:2px 8px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px}
+  .sp-excluded-list{overflow-y:auto;overscroll-behavior:contain;padding:0 4px 6px;font-family:'Spline Sans Mono',monospace;font-size:11.5px}
   .sp-excluded-list[hidden]{display:none}
-  .sp-pick{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;padding:8px 10px;border:1px solid var(--line);border-radius:2px;background:var(--ink);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--text);text-transform:uppercase}
-  .sp-pick:hover{border-color:var(--gold-dim)}
+  .sp-foot{flex:0 0 auto;display:flex;gap:8px}
+  .sp-pick,#sp-copy-regex{flex:1 1 0;min-width:0;height:34px;display:flex;align-items:center;justify-content:center;gap:7px;padding:0 8px;background:var(--ink);border:1px solid var(--line);border-radius:3px;font-family:'Outfit',sans-serif;font-size:12.5px;letter-spacing:.01em;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;user-select:none;transition:.15s}
+  .sp-pick:hover,#sp-copy-regex:hover{border-color:var(--gold-dim);color:var(--gold)}
   .sp-pick input{accent-color:var(--gold);cursor:pointer;margin:0;flex:0 0 auto}
   .sp-pick.active{border-color:var(--gold);background:rgba(216,176,106,.08);color:var(--gold)}
   body.pick-mode #stage,body.pick-mode #stage canvas{cursor:crosshair !important}
@@ -153,46 +125,341 @@
   #discover-tip.show{opacity:1}
   #discover-tip b{color:var(--text);font-weight:500}
   #discover-tip::after{content:"";position:absolute;width:9px;height:9px;background:rgba(216,176,106,.18);border-right:1px solid var(--gold-dim);border-bottom:1px solid var(--gold-dim);bottom:-5px;left:var(--arrow,50%);transform:translateX(-50%) rotate(45deg)}
-  @media (max-width:640px){ #slot-picker{width:88vw} }
   .err{color:#d98a8a;font-family:'Spline Sans Mono',monospace;font-size:12px;padding:18px}
-  .hint{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.06em;text-align:center;margin-top:-4px}
-  @media (max-width:640px){
-    main{padding:8px}
-    .controls select{min-width:140px}
+  /* ================= Viewer chrome =================
+     One viewport tall, no page scroll. Desktop/landscape: a "monitor" (16:9
+     stage + transport strip, one framed unit) on the left, a sectioned tool
+     panel on the right. Portrait phones: monitor on top, collapsible bottom
+     sheet below. The character is the subject: the frame is quiet, nothing
+     floats over the canvas, gold is reserved for state (active / selected). */
+  html{height:100%}
+  body{display:flex;flex-direction:column;height:100vh;height:100dvh;min-height:0}
+  header{flex:0 0 auto;display:flex;align-items:center;gap:20px;padding:12px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(23,24,38,.6),transparent)}
+  header a.back{display:inline-flex;align-items:center;align-self:stretch;padding-right:20px;border-right:1px solid var(--line);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut);text-decoration:none;white-space:nowrap;transition:color .15s}
+  header a.back:hover{color:var(--gold)}
+  .titleblock{display:flex;flex-direction:column;gap:3px;min-width:0}
+  header .small{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.32em;text-transform:uppercase;color:var(--mut)}
+  header .id{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:28px;line-height:1;letter-spacing:.03em;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lang-sel{margin-left:auto;height:34px;background:transparent;border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;padding:0 10px;border-radius:2px;cursor:pointer;transition:.15s}
+  .lang-sel:hover,.lang-sel:focus{border-color:var(--gold-dim);color:var(--gold);outline:none}
+  .lang-sel option{background:var(--ink-2);color:var(--text)}
+
+  /* Stage aspect. 16:9 is the game's landscape frame; Vertical View (the
+     Hero View pack mode the game rotates -90deg) flips it to 9:16 so the
+     portrait plate fits exactly. Every size calc below reads these. */
+  :root{--arw:16;--arh:9}
+  html.vview{--arw:9;--arh:16}
+  /* Desktop/landscape sizing. main is a size container; the monitor (16:9
+     stage + transport strip of height --tb) takes the largest width that both
+     fits the height and leaves the panel its minimum width (--pmin). Both
+     columns are then given exactly the monitor's height, so they read as one
+     block, and the panel takes whatever width is left (up to --pmax). Any
+     slack the screen's aspect forces is split evenly around the block. */
+  main{--tb:54px;--gap:24px;--pmin:clamp(300px, 19vw, 400px);--pmax:440px;
+    --mw:min(100cqw - var(--pmin) - var(--gap), (100cqh - var(--tb)) * var(--arw) / var(--arh));
+    flex:1 1 auto;min-height:0;width:100%;padding:20px 28px 24px;container-type:size;display:flex;align-items:center;justify-content:center;gap:var(--gap)}
+  .stage-col{display:flex;flex-direction:column;min-width:0;min-height:0;flex:0 0 auto;width:var(--mw);height:calc(var(--mw) * var(--arh) / var(--arw) + var(--tb))}
+  /* The stage is a 16:9 box — the frame the game's backgrounds are authored in,
+     so a plate fits it exactly instead of being cropped. .stage-box is a size
+     container; the stage takes the largest 16:9 rectangle that fits once the
+     transport strip (--tb) is set aside: width-bound on a portrait phone,
+     height-bound in landscape. min() across cqw/cqh is the only way to do that
+     without JS, since calc() cannot read a parent's size. */
+  .stage-box{flex:1 1 auto;min-height:0;container-type:size;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+  #stage-wrap,.transport{width:min(100cqw, calc((100cqh - var(--tb)) * var(--arw) / var(--arh)))}
+  #stage-wrap{position:relative;flex:0 0 auto;aspect-ratio:var(--arw) / var(--arh);overflow:hidden;touch-action:none;background:radial-gradient(85% 75% at 50% 56%,#1b1c2a 0%,var(--ink-2) 58%,#0e0f16 100%);border:1px solid var(--line);border-bottom-color:rgba(42,44,63,.6);border-radius:6px 6px 0 0}
+  /* Viewfinder corner marks: frame the subject without boxing it in. Purely
+     decorative, above the canvas but never hit-testable. */
+  #stage-wrap::after{content:"";position:absolute;inset:12px;z-index:6;pointer-events:none;opacity:.55;
+    background:
+      linear-gradient(var(--gold-dim),var(--gold-dim)) left top/14px 1px,
+      linear-gradient(var(--gold-dim),var(--gold-dim)) left top/1px 14px,
+      linear-gradient(var(--gold-dim),var(--gold-dim)) right top/14px 1px,
+      linear-gradient(var(--gold-dim),var(--gold-dim)) right top/1px 14px,
+      linear-gradient(var(--gold-dim),var(--gold-dim)) left bottom/14px 1px,
+      linear-gradient(var(--gold-dim),var(--gold-dim)) left bottom/1px 14px,
+      linear-gradient(var(--gold-dim),var(--gold-dim)) right bottom/14px 1px,
+      linear-gradient(var(--gold-dim),var(--gold-dim)) right bottom/1px 14px;
+    background-repeat:no-repeat}
+
+  /* Transport strip: play / scrub / player tools on the left, view + capture
+     tools on the right. z-index 20 keeps spine-player's upward popups (speed,
+     settings) above the stage. */
+  .transport{position:relative;z-index:20;flex:0 0 var(--tb);height:var(--tb);display:flex;align-items:center;gap:4px;padding:0 10px 0 8px;background:linear-gradient(180deg,#161724,var(--ink-2));border:1px solid var(--line);border-top:0;border-radius:0 0 6px 6px}
+  .spine-controls-host{flex:1 1 auto;min-width:0;height:100%;display:flex;align-items:center;position:relative}
+  .spine-controls-host .spine-player-controls{position:static!important;display:flex!important;flex-direction:row;align-items:center;gap:2px;width:100%;opacity:1!important;background:transparent!important;pointer-events:auto!important}
+  .spine-controls-host .spine-player-controls-hidden{opacity:1!important}
+  .spine-controls-host .spine-player-buttons{display:contents}
+  .spine-controls-host .spine-player-button-spacer{display:none}
+  /* Animation / skin pickers duplicate the panel's own selects — drop them. */
+  .spine-controls-host #spine-player-button-animation,.spine-controls-host #spine-player-button-skin{display:none}
+  .spine-controls-host #spine-player-button-play-pause{order:0}
+  .spine-controls-host .spine-player-timeline{order:1;flex:1 1 auto;min-width:48px;padding:0 12px}
+  .spine-controls-host .spine-player-button{order:2;flex:0 0 auto;width:36px;height:36px;margin:0;padding:0;border-radius:4px;background-size:16px;filter:brightness(.8);transition:background-color .15s,filter .15s}
+  /* Icons ship white with a blue hover/selected variant; recolour any of them
+     to the house gold (white -> --gold, measured) instead of the blue. */
+  .spine-controls-host .spine-player-button:hover,.spine-controls-host .spine-player-button[class*="-selected"]{background-color:rgba(216,176,106,.12);filter:brightness(0) invert(1) brightness(.6) sepia(1) saturate(1.8) hue-rotate(4deg)}
+  .spine-controls-host #spine-player-button-play-pause{width:38px;height:38px;margin-right:2px;background-size:13px;border:1px solid var(--gold-dim);filter:brightness(0) invert(1) brightness(.6) sepia(1) saturate(1.8) hue-rotate(4deg)}
+  .spine-controls-host .spine-player-button-icon-spine-logo{display:none}
+  /* Scrubber: hairline track, gold progress, round knob. */
+  .spine-controls-host .spine-player-slider{height:28px}
+  .spine-controls-host .spine-player-slider::before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;border-radius:1px;background:var(--line)}
+  .spine-controls-host .spine-player-slider-value,
+  .spine-controls-host .spine-player-slider:hover .spine-player-slider-value,
+  .spine-controls-host .spine-player-slider-value.hovering{bottom:auto;top:50%;height:2px;margin-top:-1px;border-radius:1px;background:var(--gold-dim);transition:none}
+  .spine-controls-host .spine-player-slider:hover .spine-player-slider-value{background:var(--gold)}
+  .spine-controls-host .spine-player-slider-value::after{content:"";position:absolute;right:-5px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(216,176,106,.16)}
+  /* Player popups (speed, settings), restyled to the panel language. */
+  .spine-controls-host .spine-player-popup{right:0!important;bottom:calc(100% + 10px)!important;background:rgba(13,14,22,.97)!important;border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:13px}
+  .spine-controls-host .spine-player-popup,.spine-controls-host .spine-player-popup *{font-family:'Outfit',sans-serif!important;color:var(--text)}
+  .spine-controls-host .spine-player-popup-title{font-family:'Spline Sans Mono',monospace!important;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--mut);margin:10px 16px 8px}
+  .spine-controls-host .spine-player-popup hr{border-bottom-color:var(--line)}
+
+  .tools{flex:0 0 auto;display:flex;align-items:center;gap:6px}
+  .tgroup{display:flex;align-items:center;gap:2px}
+  .tsep{width:1px;height:22px;background:var(--line);margin:0 4px}
+  .tbtn{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;padding:0;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--text);font-family:'Spline Sans Mono',monospace;font-size:18px;line-height:1;cursor:pointer;transition:color .15s,background-color .15s,border-color .15s;touch-action:manipulation}
+  .tbtn:hover{color:var(--gold);background:rgba(216,176,106,.08)}
+  .tbtn:active{transform:scale(.94)}
+  .tbtn:disabled{cursor:default;opacity:.5}
+  .tbtn.active{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.08)}
+  .tbtn:focus-visible{outline:2px solid var(--gold-dim);outline-offset:1px}
+  /* Zoom readout doubles as the fit/reset button (click the % to refit). */
+  .tbtn-pct{width:auto;min-width:60px;padding:0 8px;border-color:var(--line)}
+  .zoom-pct{font-family:'Spline Sans Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.06em;color:inherit}
+  @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* Export popup: opens upward from the capture buttons. */
+  .export-menu{position:absolute;right:0;bottom:calc(100% + 10px);z-index:30;width:268px;max-height:min(560px, calc(100dvh - 160px));overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:9px;padding:14px;background:rgba(13,14,22,.97);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .export-menu[hidden]{display:none}
+
+  /* Tool panel. */
+  .dock{flex:0 0 auto;width:clamp(var(--pmin), 100cqw - var(--mw) - var(--gap), var(--pmax));height:calc(var(--mw) * var(--arh) / var(--arw) + var(--tb));display:flex;flex-direction:column;min-height:0;min-width:0;background:linear-gradient(180deg,rgba(23,24,38,.9),rgba(19,20,29,.9));border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .dock-head{display:none;flex:0 0 auto;align-items:center;justify-content:center;gap:8px;width:100%;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--mut);cursor:pointer;font:inherit;touch-action:manipulation}
+  .dock-head:focus-visible{outline:2px solid var(--gold-dim);outline-offset:-2px}
+  .dock-title{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.3em;text-transform:uppercase}
+  .dock-grip{display:none}
+  .dock-caret{width:7px;height:7px;border-right:1.5px solid var(--gold-dim);border-bottom:1.5px solid var(--gold-dim);transform:translateY(-2px) rotate(45deg);transition:transform .18s}
+  /* The panel body is a size container so its contents can compact by the
+     height actually available (container queries below). It only scrolls as
+     a fallback when even the compact layout can't fit (phones). */
+  .dock-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;container:dockb / size}
+  .controls{flex:0 0 auto;display:flex;flex-direction:column}
+  .sec{padding:16px 18px 18px;border-bottom:1px solid var(--line)}
+  .sec-h{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--mut)}
+  .sec-h::after{content:"";flex:1;height:1px;align-self:center;background:linear-gradient(90deg,var(--line),transparent)}
+  .sec-n{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:16px;letter-spacing:.04em;color:var(--gold);min-width:14px}
+  .sec-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+  .sec-pose .sec-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sec-pose .field:has(#rig-sel:not([hidden])){grid-column:1 / -1}
+  /* A field left alone in a 2-column row (no Background picker on combat rigs,
+     no Character picker on single rigs) takes the whole row. */
+  .sec-grid:not(:has(#pack-sel:not([hidden]))) .field:has(#quality){grid-column:1 / -1}
+  /* Field box: label inside the box, value under it. The whole box is the
+     native select (label is pointer-transparent), so the hit area is the box. */
+  .field{position:relative;min-width:0;background:var(--ink);border:1px solid var(--line);border-radius:3px;transition:border-color .15s,box-shadow .15s}
+  .field:hover{border-color:var(--gold-dim)}
+  .field:focus-within{border-color:var(--gold);box-shadow:0 0 0 3px rgba(216,176,106,.1)}
+  .field:not(:has(> select:not([hidden]))){display:none}
+  .controls .field label{position:absolute;left:12px;top:8px;right:30px;pointer-events:none;font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .controls select{display:block;width:100%;height:50px;padding:20px 32px 6px 12px;-webkit-appearance:none;appearance:none;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a824e' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 12px center;border:0;border-radius:3px;color:var(--text);font-family:'Outfit',sans-serif;font-size:15px;cursor:pointer;outline:none;text-overflow:ellipsis;white-space:nowrap}
+  .controls select option{background:var(--ink-2);color:var(--text)}
+  /* Background picker: the native select is kept only as the data source. */
+  .controls #pack-sel{position:absolute;width:1px;height:1px;padding:0;opacity:0;pointer-events:none;overflow:hidden}
+  .pick-btn{display:block;width:100%;height:50px;padding:20px 32px 6px 12px;text-align:left;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a824e' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 12px center;border:0;border-radius:3px;color:var(--text);font-family:'Outfit',sans-serif;font-size:15px;cursor:pointer;outline:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pick-btn[aria-expanded="true"]{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 5l4-4 4 4' fill='none' stroke='%23d8b06a' stroke-width='1.4'/%3E%3C/svg%3E")}
+  .field:has(.pick-btn[aria-expanded="true"]){border-color:var(--gold)}
+  /* The open list: a ruled, numbered index of the pack, scrolled natively. */
+  .pick-list{position:fixed;z-index:70;overflow-y:auto;overscroll-behavior:contain;padding:4px 0;background:rgba(13,14,22,.98);backdrop-filter:blur(8px);border:1px solid var(--gold-dim);border-radius:3px;box-shadow:0 14px 34px rgba(0,0,0,.55);scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .pick-list[hidden]{display:none}
+  .pick-opt{display:flex;align-items:center;gap:10px;min-height:38px;padding:7px 14px 7px 12px;border-top:1px solid rgba(42,44,63,.6);font-family:'Outfit',sans-serif;font-size:14px;color:var(--text);cursor:pointer;user-select:none}
+  .pick-opt:first-child{border-top:0}
+  .pick-opt::before{content:"";flex:0 0 auto;width:6px;height:6px;border-radius:50%;border:1px solid var(--line)}
+  .pick-opt .pick-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pick-opt .pick-n{flex:0 0 auto;font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--mut)}
+  .pick-opt.none{color:var(--mut)}
+  .pick-opt.active{background:rgba(216,176,106,.08)}
+  .pick-opt[aria-selected="true"]{color:var(--gold)}
+  .pick-opt[aria-selected="true"]::before{background:var(--gold);border-color:var(--gold);box-shadow:0 0 6px rgba(216,176,106,.6)}
+  /* Layer toggles as one segmented control. The container's background shows
+     through a 1px gap as the dividers, so hidden segments leave no seams and a
+     row that is too narrow for long (translated) labels wraps cleanly. */
+  .toggles{display:flex;flex-wrap:wrap;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+  .toggles:not(:has(> .stage-toggle:not([hidden]))){display:none}
+  .stage-toggle,.controls .stage-toggle{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 10px;background:var(--ink);cursor:pointer;user-select:none;font-family:'Outfit',sans-serif;font-size:13.5px;letter-spacing:.01em;color:var(--mut);white-space:nowrap;transition:color .15s,background-color .15s}
+  .stage-toggle[hidden]{display:none}
+  .stage-toggle:hover{color:var(--text)}
+  .stage-toggle input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  .stage-toggle::before{content:"";flex:0 0 auto;width:7px;height:7px;border-radius:50%;border:1px solid var(--mut);transition:.15s}
+  .stage-toggle:has(input:checked){color:var(--gold);background:linear-gradient(rgba(216,176,106,.08),rgba(216,176,106,.08)),var(--ink)}
+  .stage-toggle:has(input:checked)::before{background:var(--gold);border-color:var(--gold);box-shadow:0 0 6px rgba(216,176,106,.6)}
+  .stage-toggle:has(input:focus-visible){outline:2px solid var(--gold-dim);outline-offset:-2px}
+  .tg-ast{color:var(--gold-dim);margin-left:-5px;font-size:10px;font-family:'Spline Sans Mono',monospace}
+  /* Rig spec sheet: numbers set in the serif, units as micro-labels. */
+  .rig{flex:0 0 auto;margin-top:auto;padding:14px 18px 16px}
+  .rig .sec-h{margin-bottom:12px}
+  .info{display:grid;grid-template-columns:repeat(4,auto);justify-content:space-between;gap:0}
+  .info:empty{display:none}
+  .spec{display:flex;flex-direction:column;gap:4px;min-width:0;padding:0 0 0 12px;border-left:1px solid var(--line)}
+  .spec:first-child{padding-left:0;border-left:0}
+  .spec b{font-family:'Cormorant Garamond',serif;font-weight:600;font-size:21px;line-height:1;color:var(--text);white-space:nowrap}
+  .spec i{font-style:normal;font-family:'Spline Sans Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hint{display:none;margin-top:12px;font-family:'Spline Sans Mono',monospace;font-size:10.5px;line-height:1.6;letter-spacing:.04em;color:var(--mut)}
+  /* Height tiers for the panel (desktop): the Assets list takes whatever is
+     left, so on a short panel the least useful parts fold away first. */
+  @container dockb (min-height:900px){ .hint{display:block} }
+  @media (pointer:fine){ @container dockb (max-height:720px){
+    .rig{display:none}
+    .sec{padding:12px 16px 14px}
+    .sec-h{margin-bottom:10px}
+    .sec-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .toggles{grid-column:1 / -1}
+    .controls select,.pick-btn{height:46px;padding-top:18px}
+    .controls .field label{top:6px;letter-spacing:.12em}
+    .sp-head{margin-bottom:10px}
+  } }
+
+  /* Touch screens: every interactive control at least 44px. */
+  @media (pointer:coarse){
+    .tbtn,.spine-controls-host .spine-player-button,.spine-controls-host #spine-player-button-play-pause{width:44px;height:44px}
+    .tbtn-pct{width:auto}
+    .controls select,.pick-btn{height:52px}
+    .pick-opt{min-height:44px}
+    .stage-toggle,.controls .stage-toggle{min-height:44px}
+    .sec-h.sp-toggle,.sp-iconbtn,#sp-search,.sp-bulk button,.sp-pick,#sp-copy-regex{min-height:44px}
+    .sp-iconbtn{width:44px}
+    .sp-row{min-height:40px}
+    .export-menu{max-height:min(520px, calc(100dvh - 120px))}
+  }
+
+  /* Short landscape screens (phones on their side). */
+  @media (max-height:560px) and (orientation:landscape){
+    header{padding:5px 16px;gap:14px}
+    header a.back{padding-right:14px}
+    header .small{display:none}
+    header .id{font-size:21px}
+    main{padding:6px 10px 8px;--gap:10px;--pmin:272px;--tb:48px}
+    .transport{padding:0 4px;gap:0}
+    .tools{gap:2px}
+    .tsep{margin:0 2px}
+    /* Too narrow for an inline scrubber: it becomes a progress line on the
+       seam between stage and transport (popups then anchor to .transport). */
+    .spine-controls-host{position:static}
+    .spine-controls-host .spine-player-timeline{position:absolute;left:0;right:0;top:-11px;height:22px;padding:0 10px;z-index:2}
+    .spine-controls-host .spine-player-slider{height:22px}
+    .sec{padding:12px 12px 14px}
+    .sec-h{margin-bottom:10px}
+    .sec-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .toggles{grid-column:1 / -1}
+    .controls .field label{letter-spacing:.1em}
+    .rig{padding:12px}
     .hint{display:none}
+  }
+
+  /* Portrait phones / narrow screens: monitor on top, bottom sheet below. */
+  @media (max-width:899px) and (orientation:portrait), (max-width:600px){
+    header{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:4px;padding:4px 6px;align-items:center}
+    header a.back{width:44px;height:44px;padding:0;justify-content:center;border-right:0;font-size:0;letter-spacing:0}
+    header a.back::before{content:"";width:10px;height:10px;border-left:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateX(2px) rotate(45deg)}
+    .titleblock{align-items:center;text-align:center;gap:2px}
+    header .small{font-size:9px;letter-spacing:.3em}
+    header .id{font-size:22px;max-width:100%}
+    /* Language picker collapses to a globe; the select stays native (its
+       options keep their own colour), only the closed face is hidden. */
+    .lang-sel{width:44px;height:44px;margin:0;padding:0;border-color:transparent;color:transparent;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238d8c9c' stroke-width='1.5'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9S9.5 5.6 12 3z'/%3E%3C/svg%3E") no-repeat center;-webkit-appearance:none;appearance:none}
+    .lang-sel:hover,.lang-sel:focus{color:transparent;border-color:var(--line)}
+    main{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;container-type:normal;padding:6px 8px 8px;gap:8px;--vchrome:320px;--vstage-min:180px}
+    .stage-col{flex:0 0 auto;width:auto;height:auto}
+    /* Width-bound: give the size container an explicit height (16:9 of the
+       available width + the two-row transport) so it wraps the monitor
+       exactly — no dead band above or below the stage. */
+    .stage-box{--tb:98px;flex:0 0 auto;height:calc((100vw - 16px) * var(--arh) / var(--arw) + var(--tb))}
+    /* Vertical View (9:16) cannot be width-bound on a portrait phone: the monitor
+       would be ~1.78x the viewport width tall, squeezing the dock to a ~15px sliver
+       with the Vertical View toggle scrolled out of it — unreachable, because
+       #stage-wrap's touch-action:none eats the scroll gesture, so there is no way
+       back to horizontal. Bound the monitor by the viewport instead, leaving the
+       dock (--vchrome = header + panel) enough height to show the layer toggles
+       without scrolling; the clamp floor keeps the stage usable on short screens,
+       where the panel then scrolls instead. */
+    html.vview .stage-box{height:clamp(var(--vstage-min), calc(100dvh - var(--vchrome)), calc((100vw - 16px) * var(--arh) / var(--arw) + var(--tb)))}
+    /* The toggles are the control that switches back, so put them first in their
+       grid row rather than under the Background / Quality fields. */
+    html.vview .controls .sec-grid .toggles{order:-1}
+    .transport{flex-wrap:wrap;align-content:stretch;gap:0;padding:4px 6px}
+    .spine-controls-host{flex:1 1 100%;height:44px}
+    .tools{flex:1 1 100%;height:45px;justify-content:space-between;border-top:1px solid var(--line);margin-top:0}
+    .tsep{display:none}
+    .spine-controls-host .spine-player-timeline{padding:0 10px}
+    .export-menu{position:fixed;left:8px;right:8px;bottom:8px;width:auto;max-height:70dvh}
+    .dock{flex:1 1 auto;width:auto;height:auto;border-radius:10px 10px 6px 6px}
+    .dock-head{display:flex;flex-wrap:wrap;min-height:40px;padding:6px 14px 8px;gap:4px 10px}
+    .dock-grip{display:block;flex:0 0 100%;height:4px;position:relative}
+    .dock-grip::before{content:"";position:absolute;left:50%;top:0;width:36px;height:3px;margin-left:-18px;border-radius:2px;background:var(--line)}
+    .dock.collapsed{flex:0 0 auto}
+    .dock.collapsed .dock-caret{transform:translateY(2px) rotate(-135deg)}
+    .dock.collapsed .dock-body{display:none}
+    .dock.collapsed .dock-head{border-bottom:0}
+    main:has(.dock.collapsed) .stage-col{flex:1 1 auto;justify-content:center}
+    .sec{padding:12px 12px 14px}
+    .sec-h{margin-bottom:10px}
+    .sec-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .toggles{grid-column:1 / -1}
+    .controls select,.pick-btn{font-size:16px}
+    .rig{padding:12px 12px 14px}
+    .hint{display:none}
+    .sp-list{min-height:300px;overscroll-behavior:auto}
   }
 </style>
 </head>
 <body>
 <header>
   <a class="back" href="#" id="back" data-i18n="viewer_back">‹ back to codex</a>
-  <span class="small" data-i18n="viewer_subtitle">live spine viewer</span>
-  <span class="id" id="title">…</span>
+  <div class="titleblock">
+    <span class="small" data-i18n="viewer_subtitle">live spine viewer</span>
+    <span class="id" id="title">…</span>
+  </div>
 </header>
 <main>
+  <div class="stage-col">
+  <!-- .stage-box: a size container holding the 16:9 stage + the transport strip
+       under it. Both take the same width, so they read as one framed monitor. -->
+  <div class="stage-box">
   <div id="stage-wrap">
+    <div id="pack-bg" hidden></div>
     <div id="stage-scaler">
       <div id="stage-bg"></div>
       <div id="stage"></div>
       <canvas id="pick-overlay"></canvas>
     </div>
-    <div class="zoom-controls">
-      <button id="zin" title="zoom in" data-i18n-attr="title:vz_in">+</button>
-      <button id="zfit" title="fit / reset" style="font-size:14px" data-i18n-attr="title:vz_fit">⛶</button>
-      <button id="zout" title="zoom out" data-i18n-attr="title:vz_out">−</button>
-      <button id="zshot" title="download current frame as transparent PNG" aria-label="download PNG" data-i18n-attr="title:vz_shot">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>
-      </button>
-      <button id="zexport-toggle" title="export / save animation (video, transparent, or lossless)" aria-label="export animation" aria-expanded="false">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polygon points="23 7 16 12 23 17 23 7"></polygon>
-          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-        </svg>
-      </button>
+  </div>
+  <!-- Transport: spine-player's play/scrub bar (reparented into #ctrls-host at
+       load) + our view tools. Lives OUTSIDE #stage-wrap so nothing floats over
+       the character and nothing here is carried by the pan/zoom transform. -->
+  <div class="transport">
+    <div class="spine-controls-host" id="ctrls-host"></div>
+    <div class="tools zoom-controls">
+      <div class="tgroup">
+        <button id="zout" class="tbtn" title="zoom out" aria-label="zoom out" data-i18n-attr="title:vz_out">−</button>
+        <button id="zfit" class="tbtn tbtn-pct" title="fit / reset" aria-label="fit / reset" data-i18n-attr="title:vz_fit"><span class="zoom-pct" id="zoompct">100%</span></button>
+        <button id="zin" class="tbtn" title="zoom in" aria-label="zoom in" data-i18n-attr="title:vz_in">+</button>
+      </div>
+      <span class="tsep" aria-hidden="true"></span>
+      <div class="tgroup">
+        <button id="zshot" class="tbtn" title="download current frame as transparent PNG" aria-label="download PNG" data-i18n-attr="title:vz_shot">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </button>
+        <button id="zexport-toggle" class="tbtn" title="export / save animation (video, transparent, or lossless)" aria-label="export animation" aria-expanded="false">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+        </button>
+      </div>
     </div>
     <div class="export-menu" id="export-menu" hidden>
       <div class="em-title" data-i18n="vexp_title">Export animation</div>
@@ -214,59 +481,93 @@
       </label>
       <div class="exphint">* APNG keeps perfect transparency but won't animate in Discord or Windows — use it for editing/compositing.</div>
     </div>
-    <div class="zoom-pct" id="zoompct">100%</div>
   </div>
-  <div class="spine-controls-host" id="ctrls-host"></div>
-  <div class="hint">mouse wheel · drag to pan · pinch on mobile · or use the buttons</div>
-  <div class="info" id="info"></div>
+  </div><!-- /.stage-box -->
+  </div>
+  <section class="dock" id="dock" aria-label="Viewer controls" data-i18n-attr="aria-label:viewer_controls">
+    <button type="button" class="dock-head" id="dock-toggle" aria-expanded="true" aria-controls="dock-body">
+      <span class="dock-grip" aria-hidden="true"></span>
+      <span class="dock-title" data-i18n="viewer_controls">Controls</span>
+      <span class="dock-caret" aria-hidden="true"></span>
+    </button>
+    <div class="dock-body" id="dock-body">
   <div class="controls">
-    <label for="anim" data-i18n="viewer_anim">Animation</label><select id="anim"></select>
-    <label for="skin" data-i18n="viewer_skin">Skin</label><select id="skin"></select>
-    <label for="rig-sel" id="rig-sel-label" hidden data-i18n="viewer_char">Character</label><select id="rig-sel" hidden title="this unit ships two combat rigs — switch between them"></select>
-    <label for="quality" data-i18n="viewer_quality">Quality</label>
-    <select id="quality" title="render-side upscale: makes the canvas backing store NxN larger, browser downsamples back — sharper for small assets">
-      <option value="1">1× (native)</option>
-      <option value="1.5">1.5×</option>
-      <option value="2" selected>2×</option>
-      <option value="3">3×</option>
-      <option value="4">4× (slow)</option>
-    </select>
-    <label class="stage-toggle" id="stage-label" hidden title="composite the backdrop rig behind the character"><input type="checkbox" id="stage-on"> <span data-i18n="viewer_stage">Stage</span></label>
-    <label class="stage-toggle" id="fx-label" hidden title="Composite the skill's Spine effect rigs (slashes, beams, impacts) over the character at their in-game cue times. Particle-system FX and the target's hit reactions can't be reproduced, so it's close to — not identical to — the in-game look."><input type="checkbox" id="fx-on" checked> <span data-i18n="viewer_skillfx">Skill FX</span></label>
-    <label class="stage-toggle" id="scene-label" hidden title="Reproduce the hub thumbnail: hides the FX / aura / backdrop / scene slots that the thumbnail bake strips (plus the curated scene slots for combined-file rigs like Hwayoung Summertime / Aram). Shown for any rig that has such slots. Use the Assets panel for finer control."><input type="checkbox" id="scene-on"> <span data-i18n="viewer_hidefx">Hide FX/BG</span><sup style="color:var(--gold-dim);margin-left:2px;font-size:10px;font-family:'Spline Sans Mono',monospace">*</sup></label>
-    <button id="slot-picker-btn" type="button" title="Open the per-asset toggle panel — hide any asset on this rig (backdrop pieces, FX, accessories) with live preview."><span data-i18n="viewer_assets">Assets</span><span class="pcount" id="slot-picker-count"></span></button>
-  </div>
-</main>
-
-<aside id="slot-picker" aria-hidden="true">
-  <div class="sp-head">
-    <span class="sp-title" data-i18n="viewer_assets">Assets</span>
-    <button type="button" class="sp-close" id="sp-undo" title="undo last action (Ctrl+Z)" disabled style="margin-right:4px">↶</button>
-    <button type="button" class="sp-close" id="sp-close" title="close">×</button>
-  </div>
-  <div class="sp-controls">
-    <input type="search" id="sp-search" placeholder="filter by name…" autocomplete="off" spellcheck="false">
-    <div class="sp-bulk">
-      <button type="button" id="sp-hide-filtered" title="hide every slot currently shown by the filter">hide filtered</button>
-      <button type="button" id="sp-show-filtered" title="show every slot currently shown by the filter">show filtered</button>
-      <button type="button" id="sp-reset" title="restore every slot to its original visibility">reset</button>
+    <div class="sec sec-pose">
+      <div class="sec-h"><span class="sec-n" aria-hidden="true">I</span><span data-i18n="viewer_sec_pose">Pose</span></div>
+      <div class="sec-grid">
+        <div class="field"><label for="anim" data-i18n="viewer_anim">Animation</label><select id="anim"></select></div>
+        <div class="field"><label for="skin" data-i18n="viewer_skin">Skin</label><select id="skin"></select></div>
+        <div class="field"><label for="rig-sel" id="rig-sel-label" hidden data-i18n="viewer_char">Character</label><select id="rig-sel" hidden title="this unit ships two combat rigs — switch between them"></select></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-h"><span class="sec-n" aria-hidden="true">II</span><span data-i18n="viewer_sec_view">View</span></div>
+      <div class="sec-grid">
+        <!-- Background: #pack-sel stays the source of truth (wirePackPicker fills
+             and listens to it) but is visually hidden; #pack-btn + #pack-list are a
+             custom listbox over it, so the open list scrolls with the wheel. -->
+        <div class="field"><label for="pack-btn" id="pack-label" hidden title="Hero View Background Pack - show the character over one of the game's battle/stage backgrounds" data-i18n="viewer_bgpack">Background</label>
+<select id="pack-sel" hidden tabindex="-1" aria-hidden="true" title="Hero View Background Pack - the game's own selectable backgrounds"></select>
+          <button type="button" id="pack-btn" class="pick-btn" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="pack-list" aria-labelledby="pack-label" title="Hero View Background Pack - the game's own selectable backgrounds"><span id="pack-val"></span></button></div>
+        <div class="field"><label for="quality" data-i18n="viewer_quality">Quality</label>
+        <select id="quality" title="render-side upscale: makes the canvas backing store NxN larger, browser downsamples back — sharper for small assets">
+          <option value="1">1× (native)</option>
+          <option value="1.5">1.5×</option>
+          <option value="2" selected>2×</option>
+          <option value="3">3×</option>
+          <option value="4">4× (slow)</option>
+        </select></div>
+        <div class="toggles" role="group">
+          <label class="stage-toggle" id="stage-label" hidden title="composite the backdrop rig behind the character"><input type="checkbox" id="stage-on"> <span data-i18n="viewer_stage">Stage</span></label>
+          <label class="stage-toggle" id="vview-label" hidden title="Vertical View: the game's portrait Hero View, where the Background Pack is drawn with its own framing (bg_position / bg_scale, rotated into a 9:16 frame)"><input type="checkbox" id="vview-on"> <span data-i18n="viewer_vview">Vertical View</span></label>
+          <label class="stage-toggle" id="fx-label" hidden title="Composite the skill's Spine effect rigs (slashes, beams, impacts) over the character at their in-game cue times. Particle-system FX and the target's hit reactions can't be reproduced, so it's close to — not identical to — the in-game look."><input type="checkbox" id="fx-on" checked> <span data-i18n="viewer_skillfx">Skill FX</span></label>
+          <label class="stage-toggle" id="scene-label" hidden title="Reproduce the hub thumbnail: hides the FX / aura / backdrop / scene slots that the thumbnail bake strips (plus the curated scene slots for combined-file rigs like Hwayoung Summertime / Aram). Shown for any rig that has such slots. Use the Assets panel for finer control."><input type="checkbox" id="scene-on"> <span data-i18n="viewer_hidefx">Hide FX/BG</span><sup class="tg-ast">*</sup></label>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="sp-list" id="sp-list"></div>
-  <div class="sp-excluded" id="sp-excluded" hidden>
-    <button type="button" class="sp-excluded-head" id="sp-excluded-head" aria-expanded="false" title="Permanently-excluded assets (broken / junk). Hidden by default and kept out of the list above and the bulk tools. Tick one to bring it back for this session.">
-      <span class="sp-ex-caret">▸</span> Excluded <span class="sp-ex-count" id="sp-excluded-count"></span>
-    </button>
-    <div class="sp-excluded-list" id="sp-excluded-list" hidden></div>
+  <!-- Assets: the per-slot visibility list, inline in the panel (was a
+       slide-in overlay). It takes the panel's leftover height; only #sp-list
+       scrolls. Ids are unchanged so the slot-picker handlers bind as before. -->
+  <div class="sec sec-assets" id="slot-picker">
+    <div class="sp-head">
+      <button type="button" class="sec-h sp-toggle" id="slot-picker-btn" aria-expanded="true" aria-controls="sp-body" title="Hide any asset on this rig (backdrop pieces, FX, accessories) with live preview."><span class="sec-n" aria-hidden="true">III</span><span data-i18n="viewer_assets">Assets</span><span class="pcount" id="slot-picker-count"></span><span class="sp-caret" aria-hidden="true"></span></button>
+      <button type="button" class="sp-iconbtn" id="sp-undo" title="undo last action (Ctrl+Z)" aria-label="undo" disabled>↶</button>
+    </div>
+    <div class="sp-body" id="sp-body">
+      <input type="search" id="sp-search" placeholder="filter by name…" autocomplete="off" spellcheck="false" aria-label="filter assets by name">
+      <div class="sp-bulk">
+        <button type="button" id="sp-hide-filtered" title="hide every slot currently shown by the filter">hide filtered</button>
+        <button type="button" id="sp-show-filtered" title="show every slot currently shown by the filter">show filtered</button>
+        <button type="button" id="sp-reset" title="restore every slot to its original visibility">reset</button>
+      </div>
+      <div class="sp-list" id="sp-list"></div>
+      <div class="sp-excluded" id="sp-excluded" hidden>
+        <button type="button" class="sp-excluded-head" id="sp-excluded-head" aria-expanded="false" title="Permanently-excluded assets (broken / junk). Hidden by default and kept out of the list above and the bulk tools. Tick one to bring it back for this session.">
+          <span class="sp-ex-caret">▸</span> Excluded <span class="sp-ex-count" id="sp-excluded-count"></span>
+        </button>
+        <div class="sp-excluded-list" id="sp-excluded-list" hidden></div>
+      </div>
+      <div class="sp-foot">
+        <label class="sp-pick" id="sp-pick-label" title="Click-to-pick: click any asset on the canvas to hide its slot — bypasses scrolling 300+ slot names. Esc exits.">
+          <input type="checkbox" id="sp-pick-mode"> Click-to-pick
+        </label>
+        <button type="button" id="sp-copy-regex" title="copy a regex matching the currently-hidden slot names — paste into site/data/strip_patterns.json (per_slug_thumb_only) to bake the strip into the thumbnail">copy hidden as regex</button>
+      </div>
+    </div>
   </div>
-  <div class="sp-foot">
-    <label class="sp-pick" id="sp-pick-label" title="click an asset on the stage to hide it — bypasses scrolling 300+ slot names. Esc to exit.">
-      <input type="checkbox" id="sp-pick-mode"> Click-to-pick
-    </label>
-    <button type="button" id="sp-copy-regex" title="copy a regex matching the currently-hidden slot names — paste into site/data/strip_patterns.json (per_slug_thumb_only) to bake the strip into the thumbnail">copy hidden as regex</button>
-    <div class="sp-hint">Click-to-pick: click any asset on the canvas to hide its slot. Esc exits.</div>
+  <div class="rig">
+    <div class="sec-h"><span class="sec-n" aria-hidden="true">IV</span><span data-i18n="viewer_sec_rig">Rig</span></div>
+    <div class="info" id="info"></div>
+    <div class="hint">drag to pan · wheel or pinch to zoom · click the % to refit</div>
   </div>
-</aside>
+    </div>
+  </section>
+</main>
+<!-- Background listbox panel. Body-level and position:fixed: inside <main> (a
+     size container) or the scrolling dock it would be clipped/mis-anchored. -->
+<div class="pick-list" id="pack-list" role="listbox" aria-labelledby="pack-label" hidden></div>
+
 <div class="sp-pick-banner" id="sp-pick-banner" hidden>Click an asset to hide  ·  Esc to exit</div>
 <div id="discover-tip" hidden>Tip: open <b>Assets</b> to hide backdrop / FX — or pick assets right on the canvas.</div>
 <script>
@@ -279,10 +580,23 @@ const slug   = params.get("slug") || "";
 const rig    = params.get("rig") || "";
 const isCombat = rig === "combat";
 // ?stage=<backdrop_slug> composites the backdrop rig (PRIMARY_SWAP bare slug,
+// A backdrop rig (typically the bare slug of a PRIMARY_SWAP unit,
 // e.g. c1183 for Estelle c1183_1) behind the character. Only honored on the
 // default rig — combat rigs have their own coordinate system that wouldn't
 // align with the lobby-scale backdrop.
-const stageSlug = (!isCombat && params.get("stage")) || "";
+//
+// The Hero View "Background Pack" picker is separate: it paints a baked 16:9
+// plate on #stage-bg (site/data/bg_frames.json) instead of loading a rig here.
+let stageSlug = (!isCombat && params.get("stage")) || "";
+// Chosen Hero View Background Pack scene (see the picker wiring). It paints a
+// baked 16:9 plate on #stage-bg and needs none of the backdrop-rig plumbing.
+// ?pack=<id> deep-links straight to a baked pack and ?vview=1 opens it in
+// Vertical View. Both are applied by the picker, once bg_frames.json has
+// resolved — the option list does not exist before that.
+let packScene = params.get("pack") || "";
+const urlVview = params.get("vview") === "1";
+// Filled from data/bg_frames.json by the picker.
+let PACK_ENTRIES = [];
 const titleSuffix = isCombat ? " · combat" : "";
 document.getElementById("title").textContent = (slug || "(no slug)") + titleSuffix;
 // Back nav: the codex links into the viewer with target="_blank" (new tab) but
@@ -302,6 +616,15 @@ _backEl.addEventListener("click", (e) => {
 // hop via localStorage, so the rig itself is never reloaded on a switch.
 let _unitRec = null;
 function applyViewerChrome() {
+  // Keys added for the viewer layout (viewer_controls, viewer_bgpack) aren't in
+  // shared.js's English table, so switching back to English would leave the
+  // previous language's text in place. Remember each label's inline English
+  // and restore it whenever the active language has no entry for the key.
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    if (el.dataset.i18nEn === undefined) el.dataset.i18nEn = el.textContent;
+    const k = el.getAttribute("data-i18n");
+    if (E7.t(k) === k) el.textContent = el.dataset.i18nEn;
+  });
   E7.applyI18n(document);   // sweep [data-i18n] / [data-i18n-attr] static labels
   const t = document.getElementById("title");
   if (t) t.textContent = (_unitRec ? (E7.gameName(_unitRec) || slug) : (slug || "(no slug)")) + titleSuffix;
@@ -335,7 +658,7 @@ E7.loadLang(E7.getLang()).then(applyViewerChrome);
 let sourceSpineVer = null;
 function applySpineVer() {
   const sp = document.getElementById("infospine");
-  if (sp && sourceSpineVer) sp.textContent = "spine " + sourceSpineVer;
+  if (sp && sourceSpineVer) sp.textContent = sourceSpineVer;
 }
 if (slug) {
   fetch("data/units.json").then(r => r.json()).then(d => {
@@ -438,19 +761,59 @@ const noLimitsToggle = document.getElementById("exp-no-limits");
 const zPct    = document.getElementById("zoompct");
 const stageLabel = document.getElementById("stage-label");
 const stageOnInput = document.getElementById("stage-on");
+const packBg = document.getElementById("pack-bg");
+// Vertical View: the game's portrait Hero View (UnitZoom 'Portrait' mode), where
+// the pack is framed by bg_position / bg_scale and rotated into a 9:16 window.
+// Only meaningful while a pack plate is shown; the toggle hides otherwise.
+const vviewInput = document.getElementById("vview-on");
+const vviewLabel = document.getElementById("vview-label");
+function packPlate(e) {
+  return (vviewInput && vviewInput.checked && e.portrait) ? e.portrait : e.file;
+}
+function setVview(on) {
+  document.documentElement.classList.toggle("vview", !!on);
+  apply();
+}
+// Reflect the picked pack (and its Vertical View state) into the address bar, so
+// the URL stays shareable — the same way the language switcher syncs ?lang.
+function syncPackUrl() {
+  try {
+    const url = new URL(location.href);
+    if (packScene) {
+      url.searchParams.set("pack", packScene);
+      if (vviewInput && vviewInput.checked) url.searchParams.set("vview", "1");
+      else url.searchParams.delete("vview");
+    } else {
+      url.searchParams.delete("pack");
+      url.searchParams.delete("vview");
+    }
+    history.replaceState(null, "", url);
+  } catch (_) {}
+}
+if (vviewInput) vviewInput.addEventListener("change", () => {
+  const e = PACK_ENTRIES.find(x => x.id === packScene);
+  if (!e) return;
+  packBg.style.backgroundImage = `url("${packPlate(e)}")`;
+  zoom = 1; panX = 0; panY = 0;
+  setVview(vviewInput.checked);
+  syncPackUrl();
+  window.dispatchEvent(new Event("resize"));
+});
 const sceneLabel = document.getElementById("scene-label");
 const sceneOnInput = document.getElementById("scene-on");
 // Backdrop visibility is controlled by the Stage toggle ONLY. Hide FX/BG
 // (scene-on) strips FX/aura/scene slots inside the CHARACTER rig and never
 // touches the separate backdrop player. Recompute on Stage toggle / (re)load.
 function syncStageVisibility() {
-  if (!stageSlug) return;
-  stageBg.style.display = stageOnInput.checked ? "" : "none";
+  if (!stageSlug && !packScene) return;
+  // A pack plate lives on its own element (see #pack-bg) and is independent of
+  // the unit-backdrop canvas in #stage-bg.
+  if (packBg) packBg.hidden = !(packScene && stageOnInput.checked);
+  if (stageSlug) stageBg.style.display = stageOnInput.checked ? "" : "none";
 }
 const slotPickerBtn = document.getElementById("slot-picker-btn");
 const slotPickerCount = document.getElementById("slot-picker-count");
 const slotPicker = document.getElementById("slot-picker");
-const spClose = document.getElementById("sp-close");
 const spSearch = document.getElementById("sp-search");
 const spList = document.getElementById("sp-list");
 const spHideFiltered = document.getElementById("sp-hide-filtered");
@@ -572,6 +935,15 @@ function apply() {
   const w = wrap.clientWidth, h = wrap.clientHeight;
   const cx = (w - w * zoom) / 2;
   const cy = (h - h * zoom) / 2;
+  // With a pack plate active the background is the limit: the character can be
+  // moved around inside it but not dragged off it, so clamp the pan to half the
+  // wrap in each axis (the character sits at the canvas centre). Written back to
+  // panX/panY — every gesture ends in apply(), so the clamp also stops a drag
+  // from winding up slack it would then have to unwind.
+  if (packScene && packBg && !packBg.hidden) {
+    panX = Math.max(-w / 2, Math.min(w / 2, panX));
+    panY = Math.max(-h / 2, Math.min(h / 2, panY));
+  }
   scaler.style.width     = (100 * q) + "%";
   scaler.style.height    = (100 * q) + "%";
   scaler.style.transform = `translate(${cx + panX}px, ${cy + panY}px) scale(${zoom / q})`;
@@ -1100,8 +1472,12 @@ if (!slug) {
   // c2185_1 has 82 of 224 slots as off-screen bg/fx particles) otherwise
   // auto-fit far too zoomed-out and the character appears tiny in the canvas.
   // The toggle just shows/hides the backdrop canvas — no reload, no reframe.
-  if (stageSlug) {
-    stageLabel.hidden = false;
+  // Wired unconditionally: the Background Pack picker can introduce a backdrop
+  // source long after this runs, so gating the handler on one being known at
+  // load time left the Stage checkbox inert. Only the label's visibility is
+  // conditional.
+  stageLabel.hidden = !(stageSlug || packScene || PACK_ENTRIES.length);
+  {
     // Default the Stage toggle OFF. The backdrop is loaded lazily the first
     // time the user enables the toggle — nothing is fetched or rendered for
     // it while off. Turning it on locks the character camera to the backdrop
@@ -1110,6 +1486,7 @@ if (!slug) {
     // its own bounds again.
     stageOnInput.checked = false;
     stageOnInput.onchange = async () => {
+      if (!stageSlug && !packScene) return;   // no backdrop source picked yet
       if (stageOnInput.checked) {
         if (!bgPlayer) {
           const bgViewport = await loadBackdrop();
@@ -1137,6 +1514,83 @@ if (!slug) {
       }
     };
   }
+  // Hero View "Background Pack" picker. The list is the game's own pack
+  // (site/data/bg_packs.json, names from text.db) filtered to the scenes that
+  // actually have a staged rig, so a pick always resolves. Choosing one loads
+  // it as the backdrop and locks the character camera to it — the same path the
+  // unit's own `?stage=` backdrop uses, which is why this needs no new
+  // compositing code.
+  (function wirePackPicker() {
+    const sel = document.getElementById("pack-sel");
+    const lbl = document.getElementById("pack-label");
+    if (!sel || !lbl || isCombat) return;
+    fetch("data/bg_frames.json", { cache: "no-cache" })
+      .then(r => (r.ok ? r.json() : []))
+      .catch(() => [])
+      .then(list => {
+        PACK_ENTRIES = Array.isArray(list) ? list : [];
+        if (!PACK_ENTRIES.length) return;      // nothing baked yet
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "— none —";
+        sel.appendChild(none);
+        // One option per PACK, not per scene: packs that share a scene frame it
+        // differently (their own bg_position / bg_scale).
+        for (const e of PACK_ENTRIES) {
+          const o = document.createElement("option");
+          o.value = e.id;
+          o.textContent = e.name || e.scene;
+          sel.appendChild(o);
+        }
+        lbl.hidden = false;
+        sel.hidden = false;
+        sel.value = packScene;
+        function applyPack() {
+          packScene = sel.value;
+          const entry = PACK_ENTRIES.find(e => e.id === packScene);
+          setVview(vviewInput.checked && !!entry);
+          if (vviewLabel) vviewLabel.hidden = !entry;
+          if (packScene && entry) {
+            // The BAKED plate (tools/bg_field.py + render_bgfield.js): the game's
+            // own Hero View landscape frame — FIELD_NEW composition seen through
+            // UIBackground's camera at this pack's bg_scale / bg_position — so it
+            // is exactly 16:9 and fills the stage with no crop. The character
+            // keeps its own auto-fit camera.
+            stageSlug = "";
+            if (bgPlayer) { try { bgPlayer = null; } catch (_) { /* ignore */ } }
+            // The plate goes on #pack-bg, a sibling of #stage-scaler, so the
+            // pan/zoom transform below cannot move it: in the game the
+            // background is the fixed anchor and the character moves inside it.
+            packBg.style.backgroundImage = `url("${packPlate(entry)}")`;
+            packBg.hidden = false;
+            stageOnInput.checked = true;
+            stageLabel.hidden = false;
+            stageLockVp = null;
+            if (window.__reframeOnVisible) window.__reframeOnVisible();
+            syncStageVisibility();
+            apply();
+            return;
+          }
+          // Cleared: back to the unit's own ?stage= backdrop, if any.
+          packBg.style.backgroundImage = "";
+          packBg.hidden = true;
+          packScene = "";
+          stageSlug = params.get("stage") || "";
+          stageOnInput.checked = false;
+          loadScene();
+        }
+        sel.onchange = () => {
+          applyPack();
+          syncPackUrl();
+        };
+        // Deep link: arm Vertical View before applying the pack, so applyPack()
+        // sees the checked box and turns it on for a pack that has a portrait
+        // plate. A ?pack= that matches nothing falls through to "— none —".
+        if (urlVview && vviewInput) vviewInput.checked = true;
+        if (packScene) applyPack();
+      });
+  })();
+
   loadScene();
 }
 
@@ -2884,10 +3338,11 @@ function loadCharacter(bgViewport) {
         const allAnims = p.skeleton.data.animations;
         const anims = allAnims.filter(a => a.duration > 0).map(a => a.name);
         const skins = p.skeleton.data.skins.map(s => s.name);
-        info.innerHTML = `<span>${anims.length} animation${anims.length>1?'s':''}</span>
-                          <span>${skins.length} skin${skins.length>1?'s':''}</span>
-                          <span>${p.skeleton.data.bones.length} bones</span>
-                          <span id="infospine">spine ${sourceSpineVer || '3.8.99'}</span>`;
+        // Rig spec sheet: value in the serif, unit as a micro-label.
+        info.innerHTML = `<span class="spec"><b>${anims.length}</b><i>animation${anims.length>1?'s':''}</i></span>
+                          <span class="spec"><b>${skins.length}</b><i>skin${skins.length>1?'s':''}</i></span>
+                          <span class="spec"><b>${p.skeleton.data.bones.length}</b><i>bones</i></span>
+                          <span class="spec"><b id="infospine">${sourceSpineVer || '3.8.99'}</b><i>spine</i></span>`;
         applySpineVer();
         animSel.innerHTML = anims.map(n => `<option value="${n}">${n}</option>`).join("");
         skinSel.innerHTML = skins.map(n => `<option value="${n}">${n}</option>`).join("");
@@ -3282,15 +3737,19 @@ function spApplyAndRefresh() {
   if (window.__slotPickerSync) window.__slotPickerSync();
   updateSlotPickerCount();
 }
-function spOpen()  { slotPicker.classList.add("open");  slotPicker.setAttribute("aria-hidden", "false"); }
-function spClosePanel() { slotPicker.classList.remove("open"); slotPicker.setAttribute("aria-hidden", "true"); }
-
+// Assets is an inline panel section (it used to be a slide-in overlay); its
+// header row collapses the body. The choice is remembered per device.
+function spSetCollapsed(c) {
+  slotPicker.classList.toggle("collapsed", c);
+  slotPickerBtn.setAttribute("aria-expanded", String(!c));
+}
+try { spSetCollapsed(localStorage.getItem("e7_viewer_assets") === "collapsed"); } catch (_) {}
 slotPickerBtn.addEventListener("click", () => {
-  slotPicker.classList.contains("open") ? spClosePanel() : spOpen();
-});
-spClose.addEventListener("click", spClosePanel);
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && slotPicker.classList.contains("open")) spClosePanel();
+  const c = !slotPicker.classList.contains("collapsed");
+  spSetCollapsed(c);
+  try { localStorage.setItem("e7_viewer_assets", c ? "collapsed" : "open"); } catch (_) {}
+  // On phones the section sits below the fold of the sheet: bring it up.
+  if (!c && DOCK_MQ.matches) slotPicker.scrollIntoView({ block: "start", behavior: "smooth" });
 });
 spSearch.addEventListener("input", spFilterRows);
 
@@ -3989,6 +4448,191 @@ document.addEventListener("keydown", (e) => {
 // apply() runs even on fetch failure. Later apply() calls (zoom/quality) don't wait.
 Promise.all([_excludesReady, _stripReady]).then(apply);
 
+// Controls dock: a side panel on desktop, a collapsible bottom sheet on
+// portrait phones (same media query as the CSS). Collapsing it gives the
+// canvas the freed height; the choice is remembered per device.
+const DOCK_MQ = window.matchMedia("(max-width:899px) and (orientation:portrait), (max-width:600px)");
+(function wireDock() {
+  const dock = document.getElementById("dock");
+  const btn = document.getElementById("dock-toggle");
+  if (!dock || !btn) return;
+  const setCollapsed = (c) => {
+    dock.classList.toggle("collapsed", c);
+    btn.setAttribute("aria-expanded", String(!(c && DOCK_MQ.matches)));
+  };
+  let stored; try { stored = localStorage.getItem("e7_viewer_dock"); } catch (_) {}
+  setCollapsed(stored === "collapsed");
+  btn.onclick = () => {
+    if (!DOCK_MQ.matches) return;          // side panel on desktop: always open
+    const c = !dock.classList.contains("collapsed");
+    setCollapsed(c);
+    try { localStorage.setItem("e7_viewer_dock", c ? "collapsed" : "open"); } catch (_) {}
+  };
+  DOCK_MQ.addEventListener("change", () => setCollapsed(dock.classList.contains("collapsed")));
+})();
+// Background picker listbox. #pack-sel (filled + listened to by wirePackPicker)
+// stays the single source of truth; this only renders it. A native <select>
+// popup can't be styled or reliably wheel-scrolled, so the open list is our
+// own: it scrolls natively, the CLOSED field steps the selection on the wheel
+// (matching #anim/#skin/#quality), and picking an entry sets #pack-sel and
+// fires its real `change` event.
+// Keyboard follows the ARIA combobox/listbox pattern: focus stays on the
+// button, aria-activedescendant tracks the highlighted row.
+(function wirePackListbox() {
+  const sel = document.getElementById("pack-sel");
+  const btn = document.getElementById("pack-btn");
+  const val = document.getElementById("pack-val");
+  const list = document.getElementById("pack-list");
+  if (!sel || !btn || !val || !list) return;
+  let active = -1;
+  const rows = () => list.querySelectorAll(".pick-opt");
+  const isOpen = () => !list.hidden;
+  const syncBtn = () => {
+    const o = sel.options[sel.selectedIndex];
+    val.textContent = o ? o.textContent : "";
+  };
+  // Wheel over the CLOSED field steps to the next/previous background, the same
+  // behaviour every other dropdown on this page has (see wheelStepSelect on
+  // #anim/#skin/#quality). The open list keeps its own scrolling: this handler
+  // bows out while the list is open, so the wheel scrolls the list there.
+  const packField = btn.closest(".field") || btn;
+  packField.addEventListener("wheel", (e) => {
+    if (isOpen()) return;                  // the list scrolls itself when open
+    if (sel.options.length < 2) return;
+    e.preventDefault();
+    e.stopPropagation();
+    stepSelect(sel, e.deltaY);
+    syncBtn();
+  }, { passive: false });
+  function render() {
+    list.innerHTML = "";
+    let n = 0;
+    [...sel.options].forEach((o, i) => {
+      const row = document.createElement("div");
+      row.className = "pick-opt" + (o.value ? "" : " none");
+      row.id = "pack-opt-" + i;
+      row.dataset.i = i;
+      row.setAttribute("role", "option");
+      row.setAttribute("aria-selected", String(i === sel.selectedIndex));
+      const name = document.createElement("span");
+      name.className = "pick-name";
+      name.textContent = o.textContent;
+      row.appendChild(name);
+      if (o.value) {
+        const num = document.createElement("span");
+        num.className = "pick-n";
+        num.textContent = String(++n).padStart(2, "0");
+        row.appendChild(num);
+      }
+      list.appendChild(row);
+    });
+  }
+  function setActive(i, scroll) {
+    const r = rows();
+    if (!r.length) return;
+    i = Math.max(0, Math.min(r.length - 1, i));
+    if (r[active]) r[active].classList.remove("active");
+    active = i;
+    r[i].classList.add("active");
+    btn.setAttribute("aria-activedescendant", r[i].id);
+    if (scroll) r[i].scrollIntoView({ block: "nearest" });
+  }
+  // Fixed-position under the field (or above it when there's more room there).
+  function place() {
+    const f = (btn.closest(".field") || btn).getBoundingClientRect();
+    const below = innerHeight - f.bottom - 12, above = f.top - 12;
+    const want = Math.min(list.scrollHeight, 380);
+    // At least 300px so names aren't truncated in the 2-column phone grids;
+    // right-aligned to the field when that would run off-screen.
+    const w = Math.min(Math.max(f.width, 300), innerWidth - 16);
+    list.style.width = w + "px";
+    list.style.left = (f.left + w <= innerWidth - 8 ? f.left : Math.max(8, f.right - w)) + "px";
+    if (below >= want || below >= above) {
+      list.style.top = (f.bottom + 4) + "px"; list.style.bottom = "";
+      list.style.maxHeight = Math.max(120, Math.min(380, below)) + "px";
+    } else {
+      list.style.bottom = (innerHeight - f.top + 4) + "px"; list.style.top = "";
+      list.style.maxHeight = Math.max(120, Math.min(380, above)) + "px";
+    }
+  }
+  function open() {
+    if (isOpen() || sel.options.length < 2) return;
+    render();
+    list.hidden = false;
+    place();
+    btn.setAttribute("aria-expanded", "true");
+    const i = Math.max(0, sel.selectedIndex);
+    setActive(i, false);
+    const r = rows()[i];
+    if (r) list.scrollTop = r.offsetTop - (list.clientHeight - r.offsetHeight) / 2;   // selection centred
+  }
+  function close(refocus) {
+    if (!isOpen()) return;
+    list.hidden = true;
+    btn.setAttribute("aria-expanded", "false");
+    btn.removeAttribute("aria-activedescendant");
+    if (refocus) btn.focus();
+  }
+  function choose(i) {
+    if (i >= 0 && i !== sel.selectedIndex) {
+      sel.selectedIndex = i;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    syncBtn();
+    close(true);
+  }
+  btn.addEventListener("click", () => (isOpen() ? close(true) : open()));
+  btn.addEventListener("keydown", (e) => {
+    const k = e.key;
+    if (!isOpen()) {
+      if (k === "ArrowDown" || k === "ArrowUp" || k === "Enter" || k === " ") { e.preventDefault(); open(); }
+      return;
+    }
+    const n = rows().length;
+    if (k === "ArrowDown") { e.preventDefault(); setActive(active + 1, true); }
+    else if (k === "ArrowUp") { e.preventDefault(); setActive(active - 1, true); }
+    else if (k === "PageDown") { e.preventDefault(); setActive(active + 8, true); }
+    else if (k === "PageUp") { e.preventDefault(); setActive(active - 8, true); }
+    else if (k === "Home") { e.preventDefault(); setActive(0, true); }
+    else if (k === "End") { e.preventDefault(); setActive(n - 1, true); }
+    else if (k === "Enter" || k === " ") { e.preventDefault(); choose(active); }
+    else if (k === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); }
+    else if (k === "Tab") { close(false); }
+    else if (k.length === 1 && /\S/.test(k)) {        // type-ahead: next name starting with k
+      const r = [...rows()], c = k.toLowerCase();
+      for (let s = 1; s <= n; s++) {
+        const j = (active + s) % n;
+        if (r[j].textContent.trim().toLowerCase().startsWith(c)) { setActive(j, true); break; }
+      }
+    }
+  });
+  // Keep focus on the button while clicking rows (so keyboard state survives).
+  list.addEventListener("mousedown", (e) => e.preventDefault());
+  list.addEventListener("click", (e) => {
+    const row = e.target.closest(".pick-opt");
+    if (row) choose(+row.dataset.i);
+  });
+  list.addEventListener("mousemove", (e) => {
+    const row = e.target.closest(".pick-opt");
+    if (row && +row.dataset.i !== active) setActive(+row.dataset.i, false);
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (isOpen() && !list.contains(e.target) && !btn.contains(e.target)) close(false);
+  }, true);
+  // The panel is fixed-position: if anything under it moves, close it.
+  window.addEventListener("resize", () => close(false));
+  document.addEventListener("scroll", (e) => { if (isOpen() && e.target !== list) close(false); }, true);
+  // Mirror #pack-sel: options arrive async from bg_frames.json (and its value
+  // is set right after), plus every change event.
+  sel.addEventListener("change", syncBtn);
+  new MutationObserver(syncBtn).observe(sel, { childList: true });
+  syncBtn();
+})();
+
+// The stage is sized by the layout (dock open/closed, rotation, window resize),
+// not a fixed vh, so re-centre the pan/zoom transform whenever it changes size.
+if (window.ResizeObserver) new ResizeObserver(() => apply()).observe(wrap);
+
 // First-visit discovery tip: points at the Assets button, fades in, and
 // auto-dismisses after a few seconds (or on the first interaction). Shown once
 // ever (localStorage), so returning visitors never see it again.
@@ -3996,19 +4640,34 @@ function maybeShowDiscoverTip() {
   const btn = document.getElementById("slot-picker-btn");
   const tip = document.getElementById("discover-tip");
   if (!btn || !tip) return;
+  if (!btn.offsetParent) return;   // dock collapsed: nothing to point at (try next visit)
   let seen; try { seen = localStorage.getItem("e7_viewer_tip_v1"); } catch (_) {}
   if (seen) return;
   try { localStorage.setItem("e7_viewer_tip_v1", "1"); } catch (_) {}
   tip.hidden = false;
   const r = btn.getBoundingClientRect();
   const tw = tip.offsetWidth, th = tip.offsetHeight;
-  let left = Math.max(8, Math.min(window.innerWidth - tw - 8, r.left + r.width / 2 - tw / 2));
-  let top = r.top - th - 12;
-  if (top < 8) top = r.bottom + 12;   // no room above → drop below the button
-  top = Math.max(8, Math.min(window.innerHeight - th - 8, top));   // never overflow
+  let left, top;
+  if (window.innerWidth <= 560) {
+    // On a phone the Assets button lives inside the bottom sheet, so anchoring
+    // the tip to it drops it straight over the fields above it. Anchor it inside
+    // the stage instead: it may cover artwork (transient, harmless) but never a
+    // control. The arrow is parked off-screen since nothing is being pointed at.
+    const stage = document.getElementById("stage-wrap");
+    const sr = stage ? stage.getBoundingClientRect() : null;
+    left = sr ? Math.max(8, Math.min(window.innerWidth - tw - 8, sr.left + sr.width / 2 - tw / 2))
+              : Math.max(8, (window.innerWidth - tw) / 2);
+    top = sr ? Math.max(8, sr.bottom - th - 10) : 8;
+    tip.style.setProperty("--arrow", "-999px");
+  } else {
+    left = Math.max(8, Math.min(window.innerWidth - tw - 8, r.left + r.width / 2 - tw / 2));
+    top = r.top - th - 12;
+    if (top < 8) top = r.bottom + 12;   // no room above → drop below the button
+    top = Math.max(8, Math.min(window.innerHeight - th - 8, top));   // never overflow
+    tip.style.setProperty("--arrow", (r.left + r.width / 2 - left) + "px");
+  }
   tip.style.left = left + "px";
   tip.style.top = top + "px";
-  tip.style.setProperty("--arrow", (r.left + r.width / 2 - left) + "px");
   requestAnimationFrame(() => tip.classList.add("show"));
   let done = false;
   const dismiss = () => {

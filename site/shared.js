@@ -200,7 +200,7 @@ const E7 = (() => {
     // viewer
     viewer_subtitle: "live spine viewer", viewer_back: "‹ back to codex",
     viewer_anim: "Animation", viewer_skin: "Skin", viewer_char: "Character", viewer_quality: "Quality",
-    viewer_stage: "Stage", viewer_skillfx: "Skill FX", viewer_hidefx: "Hide FX/BG", viewer_assets: "Assets",
+    viewer_stage: "Stage", viewer_vview: "Vertical View", viewer_skillfx: "Skill FX", viewer_hidefx: "Hide FX/BG", viewer_assets: "Assets",
     vz_in: "zoom in", vz_out: "zoom out", vz_fit: "fit / reset",
     vz_shot: "download current frame as transparent PNG",
     vexp_title: "Export animation",
