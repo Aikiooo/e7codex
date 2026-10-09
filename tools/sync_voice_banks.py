@@ -1,12 +1,18 @@
-"""Copy Epic Seven voice banks OUT of the game install into the scratch tree.
+"""Copy Epic Seven voice banks into the scratch tree.
 
-WHY: the spoken-voice source is FMOD `.bank` files in the GAME folder. The game
-keeps only the CURRENTLY-SELECTED Hero Audio Language on disk and prunes the
-others when you switch language in-game. So to build the full multi-language
-voice set you: (1) pick a language in-game + let it download, (2) run this to
-copy that language's banks into scratch, (3) repeat for each language. This
-script is also what you run after a normal game update — it copies any bank
-whose bytes changed.
+WHY: the spoken-voice source is FMOD `.bank` files. Point `--game-sound` at any
+tree holding `sound/<lang>/*.bank` — the game folder, or a complete set of banks
+for all three languages obtained elsewhere — and gate on CONTENT with
+`--reference <tree>/sound` when that tree is known to be current (a freshly
+unpacked set keeps its archive's original old mtimes, so the mtime fallback
+would call a byte-identical language stale forever).
+
+The GAME folder only ever holds the
+CURRENTLY-SELECTED Hero Audio Language — the client prunes the others when you
+switch in-game. So syncing from the game means picking a language in-game,
+letting it download, copying it here, and repeating per language. This script is
+also what you run after a normal game update — it copies any bank whose bytes
+changed.
 
   GAME (read-only source)                    SCRATCH (destination)
   <game>/sound/<lang>/*.audio_<lang>.bank -> _voice_work/sound/<lang>/*.bank
@@ -30,8 +36,9 @@ Usage:
   python tools/sync_voice_banks.py                      # sync all langs present in-game
   python tools/sync_voice_banks.py --extract            # + run extraction for changed langs
   python tools/sync_voice_banks.py --game-sound <path>  # override game sound dir
+                                                        # (or any current sound/<lang> tree)
 """
-import argparse, json, shutil, subprocess, sys, time
+import argparse, hashlib, json, os, shutil, subprocess, sys, time
 from pathlib import Path
 
 try:
@@ -62,28 +69,58 @@ def _newest_mtime(paths) -> float:
     return max((p.stat().st_mtime for p in paths if p.exists()), default=0.0)
 
 
-def lang_status(dest: Path, require) -> dict:
+def _md5(fp: Path, chunk: int = 1 << 20) -> str:
+    h = hashlib.md5()
+    with open(fp, 'rb') as f:
+        for b in iter(lambda: f.read(chunk), b''):
+            h.update(b)
+    return h.hexdigest()
+
+
+def _banks_match(a: Path, b: Path) -> bool:
+    """Byte-identical? Size first (cheap), then md5."""
+    sa, sb = a.stat(), b.stat()
+    if sa.st_size != sb.st_size:
+        return False
+    return _md5(a) == _md5(b)
+
+
+def lang_status(dest: Path, require, reference: Path = None) -> dict:
     """Per-language freshness vs the current pack.
 
-    The shared banks (voc.event/master.strings) update with every PACK; a
-    per-language voc bank only updates when THAT language is downloaded in-game.
-    So a language is "current" iff its banks are at least as new as the shared
-    pack banks; "stale" means it predates the current pack (needs an in-game
-    swap + re-download); "missing" means never dumped. This is what lets the
-    pipeline refuse to extract stale audio after an update changed only the
-    language you happened to be playing in.
+    The reliable test is CONTENT. When a `reference` tree is given — the staging
+    tree holding a known-current set of banks — a language is `current` iff every bank there is present in the
+    scratch tree byte-for-byte.
+
+    Without a reference we fall back to mtime: the shared banks (voc.event /
+    master.strings) ship with every PACK while a per-language bank changes only
+    when that language's audio does, so a language whose banks predate the shared
+    ones is *probably* behind. That heuristic is only a proxy, and it is wrong in
+    both directions: a pack can bump `voc.event.bank` without touching any
+    language's audio, and freshly unpacked banks keep their ORIGINAL (old) mtimes — so
+    a byte-identical language still reads as `stale`. Prefer a reference whenever
+    one is available; "missing" always means never dumped.
     """
+    out = {}
     pack_mtime = _newest_mtime([dest / n for n in SHARED_BANKS])
     TOL = 5.0  # seconds — banks downloaded in the same session land ~together
-    out = {}
     for lang in require:
         banks = list((dest / lang).glob('*.bank')) if (dest / lang).is_dir() else []
         if not banks:
             out[lang] = 'missing'
-        elif _newest_mtime(banks) >= pack_mtime - TOL:
-            out[lang] = 'current'
-        else:
-            out[lang] = 'stale'
+            continue
+        ref_banks = list((reference / lang).glob('*.bank')) \
+            if reference and (reference / lang).is_dir() else []
+        if ref_banks:
+            ok = True
+            for rb in ref_banks:
+                lb = dest / lang / rb.name
+                if not lb.is_file() or not _banks_match(lb, rb):
+                    ok = False
+                    break
+            out[lang] = 'current' if ok else 'stale'
+            continue
+        out[lang] = 'current' if _newest_mtime(banks) >= pack_mtime - TOL else 'stale'
     return out
 
 
@@ -115,19 +152,39 @@ def wait_until_stable(paths, settle: float = 8.0, timeout: float = 1800.0, poll:
         time.sleep(poll)
 
 
-def needs_copy(src: Path, dst: Path) -> bool:
+def needs_copy(src: Path, dst: Path, by_content: bool = False) -> bool:
+    """Should src overwrite dst?
+
+    Default: size differs, or src is newer — the game-folder case, where mtimes
+    track the client's own downloads. by_content compares bytes instead, for an
+    authoritative reference tree (a freshly unpacked set), whose mtimes are
+    the archive's originals and so say nothing about freshness.
+    """
     if not dst.exists():
         return True
     s, d = src.stat(), dst.stat()
-    return s.st_size != d.st_size or s.st_mtime > d.st_mtime + 1
+    if s.st_size != d.st_size:
+        return True
+    if by_content:
+        return _md5(src) != _md5(dst)
+    return s.st_mtime > d.st_mtime + 1
 
 
-def copy_if_changed(src: Path, dst: Path) -> bool:
-    """Read-only on src (game); writes only to dst (scratch). Returns True if copied."""
-    if not needs_copy(src, dst):
+def copy_if_changed(src: Path, dst: Path, by_content: bool = False) -> bool:
+    """Read-only on src (game); writes only to dst (scratch). Returns True if copied.
+
+    Stamps the destination mtime to now when by_content: the scratch tree then
+    reads as "verified against the current pack as of this run", which is what
+    lang_status()'s mtime fallback looks at when no reference is supplied.
+    """
+    if not needs_copy(src, dst, by_content):
+        if by_content:
+            os.utime(dst, None)      # verified current — refresh the stamp
         return False
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)   # copies src -> dst; never the reverse
+    if by_content:
+        os.utime(dst, None)
     return True
 
 
@@ -139,6 +196,11 @@ def main():
     ap.add_argument('--dest', type=Path, default=DEST, help='scratch sound dir')
     ap.add_argument('--require-langs', nargs='+', default=['en', 'ja', 'ko'],
                     help='languages that must all be current before the pack is "ready"')
+    ap.add_argument('--reference', type=Path, default=None,
+                    help='authoritative bank tree to gate against (a known-current set '
+                         'of banks). When set, freshness is decided by CONTENT (md5), '
+                         'not mtimes — unpacked archives keep their original old mtimes, '
+                         'so a byte-identical language otherwise reads as stale')
     ap.add_argument('--wait', action='store_true',
                     help='interactive: after a pack update, loop until every required '
                          'language has been swapped-to in-game + re-dumped (press Enter '
@@ -173,12 +235,14 @@ def main():
         changed = []
         lang_dirs = sorted(d for d in game_sound.iterdir() if d.is_dir())
         if not lang_dirs:
-            print('  (no language subdir in the game folder — download a Hero Audio Language in-game)')
+            print('  (no language subdir in the game folder — download a Hero Audio '
+                  'Language in-game, or point --game-sound at a current bank tree)')
         for ld in lang_dirs:
             banks = sorted(ld.glob('*.bank'))
             if not banks:
                 continue
-            n = sum(copy_if_changed(b, args.dest / ld.name / b.name) for b in banks)
+            n = sum(copy_if_changed(b, args.dest / ld.name / b.name, bool(args.reference))
+                    for b in banks)
             print(f'  [{ld.name}] {len(banks)} banks, {f"{n} changed" if n else "up to date"}')
             if n:
                 changed.append(ld.name)
@@ -191,7 +255,7 @@ def main():
     # downstream extraction runs, or we'd publish stale audio for the languages
     # not yet re-dumped after an update.
     def report_status():
-        st = lang_status(args.dest, args.require_langs)
+        st = lang_status(args.dest, args.require_langs, args.reference)
         print('\npack language status:')
         for lang in args.require_langs:
             print(f'  {lang}: {st[lang]}')
@@ -201,9 +265,11 @@ def main():
     stale = [l for l in args.require_langs if status[l] != 'current']
 
     if stale and args.wait:
-        print('\nThe game keeps only the SELECTED Hero Audio Language on disk. '
-              'To complete this pack, switch in-game to each stale/missing language, '
-              'let it finish downloading, then press Enter here to re-dump it.')
+        print('\nThe game folder holds only the SELECTED Hero Audio Language. '
+              'If you have a current set of all three languages, re-run with '
+              '--game-sound <tree>/sound --reference <tree>/sound instead. '
+              'To dump from the game, switch in-game to each stale/missing '
+              'language, let it finish downloading, then press Enter to re-dump it.')
         while stale:
             try:
                 resp = input(f'  waiting for: {", ".join(stale)}  [Enter=re-scan, q=abort] ').strip().lower()
@@ -221,8 +287,9 @@ def main():
     print(f'  source: {game_sound}\n  dest:   {args.dest}')
 
     if stale:
-        print(f'\nNOT READY — stale/missing: {", ".join(stale)}. Swap in-game + re-run '
-              f'(or use --wait). Extraction skipped to avoid stale audio.')
+        print(f'\nNOT READY — stale/missing: {", ".join(stale)}. '
+              f'Point --game-sound/--reference at a current bank tree, or use --wait '
+              f'to dump each language from the game. Extraction skipped to avoid stale audio.')
         sys.exit(2)
 
     print('READY - all required languages are at the current pack.')
