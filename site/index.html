@@ -746,6 +746,7 @@
   .req-status{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:3px 8px;border-radius:2px;white-space:nowrap;border:1px solid var(--line);color:var(--mut);background:transparent}
   .req-status.shipped{color:var(--teal);border-color:var(--teal)}
   .req-status.planned{color:var(--gold);border-color:var(--gold-dim)}
+  .req-status.wip{color:var(--ice);border-color:var(--ice)}
   .req-dl{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;font-family:'Spline Sans Mono',monospace;font-size:12px;color:var(--text);letter-spacing:.02em}
   .req-dk{color:var(--gold-dim);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-right:6px}
   .req-days{color:var(--gold-dim);letter-spacing:.04em}
@@ -3510,9 +3511,10 @@ function reqLoad() {
 
 function reqRow(r) {
   const shipped = r.status === "shipped";
+  const wip = r.status === "wip";
   const open = reqOpen.has(r.id);
-  const statusLbl = reqT(shipped ? "req_status_shipped" : "req_status_planned",
-    shipped ? "Shipped" : "Planned");
+  const statusLbl = reqT(wip ? "req_status_wip" : shipped ? "req_status_shipped" : "req_status_planned",
+    wip ? "WIP" : shipped ? "Shipped" : "Planned");
   const days = shipped ? daySpan(r.requested, r.shipped) : "";
   // Strip the "{d}" slot so the label and the ISO day can sit in separate nodes.
   const reqLabel = reqT("req_requested", "requested {d}", { d: "" }).replace(/\s*\{d\}\s*/g, "").trim() || "requested";
@@ -3526,7 +3528,7 @@ function reqRow(r) {
     <button type="button" class="req-row-head" data-req="${escapeHtml(r.id)}" aria-expanded="${open ? "true" : "false"}">
       <span>
         <span class="req-title">${escapeHtml(r.title)}</span>
-        <span class="req-meta"><span class="req-status ${shipped ? "shipped" : "planned"}">${escapeHtml(statusLbl)}</span>${datesHtml}</span>
+        <span class="req-meta"><span class="req-status ${wip ? "wip" : shipped ? "shipped" : "planned"}">${escapeHtml(statusLbl)}</span>${datesHtml}</span>
       </span>
       <span class="req-chev${open ? " open" : ""}" aria-hidden="true">›</span>
     </button>

@@ -1,5 +1,14 @@
 [
  {
+  "id": "battle-backgrounds-section",
+  "title": "A section for battle backgrounds — the scenes you can pick in Hero View",
+  "status": "shipped",
+  "requested": "2026-10-04",
+  "shipped": "2026-10-09",
+  "link": "viewer.html?slug=c1001&pack=ma_bg_pet_base&vview=1",
+  "note": "Asked for through the contact form. It lives in the live viewer rather than a tab of its own: pick any battle background to sit behind a unit from the Hero View Background Pack list, and the Vertical View toggle shows it in the game's portrait frame."
+ },
+ {
   "id": "notos-domain-rig",
   "title": "Notos: attack animations missing for his S3 domain form in the combat viewer",
   "status": "shipped",

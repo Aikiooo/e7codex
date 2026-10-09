@@ -228,6 +228,7 @@ const E7 = (() => {
     req_title: "Community requests",
     req_status_shipped: "Shipped",
     req_status_planned: "Planned",
+    req_status_wip: "WIP",
     req_requested: "requested {d}",
     req_shipped: "shipped {d}",
     req_days: "{n} day{s}",

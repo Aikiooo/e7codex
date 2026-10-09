@@ -36,7 +36,7 @@ DIST = ROOT / "dist-requests"
 PROJECT = "e7codex-requests"
 BRANCH = "main"
 
-STATUSES = {"shipped", "planned"}
+STATUSES = {"shipped", "planned", "wip"}
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,60}$")
 FIELDS = {"id", "title", "status", "requested", "shipped", "link", "note"}
@@ -86,7 +86,7 @@ def validate(items) -> None:
             if ship < req:
                 fail(f"{where}: shipped {ship} is before requested {req}")
         elif ship is not None:
-            fail(f"{where}: status 'planned' must not carry a shipped date")
+            fail(f"{where}: status '{r['status']}' must not carry a shipped date")
 
         link = r.get("link")
         if link is not None:
@@ -135,9 +135,10 @@ def main() -> None:
     build(items)
 
     shipped = sum(1 for r in items if r["status"] == "shipped")
-    planned = len(items) - shipped
+    wip = sum(1 for r in items if r["status"] == "wip")
+    planned = len(items) - shipped - wip
     print(f"{len(items)} entr{'y' if len(items) == 1 else 'ies'} "
-          f"({shipped} shipped, {planned} planned) -> {DIST}")
+          f"({shipped} shipped, {wip} wip, {planned} planned) -> {DIST}")
 
     if args.dry_run:
         print("dry run — not deployed")
