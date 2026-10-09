@@ -6,6 +6,9 @@
     "hide_fx_token": "(?:[\\/_](?:particle|spark|smoke|flame|aura|glow|halo|flare|effect)(?:[\\d_\\/]|$))|(?:(?:^|[\\s\\/_])(?:eff|fx)[\\/_])"
   },
   "per_slug": {
+    "c1191_1": [
+      "^dragon/fire_ef_\\d+$"
+    ],
     "c1067_s02": [
       "^glo_\\d+$",
       "^spt(?:_\\d+(?:_\\d+)?)?$",
@@ -143,6 +146,12 @@
     ],
     "c2106": [
       "^FX_water\\d+$|^FX_bubble_\\d+$|^FX_particle_\\d+$|^FX_light_\\d+$|^FX_spear$|^back_ribbon_\\d+$|^light\\d+$|^Fx_water\\d+$|^fx_eye$|^FX_light_particle\\d*$|^bb_\\d+$|^light_main\\d*$|^jelly_body\\d*$|^jelly_\\d+$|^jelly_control_\\d+$|^bottom$|^F_coral_\\d+$"
+    ],
+    "c1168": [
+      "^bgbg"
+    ],
+    "c1192": [
+      "^bgbg"
     ]
   },
   "_alt_thumb_variants": {
