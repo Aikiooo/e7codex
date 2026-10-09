@@ -69,6 +69,12 @@ MANUAL_ARTIFACTS: dict[str, dict] = {
     "art0244": {"name": "Butterfly's Baptism", "rarity": 5, "role": "thief"},  # Rhianna & Luciella (c2185), released 2026-06-04
     "art0243": {"name": "Aubade Orb", "rarity": 5, "role": "ranger"},  # Aubade Ludwig (c5069), released 2026-06-11
     "art0241": {"name": "Refracted Desire", "rarity": 5, "role": "mage"},  # Eye of the Abyss Fumyr (c5147), released 2026-06-25
+    # art0247 (efa34) — Mei Lin (c1191), released 2026-10-08. text.db carries no
+    # efa34_name in ANY language this pack, so the name comes from the ceciliabot
+    # snapshot; the role comes from the game's own row (equip_item.db role column
+    # = 'assassin'), which overrides that snapshot's stale "warrior". DELETE once
+    # the game (or the community snapshot) supplies the name itself.
+    "art0247": {"name": "Flame Dragon's Jewel", "rarity": 5, "role": "assassin"},
 }
 
 # Artifacts to withhold from the public site because they belong to an unreleased
@@ -76,12 +82,11 @@ MANUAL_ARTIFACTS: dict[str, dict] = {
 # they carry no unit link in the game data). Their _fu/_l images are dropped from
 # site/assets/_artifacts so the deploy can't publish them. DELETE once the unit
 # releases (then the artifact surfaces automatically).
-UNRELEASED_ARTIFACTS: set[str] = {
-    # art0243 "Aubade Orb" released 2026-06-11 with Aubade Ludwig (c5069)
-    # art0245 "Intoxicating Indulgence" (Aube) — unheld 2026-07-18 with c5190;
-    #          public as ANNOUNCED until banner day (see ANNOUNCED below).
-    # art0249 Light and Darkness unheld 2026-09-02 with c5112 (ANNOUNCED until 9/3)
-}
+# (Nothing held as of 2026-10-08.) History: art0243 "Aubade Orb" released
+# 2026-06-11 (c5069); art0245 "Intoxicating Indulgence" released 2026-07-23
+# (c5190); art0249 "Light and Darkness" released 2026-09-03 (c5112); art0247
+# "Flame Dragon's Jewel" released 2026-10-08 (c1191).
+UNRELEASED_ARTIFACTS: set[str] = set()
 
 # Officially announced but not yet in gacha / fully live. Public on the site
 # with an ANNOUNCED badge (not NEW). When today >= `release` (ISO date), the
@@ -89,8 +94,10 @@ UNRELEASED_ARTIFACTS: set[str] = {
 # Match keys: unit base/id (c5190 covers c5190_1) and/or artifact art####.
 # Optional `video` = official kit/preview URL (shown on detail + artifact zoom).
 ANNOUNCED: dict[str, dict] = {
-    # c5190 Aube + art0245 released 2026-07-23 — entry dropped (NEW takes over).
-    # c5112 Uncharted Pioneer Politis + art0249 released 2026-09-03 — NEW.
+    # (Empty as of 2026-10-08.) History: c5190 Aube + art0245 released 2026-07-23;
+    # c5112 Uncharted Pioneer Politis + art0249 released 2026-09-03; Haru (c1192)
+    # released 2026-09-17; Renoa (c1193) + art0248 released 2026-09-23; Mei Lin
+    # (c1191) + art0247 released 2026-10-08.
 }
 
 # Manual unit base → signature art#### (keep in sync with
@@ -103,6 +110,9 @@ SIGNATURE_ARTIFACTS: dict[str, list[str]] = {
     "c2185": ["art0244"],  # Rhianna & Luciella — Butterfly's Baptism
     "c5190": ["art0245"],  # Aube — Intoxicating Indulgence
     "c5112": ["art0249"],  # Uncharted Pioneer Politis — Light and Darkness
+    "c1193": ["art0248"],  # Renoa — Sorrow of the Rose (unique new ranger ↔ art0248)
+    "c1192": ["art0246"],  # Haru — Custom-Made Power Anchor
+    "c1191": ["art0247"],  # Mei Lin — Flame Dragon's Jewel (efa34 5★ assassin exclusive)
     # Early covenant timeline mispairs (see tools/repair_artifact_owners.py):
     "c1023": ["art0109"],  # Kayron — Shepherd of the Hollow (NOT Celestine)
     "c1076": ["art0032"],  # Diene — Celestine (NOT Noble Oath)
@@ -704,11 +714,13 @@ def apply_announced_flags(units: dict, artifacts: list) -> int:
 
     for u in units.values():
         info = _announced_info_for(u.get("id") or "", u.get("base_id"))
-        if info:
+        # `{}` is a valid entry (announced, no extra metadata) — an empty dict is
+        # falsy, so test for None or an entry with no `release` silently never fires.
+        if info is not None:
             apply_one(u, info)
     for a in artifacts:
         info = _announced_info_for(a.get("id") or "", None)
-        if info:
+        if info is not None:
             apply_one(a, info)
     return n
 
