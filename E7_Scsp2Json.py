@@ -18,8 +18,8 @@ from typing import Any, Dict, List, Optional, Tuple, Set
 # ==============================
 # Config
 # ==============================
-INPUT_PATH = r"D:\Claude\E7\output\portrait"
-OUTPUT_PATH = r"D:\Claude\E7\yes"
+INPUT_PATH = r"D:\projects\e7codex\data\output\portrait"
+OUTPUT_PATH = r"D:\projects\e7codex\data\yes"
 
 
 IS_COMPRESS_JSON = True

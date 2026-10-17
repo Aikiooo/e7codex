@@ -27,7 +27,7 @@ try:
 except Exception:
     EFFECT = REPO.parent / "extracted_data" / "output" / "effect"
     if not EFFECT.is_dir():
-        EFFECT = Path(r"D:\Claude\E7\extracted_data\output\effect")
+        EFFECT = Path(r"D:\projects\e7codex\data\extracted_data\output\effect")
 
 
 def _z_of(prim: dict) -> float:

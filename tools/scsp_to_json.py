@@ -74,9 +74,9 @@ def convert_3_8(scsp: Path, out_json: Path) -> bool:
             if sib.exists(): shutil.copy2(sib, td_in / sib.name)
         # patch the two path constants
         patched = (src
-                   .replace('INPUT_PATH = r"D:\\Claude\\E7\\output\\portrait"',
+                   .replace('INPUT_PATH = r"D:\\projects\\e7codex\\data\\output\\portrait"',
                             f'INPUT_PATH = r"{td_in}"')
-                   .replace('OUTPUT_PATH = r"D:\\Claude\\E7\\yes"',
+                   .replace('OUTPUT_PATH = r"D:\\projects\\e7codex\\data\\yes"',
                             f'OUTPUT_PATH = r"{td_out}"'))
         patched_script = Path(td) / "_run.py"
         patched_script.write_text(patched, encoding="utf-8")

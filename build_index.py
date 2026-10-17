@@ -19,7 +19,7 @@ is the long-term source of truth, but no decoder exists publicly. See
 project_e7_db_encrypted memory note.
 
 Run:
-    python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site
+    python build_index.py --img D:/projects/e7codex/data/img_output --raw D:/projects/e7codex/data/output --out ./site
 """
 from __future__ import annotations
 import argparse, hashlib, html, json, os, re, shutil, sys

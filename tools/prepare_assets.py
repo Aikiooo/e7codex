@@ -19,7 +19,7 @@ from pathlib import Path
 
 THIS   = Path(__file__).resolve()
 REPO   = THIS.parents[1]                       # E7 Codex
-ROOT   = REPO.parent                           # D:\Claude\E7
+ROOT   = REPO.parent                           # D:\projects\e7codex\data
 SITE   = REPO / "site" / "assets"
 
 sys.path.insert(0, str(THIS.parent))

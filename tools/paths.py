@@ -10,10 +10,10 @@ set the keys in voice_keys.json and physically move the dirs once — no tool
 code changes needed:
 
     {
-      "dump_dir":  "D:/Claude/E7",
-      "raw_dir":   "D:/Claude/E7/extracted_data/output",
-      "img_dir":   "D:/Claude/E7/extracted_data/img_output",
-      "voice_dir": "D:/Claude/E7/extracted_data/_voice_work"
+      "dump_dir":  "D:/projects/e7codex/data",
+      "raw_dir":   "D:/projects/e7codex/data/extracted_data/output",
+      "img_dir":   "D:/projects/e7codex/data/extracted_data/img_output",
+      "voice_dir": "D:/projects/e7codex/data/extracted_data/_voice_work"
     }
 
 voice_keys.json is gitignored (bring-your-own); the committed
@@ -26,7 +26,7 @@ from pathlib import Path
 
 _TOOLS = Path(__file__).resolve().parent
 _REPO = _TOOLS.parent
-# Default dump dir = the folder that contains the repo (historically D:/Claude/E7).
+# Default dump dir = the folder that contains the repo (historically D:/projects/e7codex/data).
 _DEFAULT_DUMP = _REPO.parent
 
 _CFG_PATH = _TOOLS / "voice_keys.json"
