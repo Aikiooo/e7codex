@@ -7,7 +7,7 @@ a seamless WebM loop. Covers the c2185 (Rhianna & Luciella) case end-to-end, the
 `project-e7-intimacy-webm` (base bake recipe) — read this for the flower fix, 4.2.43, deploy.
 
 > **2026-07-27 — full catalog + lobby pipeline:** see
-> **`docs/REFERENCE_lobby_illust_pipeline.md`** for `recipes.json`, CFX z-order,
+> **`docs/reference/lobby_illust_pipeline.md`** for `recipes.json`, CFX z-order,
 > world0 lobby framing, deferred intro one-shots, batch bake ops, and **hosting
 > 100 MB+ WebMs on R2** (Pages is 25 MiB/file). Prefer that doc for new work;
 > this file keeps the c2185 deep-dive and 4.2.43 notes.
@@ -158,14 +158,14 @@ binary→JSON converter — TASKS #54).
    (pipeline/build_index.py ~L666). This is the cache-bust; without a fresh `?v` the CF edge serves the
    stale clip for ~4h (`max-age=14400`). `-SkipSync` skips build_index, so run it by hand:
    `python pipeline/build_index.py --img <IMG_DIR> --raw <RAW_DIR> --out ./site` (paths from `e7lib/config.py`).
-3. **`./deploy.ps1 -SkipSync -SkipR2`** — intimacy.webm is a Pages asset (NOT in the R2 manifest,
+3. **`python e7.py deploy -SkipSync -SkipR2`** — intimacy.webm is a Pages asset (NOT in the R2 manifest,
    which only globs `<slug>/<slug>.{json,atlas,png}` + combat), so skip R2; Step 2b leak gate still
    runs. Verify: `curl -sI https://e7codex.com/assets/<slug>/intimacy.webm?v=<mtime>` →
    `200`, right `content-length`, `cf-cache-status: MISS`.
 
 **Size cap:** Cloudflare Pages free plan is **25 MiB per file**. Current shipped intimacy
 WebMs are ~7–22 MB (OK). Anything larger (lobby HQ ~100 MB) must go to **R2**
-(`assets.e7codex.com`) — see `REFERENCE_lobby_illust_pipeline.md` § Hosting.
+(`assets.e7codex.com`) — see `lobby_illust_pipeline.md` § Hosting.
 
 ## Quality ceiling (don't chase this again)
 

@@ -9,5 +9,5 @@ keys and paths are read lazily, on first use.
     dbcrypto    YUNA/CDBM table reader, outer PLPcK XOR, cocos-XXTEA, text.db
     log         the shared `[HH:MM:SS] message` progress logger
 
-Nothing in here imports from `tools/` or `pipeline/build_index.py`.
+Nothing in here imports from `private/` or from a builder module.
 """

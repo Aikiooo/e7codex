@@ -4,7 +4,7 @@ This is a port of the game's own Lua (LuaJIT bytecode in game.bin, decrypted to
 <dump>/_game_re/game_bin_decrypted.bin), not a fit to captures. Every
 number below has a rank-1 source; proto indices are positions in that bundle's
 proto stream (tools: _game_re/_lj_disasm.py; extended reader used to find
-them: ktab/upvalue decoding, see docs/REFERENCE_bg_field.md).
+them: ktab/upvalue decoding, see docs/reference/bg_field.md).
 
 Chain, outermost first (cocos2d-x node semantics):
 

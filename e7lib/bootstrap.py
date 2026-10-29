@@ -2,7 +2,8 @@
 
 The tools import each other by module name (`import build_index`,
 `from scsp_to_json import convert`) rather than through a package path — that is
-what they did when they all lived in `tools/`, and it keeps the call sites
+what they did when they all lived flat in one directory, and it keeps the call
+sites
 unchanged. This puts the source directories on `sys.path` once, so any tool can
 be run as a script from any working directory.
 

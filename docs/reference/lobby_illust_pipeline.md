@@ -4,10 +4,10 @@
 `render/illust/`. Batch bake of the **active** (non-deferred) set is in
 progress / may be running. Framing for lobby packs is **world0** (rank-1
 `BASE_SCALE` ortho). Do not invent screenshot crop fractions (see
-`docs/GUIDELINES_exact_data.md`, skill `e7-exact-data`).
+`docs/reference/exact_data.md`, skill `e7-exact-data`).
 
 Related:
-- `docs/REFERENCE_intimacy_illustration.md` — historical intimacy notes (c2185 flowers, 4.2.43)
+- `docs/reference/intimacy_illustration.md` — historical intimacy notes (c2185 flowers, 4.2.43)
 - `render/illust/recipes.json` — machine-readable pack catalog
 - `s3_exact/docs/layout_constants.json` — `BASE_SCALE`, `WORLD_W0/H0`
 - Memory: `project-e7-intimacy-webm` (older hand recipes; prefer this doc + recipes.json)
@@ -273,7 +273,7 @@ Listed in recipes with `"deferred": true`. **Not** in the default bake set.
 | `vva5aa_lobby_intro` | Tori lobby intro stack (bg_b, char, bg_f, eff) |
 | `vva5aa_intro` | Tori illust intro only (`intro_b` / `intro_f`) |
 
-**c2185 / c6005 intro stop:** see `docs/REFERENCE_intimacy_illustration.md` § Deferred
+**c2185 / c6005 intro stop:** see `docs/reference/intimacy_illustration.md` § Deferred
 intimacy INTROS and `recipes.json` → `_meta.deferred_intimacy_intro`. Rejected
 artifacts: `render/illust/*_intro.rejected_2026-07-27.webm`.
 
@@ -319,7 +319,7 @@ Proven output: `_scratch/lobby_aube/aube_lobby_idle_hq.webm` (~107 MB @ 3840×
 
 1. `python finalize.py <slug> <idle.webm>` → `site/assets/<slug>/intimacy.webm`
 2. `python pipeline/build_index.py …` — appends `?v=<mtime>` cache-bust on intimacy URL
-3. `./deploy.ps1 -SkipSync -SkipR2` (intimacy is Pages-served **if under 25 MiB**)
+3. `python e7.py deploy -SkipSync -SkipR2` (intimacy is Pages-served **if under 25 MiB**)
 
 Frontend: `units.json` field `intimacy` ending in `.webm` → `<video autoplay loop muted>`.
 

@@ -575,7 +575,7 @@ const params = new URLSearchParams(location.search);
 const slug   = params.get("slug") || "";
 // ?rig=combat loads the skill-animation rig staged under <slug>/combat/.
 // Combat rigs carry skill1/skill2/skill3/run/knock_down/rise the lobby rig
-// lacks. v1: only the 3.8.99 subset is staged (see tools/prepare_combat_assets.py
+// lacks. v1: only the 3.8.99 subset is staged (see pipeline/prepare_combat_assets.py
 // and docs/TASKS.md "Combat rig live viewer").
 const rig    = params.get("rig") || "";
 const isCombat = rig === "combat";
@@ -703,7 +703,7 @@ function setupRigSwitcher(rigs) {
 // Permanently-excluded slot names per slug (broken/junk assets). Loaded once;
 // the rig success handler reads __slotExcludeNames for the current slug to
 // hide them on load and route them into the picker's "Excluded" section.
-// Same JSON the bake pipeline honours (tools/slot_excludes.js → render.html).
+// Same JSON the bake pipeline honours (render/slot_excludes.js → render.html).
 window.__slotExcludeNames = [];
 const _excludesReady = fetch("data/slot_excludes.json")
   .then(r => r.ok ? r.json() : {})
@@ -1551,7 +1551,7 @@ if (!slug) {
           setVview(vviewInput.checked && !!entry);
           if (vviewLabel) vviewLabel.hidden = !entry;
           if (packScene && entry) {
-            // The BAKED plate (tools/bg_field.py + render_bgfield.js): the game's
+            // The BAKED plate (render/bg/bg_field.py + render/bg/render_bgfield.js): the game's
             // own Hero View landscape frame — FIELD_NEW composition seen through
             // UIBackground's camera at this pack's bg_scale / bg_position — so it
             // is exactly 16:9 and fills the stage with no crop. The character
@@ -1596,7 +1596,7 @@ if (!slug) {
 
 // ---------------------------------------------------------------------------
 // Skill-FX compositing (TASKS #58). Combat rigs ship a .timeline cue sheet
-// (compiled to combat/fx/cues.json by tools/prepare_fx_assets.py) that spawns
+// (compiled to combat/fx/cues.json by pipeline/prepare_fx_assets.py) that spawns
 // the skill's Spine EFFECT rigs at authored times: each cue's primitives are
 // separate spine-players in stacked .fx-layer divs (z<0 behind the character,
 // z>=0 in front), sharing the character's exact viewport so world coordinates
@@ -3359,7 +3359,7 @@ function loadCharacter(bgViewport) {
         // setup alpha=0 on face slots is intentional blink hide/swap — leave it.
         //
         // Broken-by-design rigs (face only in expression skins) still auto-pick
-        // an expression for resting; see tools/audit_skins.py.
+        // an expression for resting; see render/audit_skins.py.
         const data = p.skeleton.data;
         const EXPR_ORDER = ["smile", "angry", "panic", "sad", "special"];
         const CRIT_SLOT_RE  = /^(face|head|head2|eye[A-Z]?|mouth|lip|brow|eyebrow|nose|normal|normal\/normal|face\/face|head\/head)$/;

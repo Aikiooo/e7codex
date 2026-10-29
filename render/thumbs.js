@@ -50,7 +50,7 @@ const RENDER_DSR    = 1;             // CSS stage size drives fidelity, not DSR
 const DEFAULT_THRESHOLD = 10;
 
 // Per-slug overrides. Identical shape to the table that used to live in
-// tools/compute_trim_data.js — see that file's history for tuning notes.
+// the retired compute_trim_data.js — see that file's history for tuning notes.
 //   N                      sharp.trim with threshold N
 //   { threshold, alphaOnly:true }       pure alpha-channel bbox (for colored
 //                                       near-transparent fx whose RGB defeats
@@ -86,7 +86,7 @@ function resolveTrim(slug) {
 }
 
 // Alpha-channel bounding box on a raw RGBA buffer. Mirrors the implementation
-// previously in tools/compute_trim_data.js — we need it here because some
+// previously in the retired compute_trim_data.js — we need it here because some
 // SLUG_THRESHOLDS entries set alphaOnly:true (colored fx that sharp.trim's
 // color-distance metric can't separate from the character).
 async function alphaBbox(buf, alphaThreshold, percentile = 1.0) {

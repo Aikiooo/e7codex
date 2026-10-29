@@ -2,7 +2,7 @@
 
 Recovered 2026-10-09 from the game's own Lua (LuaJIT bytecode,
 `game_bin_decrypted.bin`). Rank-1 provenance throughout
-(see `docs/GUIDELINES_exact_data.md` in the dump tree); nothing here was
+(see `docs/reference/exact_data.md`); nothing here was
 measured from a capture. Captures were used only for human A/B.
 
 This **supersedes** the framing in `render/bg/render_backgrounds.js` (`bestWindow()`

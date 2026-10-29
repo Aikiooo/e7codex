@@ -28,10 +28,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Spline+Sans+Mono:wght@400;500&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
 <!-- E7's .scsp is a custom container around LZ4-compressed Spine 3.8.99 (newer rigs)
      or 2.1.27 (older rigs) binary, with the texture as a separate .sct (also LZ4 +
-     RGB565/ASTC). We bake static PNG poses ahead of time via tools/ and a deploy-
+     RGB565/ASTC). We bake static PNG poses ahead of time via render/ and a deploy-
      friendly live viewer at viewer.html?slug=<id> uses spine-player on the same
      converted assets in assets/<id>/. Names + ceciliabot kebab slugs come from
-     two community-maintained JSONs that build_index.py merges into units.json. -->
+     two community-maintained JSONs that pipeline/build_index.py merges into units.json. -->
 <style>
   :root{--ink:#0c0d12;--ink-2:#13141d;--panel:#171826;--line:#2a2c3f;
     --gold:#d8b06a;--gold-dim:#9a824e;--teal:#6fd6c4;--text:#e7e5dd;
@@ -586,7 +586,7 @@
   .frame-faces-row button{background:var(--ink-2);border:1px solid var(--line);padding:0;border-radius:3px;cursor:pointer;width:44px;height:44px;overflow:hidden}
   .frame-faces-row button img{width:100%;height:100%;object-fit:cover;display:block}
   .frame-faces-row button.on{border-color:var(--gold-dim);box-shadow:0 0 0 1px var(--gold-dim)}
-  /* Region 2 — tools/cats fixed; grid is the main scroll region */
+  /* Region 2 — toolbar fixed; grid is the main scroll region */
   .frame-pick-col{padding:14px 16px 18px;display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden}
   .frame-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:0 0 auto}
   .frame-tools input{flex:1;min-width:140px;background:var(--ink-2);border:1px solid var(--line);color:var(--text);padding:8px 11px;border-radius:3px;font-family:'Spline Sans Mono',monospace;font-size:12px}
@@ -1139,7 +1139,7 @@ let kindF = "all", searchQ = "", currentVariant = "", wpCatF = "all";
 let bgQ = "", bgSort = "az";
 // Hub sort mode: "timeline" (default — by release date, newest first) or "az"
 // (alphabetical by hero name). Persisted per browser; release dates come from
-// units.json `released` (baked from timeline/timeline.json by build_index.py).
+// units.json `released` (baked from timeline/timeline.json by pipeline/build_index.py).
 let sortMode = "timeline";
 try { const s = localStorage.getItem("hub_sort"); if (s === "timeline" || s === "az") sortMode = s; } catch (_) {}
 // Skill-3 full-clip feature (TASKS #57) is WIP — kept LOCAL-ONLY by host gate:
@@ -1175,7 +1175,7 @@ const dataJson = (url, fallback) =>
 
 // Community requests overlay (#/about/requests). Published to its own Pages
 // project so editing the list never needs a full site deploy
-// (tools/publish_requests.py); bundled data/community_requests.json is the
+// (ops/publish_requests.py); bundled data/community_requests.json is the
 // fallback. Loaded lazily when the overlay opens.
 const REQUESTS_URL = "https://e7codex-requests.pages.dev/requests.json";
 let REQUESTS = null;              // null until loaded; [] means loaded + empty
@@ -1242,7 +1242,7 @@ async function load() {
         dataJson("data/wallpaper_chars.json", { links: {} }),
       ]);
     // Wallpaper <-> character links (story scenes, side stories, summon banners, event casts --
-    // all read from the game's own tables by tools/build_wallpaper_chars.py).
+    // all read from the game's own tables by pipeline/wallpaper_chars.py).
     WP_CHARS = new Map(Object.entries((wpChars && wpChars.links) || {}));
     UNIT_WPS = new Map();
     for (const [stem, lst] of WP_CHARS) for (const c of lst || []) {
@@ -1444,7 +1444,7 @@ function card(group) {
 }
 
 // applyTrimCrop — called from hub card <img onload> and after hub() re-renders.
-// Reads pre-baked trim fractions from data-trim (build_index.py copies them
+// Reads pre-baked trim fractions from data-trim (pipeline/build_index.py copies them
 // out of the per-slug pose_trim.json sidecars; the tool that originally baked
 // those sidecars has been retired — slugs without one simply render with the
 // image's natural framing). No canvas scan — zero GPU/CPU cost.
@@ -2028,7 +2028,7 @@ function updates() {
   }
   labels.sort((a, b) => {
     // Newest first: prefer the explicit `year` field on each entry (derived
-    // from the codename's year-digit in build_index.py); fall back to a year
+    // from the codename's year-digit in pipeline/build_index.py); fall back to a year
     // baked into the label (legacy KNOWN_UPDATES "Summer 2025" shape) so any
     // stale data still sorts sensibly. Equal years -> alphabetical.
     const yearOf = (label) => {
@@ -3459,7 +3459,7 @@ function wallpapers() {
 
 // Battle / stage backgrounds. Unlike the Wallpapers stills (which are single
 // flat images already shipped by the game), these are REBUILT scenes: a stage
-// is a stack of Spine layers (tools/bg_stage.py merges them into one skeleton,
+// is a stack of Spine layers (render/bg/bg_stage.py merges them into one skeleton,
 // render/bg/render_backgrounds.js bakes the union to a PNG). Cell art is the
 // 480 px thumb; the lightbox opens the 1600 px still.
 function backgrounds() {
