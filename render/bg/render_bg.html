@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>background renderer</title>
+<link rel="stylesheet" href="../vendor/spine-player.css">
+<script src="../vendor/spine-player.js"></script>
+<style>
+  /* Stage CSS pixels drive the spine-player WebGL backing buffer (spine-player
+     sets canvas.width = clientWidth; it does NOT multiply by devicePixelRatio),
+     so the CSS size IS the render resolution. 4096x2304 = 9.4M pixels, well
+     under Chromium's ~33M RGBA8 framebuffer cap. Backgrounds are wider than
+     16:9 more often than not, so fitting by width here keeps the full
+     composition; the transparent letterbox is trimmed by the driver. */
+  html,body{margin:0;padding:0;background:transparent}
+  #stage{width:4096px;height:2304px;background:transparent}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+  // ?name=<bg> loads site/assets/_bg_src/<name>/<name>.{json,atlas,png} — a
+  // background stack already merged into ONE skeleton by render/bg/bg_stage.py
+  // (slot order == draw order), so this page needs none of render.html's
+  // skin/face rigmarole: apply the default skin, freeze the idle track on its
+  // first frame, screenshot.
+  const params = new URLSearchParams(location.search);
+  const name   = params.get("name");
+  const dir    = `../../site/assets/_bg_src/${name}/`;
+  window.__bgState = { name, ready: false, error: null, bounds: null, slots: 0 };
+
+  function start() {
+    if (!name) { window.__bgState.error = "missing ?name="; return; }
+    new spine.SpinePlayer("stage", {
+      jsonUrl: dir + name + ".json",
+      atlasUrl: dir + name + ".atlas",
+      backgroundColor: "#00000000",
+      alpha: true,
+      premultipliedAlpha: true,
+      showControls: false,
+      // Absolute (not percentage) padding: because every layer of the stack was
+      // authored against one shared origin, the auto-fit viewport is computed
+      // from the union of all slots — which IS the background's real frame.
+      viewport: { padLeft: 0, padRight: 0, padTop: 0, padBottom: 0, transitionTime: 0 },
+      success: (p) => {
+        const anims = p.skeleton.data.animations.map(a => a.name);
+        window.__bgState.anims = anims;
+        window.__bgState.slots = p.skeleton.slots.length;
+        const pick = anims.find(n => /idle|wait|stand/i.test(n)) || anims[0];
+        if (pick) {
+          p.setAnimation(pick);
+          // Pin the first frame so the still is deterministic (and lands on the
+          // authored rest state rather than a random point in a light loop).
+          try {
+            const st = p.animationState;
+            const e0 = st && st.tracks && st.tracks[0];
+            if (e0) { e0.trackTime = 0; st.timeScale = 0; st.apply(p.skeleton); p.skeleton.updateWorldTransform(); }
+          } catch (_) { /* keep the live frame */ }
+        }
+        const v = p.currentViewport || {};
+        window.__bgState.bounds = (typeof v.width === "number")
+          ? { x: v.x, y: v.y, w: v.width, h: v.height } : null;
+
+        const gl = p.context.gl;
+        const el = document.getElementById("stage");
+        if (gl.drawingBufferWidth !== el.clientWidth || gl.drawingBufferHeight !== el.clientHeight) {
+          window.__bgState.error = `GL framebuffer capped: ${gl.drawingBufferWidth}x${gl.drawingBufferHeight}`
+            + ` != stage ${el.clientWidth}x${el.clientHeight}`;
+          return;
+        }
+        let n = 0;
+        const settle = () => { if (n++ < 4) requestAnimationFrame(settle); else window.__bgState.ready = true; };
+        requestAnimationFrame(settle);
+      },
+      error: (_p, msg) => { window.__bgState.error = String(msg); },
+    });
+  }
+  start();
+</script>
+</body>
+</html>

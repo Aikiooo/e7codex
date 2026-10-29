@@ -25,7 +25,7 @@ Fleet counts across 505 `skill_03` graphs:
 | Channel | Node (count) | Authored fields |
 |---|---|---|
 | **Camera** | `CAM` (2256), `ZOOM` (2402), `MOVE` (300), `SHAKE` (734) | location enum, x/y, **absolute scale 0.6–2.0**, cubic-bezier `curve` ("c1x,c1y,c2x,c2y"), tween `time` ms; SHAKE → a real camera Spine rig |
-| **Camera rigs** | `output/camera/*_cm.scsp` (1677 files, 708/708 SHAKE sources resolve) | bones `[root, camera]` with a **per-frame `camera` translate timeline** — the literal camera path (estelle finale = ±100u shake waveform). Convert today with `tools/scsp_to_json.py`. |
+| **Camera rigs** | `output/camera/*_cm.scsp` (1677 files, 708/708 SHAKE sources resolve) | bones `[root, camera]` with a **per-frame `camera` translate timeline** — the literal camera path (estelle finale = ±100u shake waveform). Convert today with `convert/scsp_to_json.py`. |
 | **Scene director** | `LAYOUT` (737), `BGSHOW` (812), `DARK` (515), `COLOR_BLEND` (937), `BGHATCH` (119) | field on/off/restore, `alone` isolate-caster; fullscreen fade color/opacity/fadeIn/fadeOut/z; team tint; speed-lines |
 | **Post-process** | `PPEFFECT` (278: `sprite_blur`×275, `sprite_invert`×3) + `SINE_VALUE` (275 on `u_range`) | GLSL program name + direction_x/y, u_sample (samples), u_range (radius) oscillated by SINE |
 | **Content** | `ANI`/`ANI_SCOPE`, `EFFECT`/`HIT`, `CUTIN` (407), `NODE_ANI` (442) | spine anim + event scoping, FX spawns, cut-in webp + curtain, node-graph sub-anims |

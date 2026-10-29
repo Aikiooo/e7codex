@@ -1,4 +1,4 @@
-"""Regression tests for tools/bg_stage.py's pure helpers.
+"""Regression tests for render/bg/bg_stage.py's pure helpers.
 
 The background pipeline leans on three things that are easy to break silently:
 the underscore-insensitive name kinship that claims a layer for its scene, the
@@ -16,7 +16,11 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from tools.bg_stage import (  # noqa: E402
+from e7lib.bootstrap import add_source_dirs  # noqa: E402
+
+add_source_dirs(REPO)
+
+from bg_stage import (  # noqa: E402
     _lead_token,
     _norm,
     _subseq,

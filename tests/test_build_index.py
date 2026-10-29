@@ -1,4 +1,4 @@
-"""Regression tests for build_index.py's pure helpers and data-layering rules.
+"""Regression tests for pipeline/build_index.py's pure helpers and data-layering rules.
 
 These cover the invariants that have historically been easy to break silently:
 variant-suffix ordering, the `_1` extra peeling, name-source precedence, and
@@ -14,6 +14,10 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+
+from e7lib.bootstrap import add_source_dirs  # noqa: E402
+
+add_source_dirs(REPO)
 
 from build_index import (  # noqa: E402
     CODE_RE,
@@ -183,12 +187,12 @@ def test_load_artifact_db_layering(tmp_path):
     assert "_id" not in db["art0200"]
 
 
-# ── leak-gate slug matching (tools/sync_pack.py) ──────────────────────────────
+# ── leak-gate slug matching (the sync orchestrator) ─────────────────────────
 
 def test_is_unreleased_matches_costumes():
-    # sync_pack.py is not part of the public mirror — skip there.
-    sys.path.insert(0, str(REPO / "tools"))
-    sync_pack = pytest.importorskip("sync_pack")
+    # The sync orchestrator is not part of the public mirror — skipped there.
+    sys.path.insert(0, str(REPO / "private" / "ingest"))
+    sync_pack = pytest.importorskip("sync")
     is_unreleased = sync_pack.is_unreleased
     unrel = {"c6023"}
     assert is_unreleased("c6023", unrel)

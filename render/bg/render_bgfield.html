@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>bg field renderer</title>
+<link rel="stylesheet" href="../vendor/spine-player.css">
+<script src="../vendor/spine-player.js"></script>
+<style>
+  html,body{margin:0;padding:0;background:transparent}
+  #stage{background:transparent}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+  // ?name=<pack>__<mode>&q=<px per design unit>
+  // Loads site/assets/_bg_field/<name>/ (render/bg/bg_field.py). The camera is the
+  // game's own window (frame.json), passed to spine-player as an EXPLICIT
+  // viewport with zero padding — no auto-fit, no crop search. The stage's CSS
+  // size is the backing-buffer size (spine-player ignores devicePixelRatio).
+  const params = new URLSearchParams(location.search);
+  const name = params.get("name");
+  const q = parseFloat(params.get("q") || "1");
+  const dir = `../../site/assets/${params.get("src") || "_bg_field"}/${name}/`;
+  window.__bgState = { name, ready: false, error: null };
+
+  fetch(dir + "frame.json").then(r => r.json()).then(meta => {
+    const win = meta.window;
+    const el = document.getElementById("stage");
+    el.style.width = Math.round(win.width * q) + "px";
+    el.style.height = Math.round(win.height * q) + "px";
+    window.__bgState.window = win;
+    new spine.SpinePlayer("stage", {
+      jsonUrl: dir + name + ".json",
+      atlasUrl: dir + name + ".atlas",
+      backgroundColor: "#00000000",
+      alpha: true,
+      premultipliedAlpha: true,
+      showControls: false,
+      animation: "idle",
+      viewport: { x: win.x, y: win.y, width: win.width, height: win.height,
+                  padLeft: 0, padRight: 0, padTop: 0, padBottom: 0, transitionTime: 0 },
+      success: (p) => {
+        try {
+          // The game starts each model at a random idle time; pin t=0 so the
+          // bake is deterministic (documented gap, not a fit).
+          const st = p.animationState, e0 = st && st.tracks && st.tracks[0];
+          if (e0) { e0.trackTime = 0; st.timeScale = 0; st.apply(p.skeleton); p.skeleton.updateWorldTransform(); }
+        } catch (_) {}
+        const gl = p.context.gl;
+        if (gl.drawingBufferWidth !== el.clientWidth || gl.drawingBufferHeight !== el.clientHeight) {
+          window.__bgState.error = `GL framebuffer ${gl.drawingBufferWidth}x${gl.drawingBufferHeight}`
+            + ` != stage ${el.clientWidth}x${el.clientHeight}`;
+          return;
+        }
+        const v = p.currentViewport || {};
+        window.__bgState.viewport = { x: v.x, y: v.y, w: v.width, h: v.height };
+        let n = 0;
+        const settle = () => { if (n++ < 4) requestAnimationFrame(settle); else window.__bgState.ready = true; };
+        requestAnimationFrame(settle);
+      },
+      error: (_p, msg) => { window.__bgState.error = String(msg); },
+    });
+  }).catch(e => { window.__bgState.error = String(e); });
+</script>
+</body>
+</html>

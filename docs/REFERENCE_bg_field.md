@@ -1,11 +1,11 @@
-# Exact Hero View background plates (`tools/bg_field.py`)
+# Exact Hero View background plates (`render/bg/bg_field.py`)
 
 Recovered 2026-10-09 from the game's own Lua (LuaJIT bytecode,
-the decrypted `game.bin` bundle). Rank-1 provenance throughout — game data
-only; nothing here was measured
-from a capture. Captures were used only for human A/B.
+`game_bin_decrypted.bin`). Rank-1 provenance throughout
+(see `docs/GUIDELINES_exact_data.md` in the dump tree); nothing here was
+measured from a capture. Captures were used only for human A/B.
 
-This **supersedes** the framing in `tools/render_backgrounds.js` (`bestWindow()`
+This **supersedes** the framing in `render/bg/render_backgrounds.js` (`bestWindow()`
 largest-painted-16:9 search, `packWindow()` cover-fit). That approach is a
 content-follow heuristic, which the exact-data rules ban as a camera. Keep it
 only for the (removed) gallery tab's history.
@@ -13,10 +13,10 @@ only for the (removed) gallery tab's history.
 ## Pipeline
 
 ```
-python tools/bg_field.py                 # stage every pack, both modes -> site/assets/_bg_field/
-python tools/bg_field.py ma_bg_epi5_1    # one pack
-node   tools/render_bgfield.js           # bake -> site/assets/_bg_field_out/<id>__<mode>.webp
-python tools/bg_field.py --frames        # site/data/bg_frames.json for viewer.html's picker
+python render/bg/bg_field.py                 # stage every pack, both modes -> site/assets/_bg_field/
+python render/bg/bg_field.py ma_bg_epi5_1    # one pack
+node   render/bg/render_bgfield.js           # bake -> site/assets/_bg_field_out/<id>__<mode>.webp
+python render/bg/bg_field.py --frames        # site/data/bg_frames.json for viewer.html's picker
 ```
 
 `render_bgfield.js` resumes (skips baked plates; `--force` re-bakes) and reports
@@ -33,8 +33,8 @@ Proto indices are positions in the bundle's proto stream as yielded by
 `_game_re/_lj_disasm.iter_protos` (it recurses into nested chunks; it matches
 `_lj_protos.pkl` 1:1). The stock disassembler doesn't decode `TDUP` table
 constants or upvalue refs. The extended reader used for this
-(ktab decode, `uv` refs, parent tree built from the post-order dump) was a
-throwaway script and is not shipped. To rebuild it: parse each proto again at
+(ktab decode, `uv` refs, parent tree built from the post-order dump) lives in
+the session scratchpad as `ljx.py`. To rebuild it: parse each proto again at
 `abs_off` **in its own (possibly nested) buffer**, and decode KGC tag 1 tables
 as `narray, nhash` + `ktabk` items (tag 0 nil, 1 false, 2 true, 3 int, 4 num,
 ≥5 string). Note `pr['kgc']` from `_lj_disasm` is already **reversed**

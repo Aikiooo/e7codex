@@ -1,4 +1,4 @@
-# REFERENCE — Animated intimacy illustration pipeline (`tools/_illust_spike/`)
+# REFERENCE — Animated intimacy illustration pipeline (`render/illust/`)
 
 How the animated intimacy illustrations (`site/assets/<slug>/intimacy.webm`, the looping
 idle on a hero detail page) are built: multi-layer Spine effect rigs composited and baked to
@@ -32,7 +32,7 @@ In-game the intimacy screen is a stack of Spine effect rigs in
 (`_a`/`_b` are the two characters). `.scsp` + `.atlas` + `.sct`, same envelope as every
 other rig. `decode_sct` is version-agnostic → textures always decode.
 
-## The compositing pipeline (all in `tools/_illust_spike/`)
+## The compositing pipeline (all in `render/illust/`)
 
 **Orchestrator (preferred):** `pipeline_illust.py` + `recipes.json` + `cfx_order.py`.
 Catalogs every former pack (c1153 / c2066 / c2181 / c2185 / c6005 intimacy +
@@ -41,15 +41,15 @@ Catalogs every former pack (c1153 / c2066 / c2181 / c2185 / c6005 intimacy +
 `list` / `dry-run` never bake — only `still` / `bake` / `full` start renders.
 
 ```
-python tools/_illust_spike/pipeline_illust.py list
-python tools/_illust_spike/pipeline_illust.py dry-run          # plan only
-# python tools/_illust_spike/pipeline_illust.py full           # when ready
+python render/illust/pipeline_illust.py list
+python render/illust/pipeline_illust.py dry-run          # plan only
+# python render/illust/pipeline_illust.py full           # when ready
 ```
 
 Encode env (shared via `encode_ffmpeg.js`): `E7_VP9_CPU_USED=2` (default, much
 faster than libvpx’s 0), optional `E7_ENCODER=av1_amf` for AMD hardware previews.
 
-1. **`stage_layers.py <base> <stem…>`** — `.scsp→json` (via `tools/scsp_to_json.py`), copy
+1. **`stage_layers.py <base> <stem…>`** — `.scsp→json` (via `convert/scsp_to_json.py`), copy
    `.atlas` (rewriting the `.sct` page line to `.png`), decode `.sct→.png`. Auto-premultiplies
    ONLY straight-alpha FX pages (detects per page; idempotent). Output → `c2185/<stem>.{json,atlas,png}`.
 2. **`rec.html`** — loads every layer as a spine-player 3.8 canvas in z-order, exposes
@@ -154,10 +154,10 @@ binary→JSON converter — TASKS #54).
 ## Deploying an updated `intimacy.webm`
 
 1. Re-bake + stage over `site/assets/<slug>/intimacy.webm` (back up the old one OUTSIDE `site/`).
-2. **Re-run `build_index.py`** — it appends `?v=<file mtime>` to the intimacy URL in `units.json`
-   (build_index.py ~L666). This is the cache-bust; without a fresh `?v` the CF edge serves the
+2. **Re-run `pipeline/build_index.py`** — it appends `?v=<file mtime>` to the intimacy URL in `units.json`
+   (pipeline/build_index.py ~L666). This is the cache-bust; without a fresh `?v` the CF edge serves the
    stale clip for ~4h (`max-age=14400`). `-SkipSync` skips build_index, so run it by hand:
-   `python build_index.py --img <IMG_DIR> --raw <RAW_DIR> --out ./site` (paths from `tools/paths.py`).
+   `python pipeline/build_index.py --img <IMG_DIR> --raw <RAW_DIR> --out ./site` (paths from `e7lib/config.py`).
 3. **`./deploy.ps1 -SkipSync -SkipR2`** — intimacy.webm is a Pages asset (NOT in the R2 manifest,
    which only globs `<slug>/<slug>.{json,atlas,png}` + combat), so skip R2; Step 2b leak gate still
    runs. Verify: `curl -sI https://e7codex.com/assets/<slug>/intimacy.webm?v=<mtime>` →
@@ -192,7 +192,7 @@ repo. Rejected artifacts were renamed:
 | c6005 | `c6005_intro.rejected_2026-07-27.webm`, `c6005_intro_still.rejected_2026-07-27.png` |
 
 Recipes: `deferred: true` on both packs. Catalog pointer:
-`tools/_illust_spike/recipes.json` → `_meta.deferred_intimacy_intro`.
+`render/illust/recipes.json` → `_meta.deferred_intimacy_intro`.
 
 **Do not** re-bake, ship, or `finalize` intros until engine camera + screen-space FX are
 modeled correctly (not approximate hacks). Idle intimacy work is separate

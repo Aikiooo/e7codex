@@ -7,11 +7,11 @@ auditable.
 
 ## SCSP → Spine JSON converters
 
-- **`epic7_scsp2json_v1_0/`** — Epic7 scsp2json v1.0 (handles the 2.1.27 `.scsp`
+- **`convert/vendor/epic7_scsp2json_v1_0/`** — Epic7 scsp2json v1.0 (handles the 2.1.27 `.scsp`
   format). Community converter from the e7herder ecosystem
   (https://github.com/zklm/e7herder-issues). Vendored verbatim, then patched
   in-tree for combat-rig support and spine-player 3.8 compatibility.
-- **`E7_Scsp2Json.py`** — Epic Seven 3.8.99 `.scsp` → JSON converter by
+- **`convert/vendor/E7_Scsp2Json.py`** — Epic Seven 3.8.99 `.scsp` → JSON converter by
   **Twistzz**. Source: https://live2dhub.com/t/topic/5799 ·
   https://github.com/violet-wdream/.Scripts (`Games/Yuna/E7/E7_Scsp2Json.py`).
   Vendored verbatim, then patched in-tree.
@@ -22,7 +22,7 @@ auditable.
   slugs, and the deep links throughout the site come from these public datasets.
 - **epic7rtastats.com** — hero metadata fallback for the most recent releases.
 - **EpicSevenAssetRipper** (https://github.com/CeciliaBot/EpicSevenAssetRipper)
-  — raw asset extraction from the game client. `tools/decode_sct.py` is a
+  — raw asset extraction from the game client. `convert/decode_sct.py` is a
   standalone port of its `.sct` texture decoder. The upstream project states no
   explicit license; the port is included here with attribution and will be
   removed at the author's request.
@@ -52,7 +52,7 @@ vendored verbatim.
 
 - **vgmstream** (https://github.com/vgmstream/vgmstream) — decodes the FMOD
   audio banks into WAV. GPL/ISC-licensed; **not redistributed here**. The setup
-  step downloads a release build into `tools/vendor/vgmstream/`.
+  step downloads a release build into `pipeline/vendor/vgmstream/`.
 - **FFmpeg** (https://ffmpeg.org) — re-encodes the decoded WAV to OGG Vorbis.
   Used as an external command; install it yourself and ensure it's on `PATH`.
 

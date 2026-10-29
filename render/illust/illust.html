@@ -1,0 +1,52 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="spine-player.css">
+<style>
+  html,body{margin:0;background:#13141d}
+  #wrap{position:relative;width:1200px;height:1500px}
+  .layer{position:absolute;left:0;top:0;width:1200px;height:1500px}
+  .layer .spine-player{background:transparent!important}
+  .layer canvas{background:transparent!important}
+</style></head><body>
+<div id="wrap"></div>
+<script src="spine-player.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const base   = params.get("base") || "c1153";
+// back-to-front z-order, comma separated stems
+const order  = (params.get("order") || "").split(",").filter(Boolean);
+const baseStem = "uieff_illust_" + base;
+const wrap = document.getElementById("wrap");
+window.__ready = false; window.__err = [];
+
+function mk(stem, z, viewport) {
+  return new Promise((res) => {
+    const div = document.createElement("div");
+    div.className = "layer"; div.style.zIndex = z; div.id = "L_" + stem;
+    wrap.appendChild(div);
+    const cfg = {
+      jsonUrl: `${base}/${stem}.json`, atlasUrl: `${base}/${stem}.atlas`,
+      animation: "animation", premultipliedAlpha: true, alpha: true,
+      backgroundColor: "#00000000", showControls: false,
+      success: (p) => res(p),
+      error: (p, e) => { window.__err.push(stem + ": " + e); res(null); },
+    };
+    if (viewport) cfg.viewport = { x: viewport.x, y: viewport.y,
+      width: viewport.width, height: viewport.height,
+      padLeft: 0, padRight: 0, padTop: 0, padBottom: 0 };
+    new spine.SpinePlayer(div, cfg);
+  });
+}
+
+(async () => {
+  // Load the base character rig first (auto-fit) to capture its world viewport,
+  // then load every layer with that exact viewport so they all align.
+  const zBase = order.indexOf(baseStem);
+  const bp = await mk(baseStem, zBase < 0 ? 1 : zBase, null);
+  const vp = bp && bp.currentViewport ? { ...bp.currentViewport } : null;
+  for (let i = 0; i < order.length; i++) {
+    if (order[i] === baseStem) continue;
+    await mk(order[i], i, vp);
+  }
+  window.__ready = true;
+})();
+</script></body></html>

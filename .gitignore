@@ -3,24 +3,34 @@
 # Bring your own extracted assets; the pipeline populates these directories.
 # ─────────────────────────────────────────────────────────────────────────
 site/assets/
-# Ignore generated game data, EXCEPT the two hand-authored tooling config files
-# (slot-name strip/exclude patterns — not game content; the bake + viewer need
-# them). `site/data/*` (not `site/data/`) so the `!` re-includes can take effect.
-site/data/*
-!site/data/strip_patterns.json
-!site/data/slot_excludes.json
-!site/data/community_requests.json
 site/og-card.png
 *.scsp
 *.sct
 *.atlas
 *.spine
+*.pack
+*.ssra
+*.ssrc
+*.bank
+manifest.ssra
+/chunks/
+/data/
+
+# Ignore generated game data, EXCEPT the hand-authored tooling config files
+# (slot-name strip/exclude patterns + the community-requests feed — not game
+# content; the bake + viewer need them). `site/data/*` (not `site/data/`) so the
+# `!` re-includes can take effect.
+site/data/*
+!site/data/strip_patterns.json
+!site/data/slot_excludes.json
+!site/data/community_requests.json
 
 # Cached third-party runtime — fetch from Esoteric on setup (see README)
 spine-player.js
 spine-player.css
 **/spine-player.js
 **/spine-player.css
+render/illust/_spine43_patched.js
 
 # Community datasets — fetch your own (see README / CREDITS.md)
 data_external/
@@ -28,64 +38,66 @@ HeroDatabase.json
 HeroSkins.json
 HeroNames_rtastats.json
 
-# Deploy / infra artifacts & logs
+# Deploy / infra artifacts & logs (not part of this repo)
 *.log
 r2_files.txt
 .wrangler/
 cors_rules.json
+wrangler.jsonc
+functions/
+migrations/
+dist-requests/
+
+# Private tree: key material, local config, anything you keep out of the repo.
+# `voice_keys.json` (the bring-your-own config + keys) lives in here.
+private/
+tools/voice_keys.json
+*.bin
+*.pass
 
 # Reverse-engineering artifacts (game-derived — do not publish)
-*.bin
-tools/Dump*.java
+*.java
 _game_re/
-
-# Decryption key material — NEVER commit. Bring your own (see README).
-# *.bin above already covers the outer-XOR key file.
-*.pass
-tools/voice_keys.json
 
 # Voice pipeline — game-derived audio + the FSB5 decoder (fetched, not vendored)
 site/voice/
 site/data/voices.json
 site/data/voices_audio.json
 _voice_work/
-tools/vendor/vgmstream/
+pipeline/vendor/vgmstream/
+
+# Illust/lobby bake: local staging, recipes and probes (this repo ships the code)
+render/illust/recipes.json
+render/illust/sanctuary_stills/
+render/illust/_frames*/
+render/illust/_r2_illust_stage/
+render/illust/_scratch/
+render/illust/*.png
+render/illust/*.webm
+render/illust/*.jpg
+render/illust/flowerseq.*
+render/illust/probe_*.js
+render/illust/_probe_*.js
+site/assets/_illust/
+# Catalog is local/private deploy data (unit slugs + event titles)
+site/data/lobby_anims.json
+
+# Background bake scratch (merged skeletons, plate intermediates)
+render/bg/_scene_compare/
+site/assets/_bg_src/
+site/assets/_bg/
+site/assets/_bg_field/
+site/assets/_bg_packs/
 
 # Python / Node
 __pycache__/
 *.pyc
 node_modules/
+.pytest_cache/
 
 # Local scratch
 _*.json
 _archive/
 .spike/
 _combat_backup_*/
-ml_candidate_map.txt
-
-# Lobby/illust bake spike: pipeline code only (no recipes/frames/probes/assets)
-tools/_illust_spike/*
-!tools/_illust_spike/*.py
-!tools/_illust_spike/*.js
-!tools/_illust_spike/*.html
-!tools/_illust_spike/*.md
-# Re-ignore diagnostics even when *.js is allow-listed
-tools/_illust_spike/probe_*.js
-tools/_illust_spike/_probe_*.js
-tools/_illust_spike/*shot.js
-tools/_illust_spike/flowerseq.*
-tools/_illust_spike/v38.html
-tools/_illust_spike/v4.html
-tools/_illust_spike/v42.html
-tools/_illust_spike/bake_D_still.js
-tools/_illust_spike/*.webm
-tools/_illust_spike/*.png
-tools/_illust_spike/_frames*/
-tools/_illust_spike/_r2_illust_stage/
-# Generated lobby posters/videos (local publish + R2; never GitHub)
-site/assets/_illust/
-# Catalog is local/private deploy data (unit slugs + event titles)
-site/data/lobby_anims.json
-
-# Community-requests publish tree
-dist-requests/
+_combat_smoke/

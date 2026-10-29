@@ -1,14 +1,14 @@
 # REFERENCE — Lobby / event illust + intimacy WebM pipeline
 
 **Status (2026-07-27):** Catalog + automatic pipeline live under
-`tools/_illust_spike/`. Batch bake of the **active** (non-deferred) set is in
+`render/illust/`. Batch bake of the **active** (non-deferred) set is in
 progress / may be running. Framing for lobby packs is **world0** (rank-1
 `BASE_SCALE` ortho). Do not invent screenshot crop fractions (see
 `docs/GUIDELINES_exact_data.md`, skill `e7-exact-data`).
 
 Related:
 - `docs/REFERENCE_intimacy_illustration.md` — historical intimacy notes (c2185 flowers, 4.2.43)
-- `tools/_illust_spike/recipes.json` — machine-readable pack catalog
+- `render/illust/recipes.json` — machine-readable pack catalog
 - `s3_exact/docs/layout_constants.json` — `BASE_SCALE`, `WORLD_W0/H0`
 - Memory: `project-e7-intimacy-webm` (older hand recipes; prefer this doc + recipes.json)
 
@@ -26,7 +26,7 @@ separate videos (same picture + VO later), static `img_intimacy_illust_*.webp`.
 
 ---
 
-## Tooling map (`tools/_illust_spike/`)
+## Tooling map (`render/illust/`)
 
 | File | Role |
 |------|------|
@@ -46,7 +46,7 @@ separate videos (same picture + VO later), static `img_intimacy_illust_*.webp`.
 ### Commands (never auto-bake on list/dry-run)
 
 ```powershell
-cd tools/_illust_spike
+cd render/illust
 
 python pipeline_illust.py list              # all packs
 python pipeline_illust.py list active       # bake set (default)
@@ -187,7 +187,7 @@ multi-turn bone spins, see the note in `__seek`).
 
 ### Wrong turns that wasted days (do not repeat)
 
-- **Not** the `stepped` curve decode — byte-audited `E7_Scsp2Json.py` against
+- **Not** the `stepped` curve decode — byte-audited `convert/vendor/E7_Scsp2Json.py` against
   the `.scsp` (19-float stride, curve types, RGBA): converter is correct, and
   stepped keys render as authored holds once colors apply at full strength.
 - **Not** the idle-clip choice (`animation` vs `intro` vs `story_ja`).
@@ -257,7 +257,7 @@ Default for `pipeline_illust.py bake` / `run_batch_bake.py` = packs with
 | `vfr5aa_3` | Frieren event art | |
 | `lobby_prequel_1/2` | Victorica prequel lobbies | |
 
-Outputs: intimacy → `tools/_illust_spike/<id>_intimacy.webm`; lobby →
+Outputs: intimacy → `render/illust/<id>_intimacy.webm`; lobby →
 `_scratch/lobby_*` or `_scratch/lobby_events/` per recipe `out_dir`.
 
 ---
@@ -275,7 +275,7 @@ Listed in recipes with `"deferred": true`. **Not** in the default bake set.
 
 **c2185 / c6005 intro stop:** see `docs/REFERENCE_intimacy_illustration.md` § Deferred
 intimacy INTROS and `recipes.json` → `_meta.deferred_intimacy_intro`. Rejected
-artifacts: `tools/_illust_spike/*_intro.rejected_2026-07-27.webm`.
+artifacts: `render/illust/*_intro.rejected_2026-07-27.webm`.
 
 ```powershell
 python pipeline_illust.py list deferred
@@ -318,7 +318,7 @@ Proven output: `_scratch/lobby_aube/aube_lobby_idle_hq.webm` (~107 MB @ 3840×
 ## Deploy intimacy (existing site path)
 
 1. `python finalize.py <slug> <idle.webm>` → `site/assets/<slug>/intimacy.webm`
-2. `python build_index.py …` — appends `?v=<mtime>` cache-bust on intimacy URL
+2. `python pipeline/build_index.py …` — appends `?v=<mtime>` cache-bust on intimacy URL
 3. `./deploy.ps1 -SkipSync -SkipR2` (intimacy is Pages-served **if under 25 MiB**)
 
 Frontend: `units.json` field `intimacy` ending in `.webm` → `<video autoplay loop muted>`.
@@ -353,11 +353,11 @@ Shipped sizes today (all **under** Pages 25 MiB):
 Publish videos:
 
 ```powershell
-python tools/_illust_spike/publish_lobby_anims.py           # hardlink locals
-python tools/_illust_spike/publish_lobby_anims.py --upload  # rclone → r2:e7codex-spine/illust/
+python render/illust/publish_lobby_anims.py           # hardlink locals
+python render/illust/publish_lobby_anims.py --upload  # rclone → r2:e7codex-spine/illust/
 ```
 
-Posters ship with normal Pages deploy (`deploy.ps1`). Videos are never on Pages (25 MiB limit).
+Posters ship with normal Pages deploy (`ops/deploy.ps1`). Videos are never on Pages (25 MiB limit).
 Partial upload is OK if a deferred sibling (e.g. story) is still baking.
 
 ---
@@ -387,7 +387,7 @@ r2:e7codex-spine/lobby/<pack_id>.webm
 Wire-up pattern (same as voice / combat):
 
 1. Keep masters under `_scratch/` or a staging dir (not necessarily under `site/`).
-2. `rclone copy` to `r2:e7codex-spine/illust/` (or extend `deploy.ps1` Step 3).
+2. `rclone copy` to `r2:e7codex-spine/illust/` (or extend `ops/deploy.ps1` Step 3).
 3. Point `<video src>` / `units.json` / a future lobby gallery JSON at
    `https://assets.e7codex.com/illust/...` (absolute URL), **not** a relative
    Pages path.
@@ -423,7 +423,7 @@ often texture res anyway (intimacy doc “quality ceiling”).
 
 ## Batch status / ops
 
-- Progress: `tools/_illust_spike/batch_bake.log`
+- Progress: `render/illust/batch_bake.log`
 - First-run fixes applied: c1153 anchor `bg`, c2066 anchor `R_background4`
   (failed once mid-batch; re-run those ids after the batch if still missing)
 - After successful intimacy bake: `finalize.py` + `build_index` + deploy as above

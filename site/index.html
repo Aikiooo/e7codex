@@ -62,11 +62,26 @@
   .lang-sel:hover{color:var(--text)}
   .lang-sel option{background:var(--ink,#14151d);color:var(--text)}
   @media(max-width:720px){
-    header{padding:20px 16px 14px;gap:14px}
-    nav{margin-left:0;width:100%;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;-ms-overflow-style:none}
+    /* phone header: brand + language on one line, tabs as a full-width swipeable strip under it */
+    header{padding:14px 12px 0;gap:10px 12px;align-items:center;position:sticky;top:0;z-index:50;
+      background:rgba(12,13,18,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+    .brand{font-size:26px;flex:1 1 auto;line-height:1}
+    .brand small{font-size:9px;letter-spacing:.26em;margin-top:4px}
+    .lang-sel{order:2;margin-left:0;font-size:11px;padding:7px 8px}
+    nav{order:3;margin:0 -12px;padding:0 8px 2px;width:calc(100% + 24px);overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;
+      scrollbar-width:none;-webkit-overflow-scrolling:touch;-ms-overflow-style:none;gap:2px;
+      mask-image:linear-gradient(90deg,transparent 0,#000 10px,#000 calc(100% - 18px),transparent)}
     nav::-webkit-scrollbar{display:none}
+    nav button{font-size:11px;letter-spacing:.1em;padding:11px 11px 10px;border-width:0 0 2px;border-radius:0}
+    nav button.on{background:none;border-color:var(--gold)}
+  }
+  @media(min-width:721px) and (max-width:1100px){
+    header{padding:24px 24px 16px;gap:16px}
+    nav button{padding:9px 11px;letter-spacing:.1em}
   }
   main{max-width:1500px;margin:0 auto;padding:30px 40px 90px}
+  @media(max-width:720px){ main{padding:16px 12px 72px} }
+  @media(min-width:721px) and (max-width:1100px){ main{padding:24px 24px 80px} }
   .bar{display:flex;gap:14px;align-items:center;margin-bottom:22px;flex-wrap:wrap}
   .bar input{flex:1;min-width:220px;background:var(--ink-2);border:1px solid var(--line);color:var(--text);padding:11px 15px;border-radius:3px;font-family:'Spline Sans Mono',monospace;font-size:13px}
   .bar input:focus{outline:none;border-color:var(--gold-dim)}
@@ -85,6 +100,34 @@
   .kinds button.on{color:var(--gold);border-color:var(--gold-dim)}
   .kinds button .n{color:var(--mut);margin-left:6px;font-size:10px}
   .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(176px,1fr))}
+  /* Filters toggle (phones): the kind/element/class/rarity rows live in a panel that opens on demand */
+  .filt-toggle{display:none;align-items:center;gap:8px;background:var(--ink-2);border:1px solid var(--line);color:var(--text);
+    font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:3px;cursor:pointer}
+  .filt-toggle .n{min-width:18px;height:18px;border-radius:9px;background:var(--gold);color:#13141d;font-size:10px;
+    display:inline-flex;align-items:center;justify-content:center;padding:0 5px;letter-spacing:0}
+  .filt-toggle .n:empty{display:none}
+  .filt-toggle[aria-expanded="true"]{border-color:var(--gold-dim);color:var(--gold)}
+  @media(max-width:720px){
+    .bar{gap:8px;margin-bottom:12px}
+    .bar .q-wrap{flex:1 1 100%;min-width:0}
+    .bar input{min-width:0;font-size:16px;padding:11px 54px 11px 13px}   /* 16px: no iOS zoom-on-focus */
+    .filt-toggle{display:inline-flex}
+    .bar .count{order:3;margin-left:auto}
+    .bar .sort-toggle{margin-left:0}
+    .sort-toggle .sort-label{display:none}
+    .sort-toggle button{padding:8px 11px}
+    .hub-filters{display:none;border:1px solid var(--line);border-radius:4px;background:rgba(23,24,38,.6);padding:12px;margin:0 0 14px}
+    .hub-filters.open{display:block}
+    .hub-filters .kinds{margin-bottom:12px}
+    .hub-filters .filters{margin:0;gap:10px}
+    .hub-filters .filters .fgroup{width:100%}
+    .hub-filters .filters .flabel{width:100%;margin:0 0 2px}
+    .kinds button,.filters .chip{padding:8px 11px}
+    .grid{gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}
+    .meta{padding:9px 10px}
+    .meta .name{font-size:16px}
+  }
+  @media(min-width:480px) and (max-width:720px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
   @media(min-width:1100px){.grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:4px;overflow:hidden;cursor:pointer;transition:.22s;position:relative;display:block;color:inherit;text-decoration:none}
   .card:hover{border-color:var(--gold-dim);transform:translateY(-3px);box-shadow:0 14px 30px -18px rgba(0,0,0,.9)}
@@ -359,6 +402,11 @@
   .emote-list{display:grid;gap:14px}
   .emote-row{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:14px 18px;display:grid;grid-template-columns:minmax(160px,200px) 1fr;gap:18px;align-items:center}
   @media(max-width:640px){.emote-row{grid-template-columns:1fr;gap:10px}}
+  /* tablets: character groups two per row instead of one sparse column */
+  @media(min-width:721px) and (max-width:1100px){
+    .emote-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .emote-row{grid-template-columns:1fr;gap:10px;margin:0!important;align-content:start;align-items:start}
+  }
   .emote-row.link{cursor:pointer;transition:.2s}
   .emote-row.link:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
   .emote-who .who-name{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);line-height:1.1}
@@ -389,6 +437,23 @@
     .wallpaper-cell.is-pano img{animation:none;object-fit:contain;object-position:center}
   }
   .wallpaper-cell .wp-name{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(13,14,22,.92) 10%,transparent 90%);padding:14px 14px 8px;font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
+  .wallpaper-cell .wp-name{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+  .wallpaper-cell .wp-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wallpaper-cell .wp-who{flex:0 0 auto;color:var(--text);text-transform:none;letter-spacing:.02em;font-family:'Outfit',sans-serif;font-size:11.5px;opacity:.85;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wp-charbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-10px 0 18px}
+  .wp-charbar .flabel{font-family:'Spline Sans Mono',monospace;font-size:10px;color:var(--mut);letter-spacing:.12em;text-transform:uppercase}
+  .wp-charsel{background:var(--ink-2);border:1px solid var(--line);color:var(--text);font-family:'Outfit',sans-serif;font-size:13px;padding:7px 10px;border-radius:3px;max-width:100%}
+  .wp-charsel:focus{outline:none;border-color:var(--gold-dim)}
+  .wp-charclear,.wp-charlink{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--mut)}
+  .wp-charlink{color:var(--gold)}
+  .wp-charclear:hover{color:var(--text)}
+  /* unit page: wallpapers this character appears in */
+  .seen-strip{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .seen-strip a{position:relative;display:block;aspect-ratio:16/9;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--ink-2)}
+  .seen-strip a:hover{border-color:var(--gold-dim)}
+  .seen-strip img{width:100%;height:100%;object-fit:cover;display:block}
+  .seen-more{display:inline-block;margin-top:10px;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.08em;color:var(--gold)}
+  @media(max-width:720px){ .seen-strip{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px} }
   .wallpaper-cell .wp-cat{position:absolute;top:6px;left:6px;background:rgba(13,14,22,.78);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:9px;padding:2px 6px;border-radius:2px;letter-spacing:.1em;text-transform:uppercase}
   /* Battle/stage backgrounds. Unlike the 16:9 wallpaper cells these keep a
      uniform frame and letterbox with object-fit:contain — scene aspect ratios
@@ -425,9 +490,15 @@
   .wp-anim-variants button{pointer-events:auto;background:rgba(13,14,22,.88);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;padding:4px 10px;border-radius:2px;cursor:pointer;text-transform:uppercase;backdrop-filter:blur(3px)}
   .wp-anim-variants button:hover{color:var(--text);border-color:var(--gold-dim)}
   .wp-anim-variants button.on{color:var(--gold);border-color:var(--gold-dim);background:rgba(216,176,106,.12)}
+  /* Download the static still (same scene, PNG) straight from the anim card */
+  .wp-anim-still{position:absolute;top:8px;right:8px;z-index:2;background:rgba(13,14,22,.88);border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.08em;padding:4px 8px;border-radius:2px;text-decoration:none;text-transform:uppercase;backdrop-filter:blur(3px)}
+  .wp-anim-still:hover{color:var(--gold);border-color:var(--gold-dim)}
   /* Unit illustration cards: tabs sit above the bottom title strip */
   .illust-card > .wp-anim-variants{left:6px;right:6px;bottom:28px}
   .artifact-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+  /* phase 3: phones show 2 artifacts per row (3 from 480px) */
+  @media(max-width:720px){ .artifact-grid{gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media(min-width:480px) and (max-width:720px){ .artifact-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
   .artifact-cell{position:relative;border:1px solid var(--line);border-radius:5px;overflow:hidden;background:var(--ink-2);transition:.2s;cursor:pointer;aspect-ratio:378/598;display:block}
   .artifact-cell:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
   .artifact-cell img{width:100%;height:100%;display:block;object-fit:cover;transition:.25s}
@@ -444,7 +515,25 @@
   }
   .detail{display:grid;grid-template-columns:minmax(0,520px) 1fr;gap:40px}
   .detail>.art-sec{grid-column:1/-1}
-  @media(max-width:880px){.detail{grid-template-columns:1fr}}
+  /* pose column follows the reader while the details scroll (tablet + desktop) */
+  @media(min-width:641px){ .detail>div:first-child{position:sticky;top:16px;align-self:start} }
+  @media(min-width:641px) and (max-width:1100px){
+    .detail{grid-template-columns:minmax(0,42%) minmax(0,1fr);gap:24px}
+    .detail .stage{min-height:0}
+    .detail .stage img{max-height:72vh}
+  }
+  @media(max-width:640px){
+    .detail{grid-template-columns:1fr;gap:16px}
+    .detail .stage{min-height:0}
+    .detail .stage img{max-height:58vh}
+    .dt-head h2{font-size:34px}
+    .dt-head h2 span[style]{font-size:18px!important}
+    .extbar{gap:6px;margin-bottom:16px}
+    .ext{font-size:11px;letter-spacing:.04em;padding:8px 11px}
+    .section-label{margin:22px 0 12px;padding-top:14px;letter-spacing:.2em}
+    .variant-tabs button{padding:8px 11px}
+    .back{margin-bottom:12px}
+  }
   .stage{background:var(--ink-2);border:1px solid var(--line);border-radius:5px;min-height:560px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
   .stage img{max-width:100%;max-height:78vh;display:block;object-fit:contain}
   .nopose{color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.08em;text-align:center;padding:30px;line-height:1.7}
@@ -645,6 +734,26 @@
     border:1px solid var(--gold-dim);color:var(--gold);border-radius:3px;
     font-size:10px;letter-spacing:.08em;padding:3px 8px;cursor:pointer;font-family:inherit}
   .full-badge:hover{background:var(--gold-dim);color:#13141d}
+  /* Full skill-3 replay: small pill on the "Skill animation" header line */
+  .section-label.s3-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .s3-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:3px;
+    border:1px solid var(--gold-dim);background:transparent;color:var(--gold);cursor:pointer;
+    font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:none;line-height:1.3;transition:.2s}
+  .s3-pill .s3-dot{font-size:10px}
+  .s3-pill:hover,.s3-pill:focus-visible{background:rgba(216,176,106,.08);outline:none}
+
+  /* Self-baked notice shown in the usual lightbox for skill-3 replays */
+  .lb-warn{display:none;position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:2;
+    width:min(720px,calc(100vw - 32px));gap:10px;align-items:flex-start;cursor:default;
+    border:1px solid rgba(224,170,90,.45);background:rgba(36,28,16,.92);color:#ecd9b4;border-radius:4px;
+    padding:8px 12px;font-size:12.5px;line-height:1.45;backdrop-filter:blur(3px)}
+  .lightbox.s3 .lb-warn{display:flex}
+  .lb-warn .lb-warn-ico{flex:0 0 auto;color:#e9b35f;font-size:15px;line-height:1.2}
+  .lb-warn strong{color:#f3dcae}
+  /* reserve room above the image for the notice (padding-top of the lightbox) */
+  .lightbox.s3{--lb-top-chrome:128px}
+  @media (max-width:720px){ .lb-warn{font-size:11.5px;padding:7px 10px} .lightbox.s3{--lb-top-chrome:176px} }
+  @media (orientation:landscape) and (max-height:540px){ .lb-warn{top:8px;width:calc(100vw - 120px);left:16px;transform:none;font-size:10.5px;padding:4px 8px} .lightbox.s3{--lb-top-chrome:64px} }
   /* Unit illustration stack: intimacy + event/lobby wallpapers under one header. */
   .illust-stack{display:flex;flex-direction:column;gap:10px;margin-top:4px;max-width:760px}
   .illust-card{position:relative;display:block;width:100%;border:1px solid var(--line);border-radius:3px;overflow:hidden;background:#000}
@@ -675,8 +784,22 @@
   .voice-actors .va{display:flex;gap:7px;align-items:baseline;font-size:14px}
   .voice-actors .va .lang{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--mut);min-width:22px}
   .voice-actors .va .nm{color:var(--text)}
+  /* the actor of the language being played stands out (gold); the others dim */
+  .voice-actors:has(.va[data-on]) .va:not([data-on]){opacity:.5}
+  .voice-actors .va[data-on] .lang,.voice-actors .va[data-on] .nm{color:var(--gold)}
   .voice-lines{display:flex;flex-direction:column;gap:12px}
-  .vl-group .vl-cat{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:6px}
+  .vl-group .vl-cat{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);margin-bottom:6px;
+    cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+  .vl-group .vl-cat::-webkit-details-marker{display:none}
+  .vl-group .vl-cat::before{content:"▸";font-size:10px;transition:transform .15s;color:var(--gold-dim)}
+  .vl-group[open] .vl-cat::before{transform:rotate(90deg)}
+  .vl-group .vl-cat .vl-n{color:var(--mut);letter-spacing:.06em}
+  @media(max-width:720px){
+    .vl-group .vl-cat{font-size:11px;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--line)}
+    .vl-group .vl-items{gap:6px}
+    .vlclip{font-size:12.5px;padding:7px 11px}
+    .voice-lines{gap:6px}
+  }
   .vl-group .vl-items{display:flex;flex-wrap:wrap;gap:9px}
   .voice-lines{gap:16px}
   .vl-group .vl-items span{font-size:13px;color:var(--mut);border:1px solid var(--line);border-radius:3px;padding:2px 9px;white-space:nowrap}
@@ -821,6 +944,22 @@
     .story-chap-meta{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;padding:12px 14px;background:linear-gradient(transparent,rgba(8,9,14,.86))}
     .story-chap-t{color:var(--text);font-weight:600;font-size:15px}
     .story-chap-n{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut)}
+    .story-subnav{margin-bottom:18px}
+    .story-side{display:flex;flex-direction:column;gap:8px}
+    .story-book{border:1px solid var(--line);border-radius:5px;background:var(--panel)}
+    .story-book>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 14px}
+    .story-book>summary::-webkit-details-marker{display:none}
+    .story-book>summary::before{content:"▸";color:var(--gold-dim);font-size:11px;transition:transform .15s}
+    .story-book[open]>summary::before{transform:rotate(90deg)}
+    .story-book .sb-t{flex:1;min-width:0;font-family:'Cormorant Garamond',serif;font-size:19px;color:var(--text)}
+    .story-book .sb-n{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--mut);text-transform:uppercase}
+    .story-book .story-chaps{padding:0 14px 14px}
+    @media(max-width:720px){
+      .story-chaps{gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}
+      .story-chap{height:92px}
+      .story-chap-meta{padding:9px 10px}
+      .story-chap-t{font-size:13.5px}
+    }
     .story-reader{max-width:760px;margin:0 auto}
     .story-rhead{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:8px}
     .story-back{color:var(--mut);text-decoration:none;font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.1em}
@@ -828,7 +967,7 @@
     .story-title{flex:1 1 auto}
     .story-title h2{margin:2px 0 0;font-size:22px;color:var(--text)}
     .story-ep-tag{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-dim)}
-    .slang-row{display:flex;gap:6px}
+    .slang-row{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
     .slang,.svlang{background:none;border:1px solid var(--line);color:var(--mut);font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.08em;padding:4px 11px;border-radius:3px;cursor:pointer}
     .slang.on,.svlang.on{border-color:var(--gold-dim);color:var(--gold)}
     .story-body{display:flex;flex-direction:column;gap:18px;padding:24px 0}
@@ -855,7 +994,7 @@
     .story-theater-btn{background:var(--gold);color:#1a1206;border:none;font-weight:600;font-size:13px;padding:6px 14px;border-radius:4px;cursor:pointer}
     .story-theater-btn:hover{background:#e6c078}
     .story-langbar{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0 0}
-    .story-lang-grp{display:flex;align-items:center;gap:8px}
+    .story-lang-grp{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}
     .story-lang-lbl{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut)}
     .story-voiced-note{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.08em;color:var(--gold-dim);margin:10px 0 0}
     .beat-voice{background:none;border:1px solid var(--gold-dim);color:var(--gold);border-radius:50%;width:20px;height:20px;line-height:1;font-size:9px;padding:0;margin-left:8px;cursor:pointer;vertical-align:middle}
@@ -880,6 +1019,23 @@
     .th-box.th-center .th-text{font-size:21px}
     .th-replay{border-color:rgba(255,255,255,.4);color:#fff}
     .th-hint{position:absolute;bottom:14px;left:0;right:0;text-align:center;font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.18em;color:rgba(255,255,255,.45);z-index:2;pointer-events:none}
+    /* phones: smaller chrome, portrait above a compact dialogue box, safe areas respected */
+    @media(max-width:720px){
+      .theater{height:100dvh}
+      .th-bar{padding:calc(10px + env(safe-area-inset-top)) 12px 10px}
+      .th-portrait{bottom:calc(150px + env(safe-area-inset-bottom));max-height:52dvh;max-width:86vw}
+      .th-box{bottom:calc(30px + env(safe-area-inset-bottom));width:calc(100vw - 20px);padding:14px 16px;border-radius:8px}
+      .th-name{font-size:15px;margin-bottom:5px}
+      .th-text{font-size:16px;line-height:1.6}
+      .th-box.th-center .th-text{font-size:17px}
+      .th-hint{bottom:calc(8px + env(safe-area-inset-bottom));font-size:9px;letter-spacing:.1em}
+      .story-langbar{gap:10px}
+    }
+    @media(orientation:landscape) and (max-height:540px){
+      .th-portrait{bottom:0;max-height:92dvh;max-width:40vw;left:auto;right:4vw;transform:none}
+      .th-box{bottom:22px;width:min(62vw,720px);left:3vw;transform:none;padding:12px 16px}
+      .th-text{font-size:15px}
+    }
 </style>
 </head>
 <body>
@@ -912,6 +1068,8 @@
   <video id="lbVideo" class="lb-video" loop muted playsinline controls preload="metadata"></video>
   <div id="lbActions" class="lb-actions" hidden></div>
   <div id="lbCaption" class="lb-caption"></div>
+  <div id="lbWarn" class="lb-warn" role="note"><span class="lb-warn-ico" aria-hidden="true">⚠</span>
+    <span><strong data-i18n="s3_warn_title">Self-baked replay.</strong> <span data-i18n="s3_warn">E7 Codex rebuilt this clip from the game's own files (skill script, effects, camera and timing). It is not a recording from the game and may not exactly match what you see in game.</span></span></div>
 </div>
 <!-- Profile frame compositor (TASKS #32) — face_s + item/border. -->
 <div id="frameModal" class="frame-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="frameTitle">
@@ -959,13 +1117,16 @@ const VARIANT_LABELS = {
   "1":     { tab:"Alt 1",    tagline:"alt model" },
 };
 
+let WP_CHARS = new Map(), UNIT_WPS = new Map();   // wallpaper stem -> [{id,src,n}] ; unit base -> [{stem,n}]
 let UNITS = [], UPDATES = {}, EMOTES = [], WALLPAPERS = [], LOBBY_ANIMS = [], ARTIFACTS = [], PATCHES = [], VOICES = {}, VOICE_CLIPS = {}, BY_BASE = new Map(), demo = false;
 // Battle/stage backgrounds: one flattened Spine render per scene, staged by
-// tools/bg_stage.py + baked by tools/render_backgrounds.js.
+// render/bg/bg_stage.py + baked by render/bg/render_backgrounds.js.
 let BACKGROUNDS = [];
 // Story book (LOCAL ONLY — story_index.json is gitignored + held aside on deploy,
 // so this stays null in production and the Story tab never appears).
-let STORY_INDEX = null, storyLang = "en", STORY_CHAPTERS = {};
+let STORY_INDEX = null, STORY_CHAPTERS = {};
+// story text follows the site language until the reader picks one (site "ko" = story "kr")
+let storyLang = (() => { try { const l = E7.getLang(); return l === "ko" ? "kr" : (l || "en"); } catch (_) { return "en"; } })();
 // Per-line story voice: {clipKey: [langs]} (voices_story.json, local only).
 // Text language (storyLang) and voice language (storyVoiceLang) are independent.
 let VOICE_STORY = {}, storyAudio = null, THEATER = null, STORY_FRAMES = [];
@@ -1065,7 +1226,8 @@ async function load() {
     // no-store) — the browser revalidates against the server (ETag → 304)
     // instead of re-downloading the full body on every visit, while a fresh
     // deploy still propagates immediately.
-    [UNITS, UPDATES, EMOTES, WALLPAPERS, LOBBY_ANIMS, ARTIFACTS, PATCHES, STORY_INDEX, VOICE_STORY] =
+    let wpChars;
+    [UNITS, UPDATES, EMOTES, WALLPAPERS, LOBBY_ANIMS, ARTIFACTS, PATCHES, STORY_INDEX, VOICE_STORY, wpChars] =
       await Promise.all([
         fetch("data/units.json", { cache: "no-cache" })
           .then(r => { if (!r.ok) throw new Error("units.json missing"); return r.json(); }),
@@ -1077,7 +1239,17 @@ async function load() {
         dataJson("data/patches.json", []),
         dataJson("data/story_index.json", null),
         dataJson("data/voices_story.json", {}),
+        dataJson("data/wallpaper_chars.json", { links: {} }),
       ]);
+    // Wallpaper <-> character links (story scenes, side stories, summon banners, event casts --
+    // all read from the game's own tables by tools/build_wallpaper_chars.py).
+    WP_CHARS = new Map(Object.entries((wpChars && wpChars.links) || {}));
+    UNIT_WPS = new Map();
+    for (const [stem, lst] of WP_CHARS) for (const c of lst || []) {
+      if (!UNIT_WPS.has(c.id)) UNIT_WPS.set(c.id, []);
+      UNIT_WPS.get(c.id).push({ stem, n: c.n || 1, src: c.src });
+    }
+    for (const lst of UNIT_WPS.values()) lst.sort((a, b) => b.n - a.n);
   } catch (e) {
     // Local dev (file:// / localhost) without built data → seed demo content
     // so the layout is previewable. In production a failed units.json is a
@@ -1100,7 +1272,7 @@ async function load() {
     UPDATES = {};
   }
   // LOCAL-ONLY: fold in held-back/unreleased units so hidden content is
-  // browsable on localhost. units_unreleased.json is never deployed (deploy.ps1
+  // browsable on localhost. units_unreleased.json is never deployed (ops/deploy.ps1
   // holds it aside), but we ALSO gate on E7.isLocal so a stray prod copy can't
   // surface. ?unreleased=1 forces it on (e.g. LAN preview), ?unreleased=0 off.
   const showUnrel = /[?&]unreleased=1/.test(location.search) ||
@@ -1544,6 +1716,11 @@ function showHubLoadingShell() {
  * Hub view. opts.soft = true → only refresh #hubGrid + #hubCount (keep #q mounted).
  * Used by the search debounce so mobile typing never loses characters mid-render.
  */
+// Phones: the filter rows are a panel behind the "Filters" button (state kept across re-renders).
+let hubFiltersOpen = false;
+function hubActiveFilters() {
+  return (kindF && kindF !== "all" ? 1 : 0) + elementF.size + roleF.size + rarityF.size;
+}
 function hub(opts) {
   opts = opts || {};
   setNav("hub");
@@ -1580,12 +1757,13 @@ function hub(opts) {
   try { if (keepFocus && typeof prevQ.selectionStart === "number") caret = prevQ.selectionStart; } catch (_) {}
 
   $("#app").innerHTML = `
-    ${demo ? `<div class="demo">DEMO DATA — run <code>python build_index.py --img D:/Claude/E7/img_output --raw D:/Claude/E7/output --out ./site</code> then reload.</div>` : ""}
+    ${demo ? `<div class="demo">DEMO DATA — run <code>python e7.py build</code> then reload.</div>` : ""}
     <div class="bar" id="hubBar">
       <div class="q-wrap">
         <input id="q" placeholder="${escapeHtml(E7.t('hub_search_ph'))}" value="${escapeHtml(searchQ)}" inputmode="${qMode==='num'?'numeric':'search'}" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
         <button id="qmode" type="button" class="qmode${qMode==='num'?' on':''}" title="${escapeHtml(E7.t('kbd_toggle_t'))}">${qMode==='num'?'ABC':'123'}</button>
       </div>
+      <button type="button" class="filt-toggle" id="filtToggle" aria-expanded="${hubFiltersOpen ? "true" : "false"}" aria-controls="hubFilters">${escapeHtml(E7.t('filt_toggle', {}, 'Filters'))}<span class="n">${hubActiveFilters() || ""}</span></button>
       <span class="count" id="hubCount">${countTxt}</span>
       <div class="sort-toggle" role="group" aria-label="${escapeHtml(E7.t('hub_sort_aria'))}">
         <span class="sort-label">${escapeHtml(E7.t('hub_sort'))}</span>
@@ -1593,6 +1771,7 @@ function hub(opts) {
         <button type="button" data-sort="az" class="${sortMode==='az'?'on':''}" title="${escapeHtml(E7.t('sort_az_t'))}">${escapeHtml(E7.t('sort_az'))}</button>
       </div>
     </div>
+    <div class="hub-filters${hubFiltersOpen ? " open" : ""}" id="hubFilters">
     <div class="kinds">${kinds.map(k => {
       const label = k === "all" ? E7.t("kind_all") : E7.t("kind_"+k, {}, (KIND_LABELS[k]||k).toUpperCase());
       const n = k === "all" ? groups.length : (kindCounts[k]||0);
@@ -1619,7 +1798,14 @@ function hub(opts) {
       </div>
       ${(elementF.size || rarityF.size || roleF.size) ? `<button class="chip clear" data-clear="1">${escapeHtml(E7.t('filt_clear'))}</button>` : ""}
     </div>
+    </div>
     <div class="grid" id="hubGrid">${gridHtml}</div>`;
+  const ft = document.getElementById("filtToggle");
+  if (ft) ft.onclick = () => {
+    hubFiltersOpen = !hubFiltersOpen;
+    ft.setAttribute("aria-expanded", hubFiltersOpen ? "true" : "false");
+    document.getElementById("hubFilters").classList.toggle("open", hubFiltersOpen);
+  };
 
   const i = $("#q");
   wireHubSearchInput(i);
@@ -2028,7 +2214,7 @@ function updates() {
 
 // Per-hero voice section. Actor credits come from data/voices.json (decoded from
 // character_voice.db). Playable voice lines come from data/voices_audio.json (a
-// catalog built from the FMOD bank sample names — see tools/extract_voice_audio.py);
+// catalog built from the FMOD bank sample names — see pipeline/voice_audio.py);
 // the audio OGGs are served from VOICE_BASE/<lang>/voc_<slug>_<action>_<take>.ogg.
 // Clicking a clip opens the shared lightbox in audio mode.
 const VOICE_LANGS = [["en","EN"],["ja","JA"],["kr","KR"],["zhs","CN"]];   // actor-credit langs
@@ -2080,8 +2266,25 @@ function renderVoiceClips(clipSlug, clips, lang) {
       return `<button class="vlclip" data-slug="${clipSlug}" data-action="${escapeHtml(act)}" data-take="${t}" data-label="${escapeHtml(label)}">▶ ${escapeHtml(lab)}</button>`;
     }));
   }
-  return VCLIP_GROUPS.filter(([k]) => buckets[k]).map(([k, glab]) =>
-    `<div class="vl-group"><div class="vl-cat">${escapeHtml(E7.t('vgrp_'+k, {}, glab))}</div><div class="vl-items">${buckets[k].join("")}</div></div>`).join("");
+  // Each category is a <details>: all open on wide screens; on phones only the first one starts
+  // open so the voice section is not a wall of buttons.
+  const narrow = window.matchMedia && window.matchMedia("(max-width:720px)").matches;
+  return VCLIP_GROUPS.filter(([k]) => buckets[k]).map(([k, glab], gi) =>
+    `<details class="vl-group"${(!narrow || gi === 0) ? " open" : ""}><summary class="vl-cat">${escapeHtml(E7.t('vgrp_'+k, {}, glab))}<span class="vl-n">${buckets[k].length}</span></summary><div class="vl-items">${buckets[k].join("")}</div></details>`).join("");
+}
+/** "Seen in wallpapers": wallpapers this character is linked to (game data, see WP_CHARS). */
+function seenInWallpapersSection(u) {
+  const base = u.base_id || u.id;
+  const lst = (UNIT_WPS.get(base) || []);
+  if (!lst.length) return "";
+  const byStem = new Map(WALLPAPERS.map(w => [w.stem, w]));
+  const items = lst.map(x => byStem.get(x.stem)).filter(Boolean);
+  if (!items.length) return "";
+  const shown = items.slice(0, 8);
+  return `<p class="section-label">${E7.t("hdr_seen_in", {}, "Seen in wallpapers")} · ${items.length}</p>
+    <div class="seen-strip">${shown.map(w => `<a href="${escapeHtml(w.file)}" data-zoom data-wp-stem="${escapeHtml(w.stem)}"
+      data-cap="${escapeHtml(w.name)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(w.file)}" alt="${escapeHtml(w.name)}"></a>`).join("")}</div>
+    ${items.length ? `<a class="seen-more" href="#/wallpapers/static?char=${encodeURIComponent(base)}">${E7.t("seen_all", { n: items.length }, "See all {n} →")}</a>` : ""}`;
 }
 function voiceSection(u) {
   const v = voiceFor(u);
@@ -2090,7 +2293,7 @@ function voiceSection(u) {
   let html = `<p class="section-label">${E7.t('hdr_voice')}</p>`;
   if (v && v.actors) {
     const cells = VOICE_LANGS.filter(([k]) => v.actors[k])
-      .map(([k,lab]) => `<span class="va"><span class="lang">${lab}</span><span class="nm">${escapeHtml(v.actors[k])}</span></span>`).join("");
+      .map(([k,lab]) => `<span class="va" data-alang="${k === "kr" ? "ko" : k}"><span class="lang">${lab}</span><span class="nm">${escapeHtml(v.actors[k])}</span></span>`).join("");
     if (cells) html += `<div class="voice-actors">${cells}</div>`;
   }
   if (clips) {
@@ -2102,6 +2305,8 @@ function voiceSection(u) {
       `<button class="vlang${k===lang?' on':''}" data-lang="${k}">${lab}</button>`).join("");
     html += `<div class="vlang-row">${langBtns}<span class="vlang-hint">${E7.t('voice_hint')}</span></div>`;
     html += `<div class="voice-lines" id="voiceClips" data-clipslug="${clipSlug}">${renderVoiceClips(clipSlug, clips, lang)}</div>`;
+    // highlight the actor of the language being played (EN/JA/KR buttons)
+    html = html.replace(`data-alang="${lang}"`, `data-alang="${lang}" data-on="1"`);
   } else if (v && (v.lines||[]).length) {
     // fallback: non-playable DB catalog (heroes without extracted audio yet)
     const byCat = {};
@@ -2464,11 +2669,17 @@ function detail(baseId, variantSuf) {
   if (!_voicesLoaded) ensureVoices().then(() => {
     if (location.hash.startsWith("#/u/")) route();
   });
-  const group = (BY_BASE.get(baseId) || []).slice().sort((a,b)=>(a.variant||"").localeCompare(b.variant||""));
+  let group = (BY_BASE.get(baseId) || []).slice().sort((a,b)=>(a.variant||"").localeCompare(b.variant||""));
   if (!group.length) {
     // Maybe the URL has a full variant id like c1019_s01 — fall back to BY_BASE lookup by full id.
     const direct = UNITS.find(u => u.id === baseId);
-    if (direct) { detail(direct.base_id || direct.id, direct.variant); return; }
+    const directBase = direct ? (direct.base_id || direct.id) : null;
+    // Only re-enter with a DIFFERENT base: re-entering with the same id recursed forever when the
+    // BY_BASE index was not built yet (route during load()).
+    if (direct && directBase !== baseId) { detail(directBase, direct.variant); return; }
+    if (direct) group = UNITS.filter(u => (u.base_id || u.id) === baseId);
+  }
+  if (!group.length) {
     $("#app").innerHTML = '<p class="empty">' + escapeHtml(E7.t('unknown_id', {id: baseId})) + '</p>';
     return;
   }
@@ -2500,8 +2711,8 @@ function detail(baseId, variantSuf) {
           </a>
           <div id="nopose" class="nopose" style="display:none">
             no baked pose for this unit.<br>
-            run <code>python tools/prepare_assets.py ${u.id}</code> then
-            <code>node tools/render_poses.js ${u.id}</code>.
+            run <code>python pipeline/prepare_assets.py ${u.id}</code> then
+            <code>node render/poses.js ${u.id}</code>.
           </div>
         </div>
         ${u.thumb ? `<div class="pose-switch render-switch" title="Base = the full detail-page pose. Thumb = the FX/backdrop-stripped hub thumbnail (same image the grid shows).">
@@ -2587,17 +2798,21 @@ function detail(baseId, variantSuf) {
               // lazy-loaded from R2 (combat/ is never on Pages). The badge is
               // a <button>, not a nested <a> (browsers detach nested anchors —
               // see the Lightbox modal notes in CLAUDE.md).
-              const full = (i === 0 && u.skill3_full && S3_DEV)
-                ? `${E7.spineBase}/${encodeURIComponent(u.id)}/combat/sk3_full.webp` : null;
-              const fullBtn = full ? `<button class="full-badge" data-full="${escapeHtml(full)}"
-                data-cap="${escapeHtml(displayName(u))} · full skill 3 (all phases + FX)">▶ FULL S3</button>` : "";
-              return `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(u.id)} · ${lbl}" target="_blank" rel="noopener">${fullBtn}<img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.id)} skill ${i+1}"></a>`;
+return `<a href="${escapeHtml(s)}" data-zoom data-cap="${escapeHtml(u.id)} · ${lbl}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(s)}" alt="${escapeHtml(u.id)} skill ${i+1}"></a>`;
             }).join("");
             // When paired with a signature art, skill sits on the RIGHT — no
             // "first" top margin (sig column owns it). Solo skills keep first.
             const first = sigArts.length ? "" : " first";
+            // Full skill-3 replay (our own s3_exact bake, published 2026-10-14): a small pill on the
+            // header line, so the game's skill animation card stays unobstructed. Opens in the
+            // usual lightbox with the self-baked notice.
+            const full = u.skill3_full     // R2: combat/sk3_full.webp (ops/deploy.ps1 -IncludeSkill3)
+              ? `${E7.spineBase}/${encodeURIComponent(u.id)}/combat/sk3_full.webp` : null;
+            const pill = full ? `<button class="s3-pill" type="button" data-s3full="${escapeHtml(full)}"
+              data-s3name="${escapeHtml(displayName(u))}" data-s3id="${escapeHtml(u.id)}"
+              title="${escapeHtml(E7.t('s3_warn_title', {}, 'Self-baked replay.'))}"><span class="s3-dot" aria-hidden="true">▶</span>${escapeHtml(E7.t('s3_watch', {}, 'Full Skill 3'))}</button>` : "";
             return `<div class="skill-col">
-              <p class="section-label${first}">${E7.t('hdr_skill_anim')}</p>
+              <p class="section-label${first}${pill ? " s3-head" : ""}"><span>${E7.t('hdr_skill_anim')}</span>${pill}</p>
               <div class="skill-gallery">${gal}</div>
             </div>`;
           })() : "";
@@ -2659,6 +2874,7 @@ function detail(baseId, variantSuf) {
           </div>`;
         })() : ""}
         ${voiceSection(u)}
+        ${seenInWallpapersSection(u)}
         <div class="art-sec">
         <p class="section-label">${E7.t('hdr_artwork')}</p>
         ${(u.artworks||[]).length
@@ -2935,6 +3151,14 @@ function openLobbyAnim(a, varId) {
       external: false,
     };
   });
+  if (a.still) {
+    actions.push({
+      label: T("wp_anim_still", "Still PNG"),
+      title: T("wp_anim_still_t", "Open the still PNG"),
+      href: a.still,
+      external: true,
+    });
+  }
   actions.push({
     label: T("wp_anim_open_gallery", "Wallpapers"),
     title: T("wp_anim_open_gallery_t", "Open in Wallpapers → Animated"),
@@ -3077,8 +3301,11 @@ function lobbyAnimCardsHtml(list) {
     const newBadge = a.new
       ? `<span class="new-badge">${escapeHtml(E7.t("badge_new"))}</span>`
       : "";
+    const stillBtn = a.still
+      ? `<a class="wp-anim-still" href="${escapeHtml(a.still)}" download title="${escapeHtml(E7.t("wp_anim_still_t", {}, "Download the still PNG"))}">${escapeHtml(E7.t("wp_anim_still", {}, "Still PNG"))}</a>`
+      : "";
     return `<article class="wp-anim-card" data-anim-id="${escapeHtml(a.id)}" data-anim-var="${escapeHtml(def.id || "")}">
-      ${newBadge}
+      ${newBadge}${stillBtn}
       <button type="button" class="wp-anim-poster" data-anim-play="${escapeHtml(a.id)}"
         data-anim-var="${escapeHtml(def.id || "")}"
         aria-label="${escapeHtml(aria)}">
@@ -3093,7 +3320,8 @@ function wallpapersPane() {
   // #/wallpapers          → animated (default when any exist)
   // #/wallpapers/anim     → animated
   // #/wallpapers/static   → static stills gallery
-  const h = location.hash || "#/wallpapers";
+  const h = (location.hash || "#/wallpapers").split("?")[0];
+  if (/[?&]char=/.test(location.hash)) return "static";
   if (h === "#/wallpapers/static" || h === "#/wallpapers/stills") return "static";
   if (h === "#/wallpapers/anim" || h === "#/wallpapers/animated") return "anim";
   return "anim";
@@ -3168,9 +3396,16 @@ function wallpapers() {
   const catCounts = {};
   WALLPAPERS.forEach(w => { catCounts[w.category] = (catCounts[w.category] || 0) + 1; });
   const cats = ["all", ...Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a])];
-  const list = WALLPAPERS.filter(w => wpCatF === "all" || w.category === wpCatF)
+  const charQ = (location.hash.match(/[?&]char=([^&]+)/) || [])[1];
+  const charF = charQ ? decodeURIComponent(charQ) : "";
+  const charSet = charF ? new Set((UNIT_WPS.get(charF) || []).map(x => x.stem)) : null;
+  const list = WALLPAPERS.filter(w => (wpCatF === "all" || w.category === wpCatF) && (!charSet || charSet.has(w.stem)))
     .slice()
     .sort((a, b) => (a.new ? 0 : 1) - (b.new ? 0 : 1));
+  // characters that appear in at least one wallpaper, for the filter picker
+  const charOpts = [...UNIT_WPS.keys()].filter(id => BY_BASE.has(id) && unitLabel(id) !== id)
+    .map(id => ({ id, name: unitLabel(id), n: UNIT_WPS.get(id).length }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   $("#app").innerHTML = `${subnav}
     <p class="section-label first">${escapeHtml(T("wp_count", "{n} wallpapers · click any to open full-size", { n: WALLPAPERS.length }))}</p>
@@ -3179,13 +3414,30 @@ function wallpapers() {
       const n = c === "all" ? WALLPAPERS.length : (catCounts[c] || 0);
       return `<button data-c="${c}" class="${c === wpCatF ? "on" : ""}">${escapeHtml(label)}<span class="n">${n}</span></button>`;
     }).join("")}</div>
-    <div class="wallpaper-grid">${list.map(w => `
-      <a class="wallpaper-cell${w.new ? " is-new" : ""}" href="${escapeHtml(w.file)}" data-zoom data-cap="${escapeHtml(w.name)} · ${escapeHtml(E7.t("wp_" + w.category, {}, WP_CAT_LABEL[w.category] || w.category))}" target="_blank" rel="noopener">
+    ${charOpts.length ? `<div class="wp-charbar">
+      <label class="flabel" for="wpChar">${escapeHtml(T("wp_char_filter", "Character"))}</label>
+      <select id="wpChar" class="wp-charsel">
+        <option value="">${escapeHtml(T("wp_char_any", "All characters"))}</option>
+        ${charOpts.map(o => `<option value="${escapeHtml(o.id)}"${o.id === charF ? " selected" : ""}>${escapeHtml(o.name)} (${o.n})</option>`).join("")}
+      </select>
+      ${charF ? `<a class="wp-charclear" href="#/wallpapers/static">✕ ${escapeHtml(T("filt_clear", "clear"))}</a>
+        <a class="wp-charlink" href="#/u/${encodeURIComponent(charF)}">→ ${escapeHtml(unitLabel(charF))}</a>` : ""}
+    </div>` : ""}
+    ${!list.length ? `<p class="empty">${escapeHtml(T("wp_char_none", "No wallpapers for this selection."))}</p>` : ""}
+    <div class="wallpaper-grid">${list.map(w => {
+      const who = wpCharsOf(w.stem);
+      const whoTxt = who.length ? unitLabel(who[0].id) + (who.length > 1 ? ` +${who.length - 1}` : "") : "";
+      return `
+      <a class="wallpaper-cell${w.new ? " is-new" : ""}" href="${escapeHtml(w.file)}" data-zoom data-wp-stem="${escapeHtml(w.stem)}" data-cap="${escapeHtml(w.name)} · ${escapeHtml(E7.t("wp_" + w.category, {}, WP_CAT_LABEL[w.category] || w.category))}" target="_blank" rel="noopener">
         <img loading="lazy" src="${escapeHtml(w.file)}" alt="${escapeHtml(w.name)}">
         ${w.new ? `<span class="new-badge">${E7.t("badge_new")}</span>` : ""}
         <span class="wp-cat">${escapeHtml(E7.t("wp_" + w.category, {}, WP_CAT_LABEL[w.category] || w.category))}</span>
-        <span class="wp-name">${escapeHtml(w.name)}</span>
-      </a>`).join("")}</div>`;
+        <span class="wp-name"><span class="wp-title">${escapeHtml(w.name)}</span>${whoTxt ? `<span class="wp-who">${escapeHtml(whoTxt)}</span>` : ""}</span>
+      </a>`; }).join("")}</div>`;
+  const wpSel = document.getElementById("wpChar");
+  if (wpSel) wpSel.onchange = () => {
+    location.hash = wpSel.value ? "#/wallpapers/static?char=" + encodeURIComponent(wpSel.value) : "#/wallpapers/static";
+  };
 
   document.querySelectorAll(".kinds button").forEach(b =>
     b.onclick = () => { wpCatF = b.dataset.c; wallpapers(); });
@@ -3208,13 +3460,13 @@ function wallpapers() {
 // Battle / stage backgrounds. Unlike the Wallpapers stills (which are single
 // flat images already shipped by the game), these are REBUILT scenes: a stage
 // is a stack of Spine layers (tools/bg_stage.py merges them into one skeleton,
-// tools/render_backgrounds.js bakes the union to a PNG). Cell art is the
+// render/bg/render_backgrounds.js bakes the union to a PNG). Cell art is the
 // 480 px thumb; the lightbox opens the 1600 px still.
 function backgrounds() {
   setNav("bgs");
   if (!BACKGROUNDS.length) {
     $("#app").innerHTML = `<p class="empty">${E7.t("empty_backgrounds", {},
-      "No backgrounds staged yet — run tools/bg_stage.py, then tools/render_backgrounds.js.")}</p>`;
+      "No backgrounds staged yet — run render/bg/bg_stage.py, then render/bg/render_backgrounds.js.")}</p>`;
     return;
   }
   const T = (k, fb, p) => E7.t(k, p || {}, fb);
@@ -3668,36 +3920,78 @@ function injectStoryNav() {
   nav.insertBefore(btn, about);
 }
 
+function storyChapCard(c) {
+  return `<a class="story-chap" href="#/story/${encodeURIComponent(c.id)}">
+    ${c.bg ? `<span class="story-chap-bg" style="background-image:url('${c.bg}')"></span>`
+           : `<span class="story-chap-bg story-chap-bg-blank"></span>`}
+    <span class="story-chap-meta">
+      <span class="story-chap-t">${escapeHtml(c.label)}</span>
+      <span class="story-chap-n">${c.beats} lines</span>
+    </span>
+  </a>`;
+}
+function sideBookLabel(b) {
+  const l = E7.getLang();
+  return (b.labels && b.labels[l]) || b.label || b.codename || b.id;
+}
+let storyPane = "main", storySideQ = "";
 function story() {
   setNav("story");
   const eps = (STORY_INDEX && STORY_INDEX.episodes) || [];
-  if (!eps.length) { $("#app").innerHTML = `<p class="empty">No story indexed.</p>`; return; }
+  const side = (STORY_INDEX && STORY_INDEX.side) || [];
+  if (!eps.length && !side.length) { $("#app").innerHTML = `<p class="empty">No story indexed.</p>`; return; }
   const total = eps.reduce((n,e) => n + e.chapters.length, 0);
-  $("#app").innerHTML = `
+  const sideTotal = side.reduce((n,b) => n + b.chapters.length, 0);
+  const pane = side.length && storyPane === "side" ? "side" : "main";
+  const tabs = side.length ? `<div class="upd-subnav story-subnav">
+      <a href="#/story" class="usub${pane === "main" ? " on" : ""}" data-spane="main">
+        <span class="usub-top"><span>Main story</span><span class="n">${total}</span></span>
+        <span class="usub-desc">Prologue and the numbered episodes</span></a>
+      <a href="#/story" class="usub${pane === "side" ? " on" : ""}" data-spane="side">
+        <span class="usub-top"><span>Side stories</span><span class="n">${side.length}</span></span>
+        <span class="usub-desc">Event, side and special stories · ${sideTotal} chapters</span></a>
+    </div>` : "";
+  const q = storySideQ.trim().toLowerCase();
+  const books = side;   // all rendered; the query hides non-matching ones (indexes stay aligned)
+  $("#app").innerHTML = `${tabs}
+    ${pane === "main" ? `
     <p class="section-label first">Main Story · ${total} chapters</p>
     <div class="story-toc">
       ${eps.map(e => `
         <section class="story-ep">
           <h2 class="story-ep-h">${escapeHtml(e.label)}</h2>
-          <div class="story-chaps">
-            ${e.chapters.map(c => `
-              <a class="story-chap" href="#/story/${encodeURIComponent(c.id)}">
-                ${c.bg ? `<span class="story-chap-bg" style="background-image:url('${c.bg}')"></span>`
-                       : `<span class="story-chap-bg story-chap-bg-blank"></span>`}
-                <span class="story-chap-meta">
-                  <span class="story-chap-t">${escapeHtml(c.label)}</span>
-                  <span class="story-chap-n">${c.beats} lines</span>
-                </span>
-              </a>`).join("")}
-          </div>
+          <div class="story-chaps">${e.chapters.map(storyChapCard).join("")}</div>
         </section>`).join("")}
-    </div>`;
+    </div>` : `
+    <div class="bar"><div class="q-wrap"><input id="qSide" placeholder="search side stories" value="${escapeHtml(storySideQ)}" autocapitalize="off" spellcheck="false"></div>
+      <span class="count">${side.length} books</span></div>
+    <div class="story-side">
+      ${books.map(b => `
+        <details class="story-book"${q && !(sideBookLabel(b).toLowerCase().includes(q) || (b.codename || "").toLowerCase().includes(q)) ? ' style="display:none"' : ""}>
+          <summary><span class="sb-t">${escapeHtml(sideBookLabel(b))}</span><span class="sb-n">${b.chapters.length} ch</span></summary>
+          <div class="story-chaps">${b.chapters.map(storyChapCard).join("")}</div>
+        </details>`).join("")}
+    </div>`}`;
+  document.querySelectorAll("[data-spane]").forEach(a => a.onclick = (e) => {
+    e.preventDefault(); storyPane = a.dataset.spane; story();
+  });
+  const qs = document.getElementById("qSide");
+  if (qs) qs.oninput = () => {
+    storySideQ = qs.value;
+    const qq = storySideQ.trim().toLowerCase();
+    document.querySelectorAll(".story-book").forEach((d, k) => {
+      const b = side[k];
+      d.style.display = (!qq || sideBookLabel(b).toLowerCase().includes(qq) || (b.codename || "").toLowerCase().includes(qq)) ? "" : "none";
+    });
+  };
 }
 
 function storyFlat() {
   const flat = [];
   for (const e of (STORY_INDEX && STORY_INDEX.episodes) || [])
-    for (const c of e.chapters) flat.push({ ...c, ep: e.label });
+    for (const c of e.chapters) flat.push({ ...c, ep: e.label, book: e.id });
+  for (const b of (STORY_INDEX && STORY_INDEX.side) || [])
+    for (const c of b.chapters) flat.push({ ...c, ep: sideBookLabel(b), book: b.id });
   return flat;
 }
 
@@ -3863,7 +4157,41 @@ function renderStoryChapter(cid, meta, flat, idx, beats) {
   document.getElementById("thStart").onclick = () => openTheater(STORY_FRAMES, 0);
 }
 
+// Scroll position per history entry: a NEW page opens at the top; Back/Forward return to where that
+// entry was left (saved into history.state). Switching variant tabs of the same unit keeps the place.
+try { history.scrollRestoration = "manual"; } catch (_) {}
+let _routeHash = null;
+function _saveScroll() {
+  try { history.replaceState(Object.assign({}, history.state || {}, { scrollY: window.scrollY }), ""); } catch (_) {}
+}
+let _scrollSaveT = 0;
+window.addEventListener("scroll", () => { clearTimeout(_scrollSaveT); _scrollSaveT = setTimeout(_saveScroll, 150); }, { passive: true });
+// save synchronously right before a tap/click can navigate away
+["pointerdown", "keydown"].forEach(ev => window.addEventListener(ev, () => { clearTimeout(_scrollSaveT); _saveScroll(); }, true));
+function _unitBase(hash) { return hash && hash.startsWith("#/u/") ? decodeURIComponent(hash.slice(4)).split("/")[0] : null; }
+function _applyRouteScroll(prevHash, h) {
+  if (prevHash === h) return;                       // re-render of the same page (e.g. voices loaded)
+  const st = history.state;
+  const saved = st && typeof st.scrollY === "number" ? st.scrollY : null;
+  if (saved == null) {
+    if (_unitBase(prevHash) && _unitBase(prevHash) === _unitBase(h)) return;   // variant tab
+    window.scrollTo(0, 0);
+    return;
+  }
+  // Back/Forward: the page may still be growing (images, lazy sections) -- retry briefly.
+  let n = 0;
+  const go = () => {
+    window.scrollTo(0, saved);
+    if (Math.abs(window.scrollY - saved) > 2 && n++ < 30) requestAnimationFrame(go);
+  };
+  go();
+}
 function route() {
+  const _prevHash = _routeHash;
+  _routeHash = location.hash;
+  try { _routeImpl(); } finally { _applyRouteScroll(_prevHash, location.hash); }
+}
+function _routeImpl() {
   const h = location.hash;
   if (h !== "#/about/requests") closeReqOverlay({ silent: true });
   const isHub = !(h.startsWith("#/u/") || h.startsWith("#/story") || h.startsWith("#/updates") || h === "#/emotes" || h.startsWith("#/wallpapers") || h === "#/artifacts" || h === "#/about" || h.startsWith("#/about/"));
@@ -3899,7 +4227,7 @@ document.querySelectorAll("nav button").forEach(b =>
 (function wireLangSwitcher() {
   const nav = document.querySelector("header nav");
   if (!nav) return;
-  nav.insertAdjacentHTML("beforeend", E7.langSelectHtml("langSel"));
+  nav.insertAdjacentHTML("afterend", E7.langSelectHtml("langSel"));   // outside the scrolling tab strip
   const sel = document.getElementById("langSel");
   sel.value = E7.getLang();
   sel.onchange = async () => {
@@ -3951,9 +4279,26 @@ function setLbActions(actions) {
     return `<a class="lb-act lb-act-local" href="${href}" title="${title}">${label}</a>`;
   }).join("");
 }
+/** Display name of a unit page id (base hero), localized. */
+function unitLabel(id) {
+  const g = BY_BASE.get(id);
+  const u = g && (g.find(x => !x.variant) || g[0]);
+  return u ? (u.hero_name ? E7.gameName(u, "hero_name") || u.hero_name : displayName(u)) : id;
+}
+/** Characters linked to a wallpaper stem (only those with a unit page). */
+function wpCharsOf(stem) {
+  return (WP_CHARS.get(stem) || []).filter(c => BY_BASE.has(c.id) && unitLabel(c.id) !== c.id);   // named only
+}
 function actionsFromZoomAnchor(a) {
   if (!a || !a.dataset) return [];
   const out = [];
+  // Wallpaper -> the characters seen with it (unit pages)
+  if (a.dataset.wpStem) {
+    for (const c of wpCharsOf(a.dataset.wpStem).slice(0, 8)) {
+      out.push({ href: "#/u/" + encodeURIComponent(c.id), label: "→ " + unitLabel(c.id),
+                 title: E7.t("wp_char_t", {}, "Open this character's page"), external: false });
+    }
+  }
   if (a.dataset.annVideo) {
     out.push({
       href: a.dataset.annVideo,
@@ -3991,6 +4336,7 @@ function actionsFromZoomAnchor(a) {
   return out;
 }
 function openLightbox(src, caption, actions) {
+  LB.classList.remove("s3");
   LB.classList.remove("audio", "video");
   LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
   LB_VIDEO.pause(); LB_VIDEO.removeAttribute("src");
@@ -4004,6 +4350,7 @@ function openLightbox(src, caption, actions) {
   LB.setAttribute("aria-hidden", "false");
 }
 function openLightboxAudio(src, caption) {
+  LB.classList.remove("s3");
   LB.classList.add("audio"); LB.classList.remove("video");
   LB_IMG.style.display = "none"; LB_IMG.src = "";
   LB_VIDEO.pause(); LB_VIDEO.removeAttribute("src");
@@ -4017,6 +4364,7 @@ function openLightboxAudio(src, caption) {
   LB_AUDIO.play().catch(() => {}); // autoplay; ignore if blocked
 }
 function openLightboxVideo(src, caption, actions) {
+  LB.classList.remove("s3");
   LB.classList.add("video"); LB.classList.remove("audio");
   LB_IMG.style.display = "none"; LB_IMG.src = "";
   LB_AUDIO.pause(); LB_AUDIO.removeAttribute("src");
@@ -4030,6 +4378,7 @@ function openLightboxVideo(src, caption, actions) {
   LB_VIDEO.play().catch(() => {}); // autoplay; ignore if blocked
 }
 function closeLightbox() {
+  LB.classList.remove("s3");
   LB.classList.remove("open", "audio", "video", "has-actions");
   LB.setAttribute("aria-hidden", "true");
   LB_IMG.src = "";
@@ -4081,6 +4430,9 @@ document.addEventListener("click", (e) => {
     voiceLang = lang.dataset.lang;
     lang.parentElement.querySelectorAll(".vlang").forEach(b =>
       b.classList.toggle("on", b === lang));
+    document.querySelectorAll(".voice-actors .va").forEach(x => {
+      if (x.dataset.alang === voiceLang) x.dataset.on = "1"; else delete x.dataset.on;
+    });
     const box = document.getElementById("voiceClips");
     if (box) {
       const slug = box.dataset.clipslug;
@@ -4090,8 +4442,14 @@ document.addEventListener("click", (e) => {
   }
   // FULL S3 badge on a skill card → open the baked full clip; the card's own
   // anchor keeps opening the short preview (button click must not bubble).
-  const fb = e.target.closest(".full-badge");
-  if (fb) { e.preventDefault(); e.stopPropagation(); openLightbox(fb.dataset.full, fb.dataset.cap || ""); return; }
+  const fb = e.target.closest(".s3-pill");
+  if (fb) {
+    e.preventDefault(); e.stopPropagation();
+    openLightbox(fb.dataset.s3full, `${fb.dataset.s3name || fb.dataset.s3id || ""} · ${E7.t("s3_watch", {}, "Full Skill 3")}`);
+    LB.classList.add("s3");                       // self-baked notice (our own bake, not a game recording)
+    LB_DL.download = `${fb.dataset.s3id || "unit"}_skill3_selfbaked.webp`;
+    return;
+  }
   // Inline intimacy illustration video → enlarge in the video lightbox.
   const iv = e.target.closest(".intimacy-vid");
   if (iv) { e.preventDefault(); openLightboxVideo(iv.getAttribute("src"), iv.dataset.cap || ""); return; }
@@ -4134,7 +4492,7 @@ LB.addEventListener("click", (e) => {
     return;
   }
   // External action (CB) — leave lightbox open; don't treat as backdrop close.
-  if (e.target.closest(".lb-act") || e.target.closest(".lb-actions")) return;
+  if (e.target.closest(".lb-act") || e.target.closest(".lb-actions") || e.target.closest(".lb-warn")) return;
   // Clicks on backdrop close; clicks on the image / audio / video / download / close don't.
   if (e.target === LB_IMG || e.target === LB_AUDIO || e.target === LB_VIDEO ||
       e.target.closest(".lb-download") || e.target.closest(".lb-audio") ||

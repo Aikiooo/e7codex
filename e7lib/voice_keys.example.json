@@ -1,0 +1,19 @@
+{
+  "_comment": "Copy to voice_keys.json (gitignored) and fill in your local values. Path keys are optional; omitted ones default under dump_dir as shown.",
+
+  "dump_dir": "<your e7 dump>",
+
+  "raw_dir": "<dump>/output",
+  "img_dir": "<dump>/img_output",
+  "voice_dir": "<dump>/_voice_work",
+  "tree_diff": "<dump>/tree_diff.txt",
+
+  "game_data_pack": "<game install>/data.pack",
+  "game_res_dir": "<game install>/gameres",
+  "ripper_dir": "<dump>/EpicSevenAssetRipper",
+  "extract_scratch": "<dump>/_extract_work",
+  "cdn_work_dir": "<dump>/_cdn_work",
+
+  "outer_key_file": "outer_key.bin",
+  "default_xxtea_key": "<your XXTEA key>"
+}

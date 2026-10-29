@@ -17,16 +17,36 @@ your own.
 ## How it fits together
 
 ```
-raw .scsp/.sct/.atlas  ──►  converters  ──►  staged Spine JSON  ──►  site/assets/<slug>/
-   (you supply)            (this repo)        + decoded .png            │
-                                                                        ▼
-                          build_index.py  ──►  site/data/*.json  ◄── names from
-                                                                      community DBs
-                          render_poses.js ──►  pose.png thumbnails
-                                                                        │
-                                                                        ▼
-                                              site/index.html + viewer.html
+raw .scsp/.sct/.atlas  ──►  convert/  ──►  staged Spine JSON  ──►  site/assets/<slug>/
+   (you supply)                      + decoded .png                   │
+                                                                     ▼
+                 pipeline/build_index.py  ──►  site/data/*.json  ◄── names from
+                                                                     community DBs
+                 render/poses.js          ──►  pose.png thumbnails
+                                                                     │
+                                                                     ▼
+                                           site/index.html + viewer.html
 ```
+
+`e7.py` is the entry point for all of it (`python e7.py build|render|mirror|check`),
+and `e7lib/` holds the shared plumbing every tool imports: data-root config,
+`sys.path` bootstrap, the DB cipher primitives and the progress logger.
+
+## Layout
+
+```
+e7.py                one entry point: build / render / mirror / check
+e7lib/               shared config (reads private/keys/voice_keys.json), bootstrap,
+                     db cipher primitives, logger
+convert/             .scsp/.sct → Spine JSON / PNG (2.1.27, 3.8.99, 4.2.43)
+pipeline/            data builders: index, names, artifacts, voices, i18n, staging
+render/              puppeteer bakes: poses, thumbs, skill-3 clips, backgrounds,
+                     and illust/ (the lobby-illustration pipeline)
+ops/leak_check.py    the unreleased-content gate (used by the deploy routine)
+site/                the front end — HTML, the vendored encoders, 3 data configs
+tests/               a few unit tests (pytest)
+```
+
 
 ## Prerequisites
 
@@ -44,8 +64,12 @@ apply the one-line screenshot patch:
 ```powershell
 curl -sSL -A "Mozilla/5.0" -o site/spine-player.js  https://esotericsoftware.com/files/spine-player/3.8/spine-player.js
 curl -sSL -A "Mozilla/5.0" -o site/spine-player.css https://esotericsoftware.com/files/spine-player/3.8/spine-player.css
-copy site\spine-player.js  tools\spine-player.js
-copy site\spine-player.css tools\spine-player.css
+# the bakes load it from render/vendor/, the illust pipeline from render/illust/
+mkdir render\vendor, render\illust -Force
+copy site\spine-player.js   render\vendor\spine-player.js
+copy site\spine-player.css  render\vendor\spine-player.css
+copy site\spine-player.js   render\illust\spine-player.js
+copy site\spine-player.css  render\illust\spine-player.css
 ```
 
 Then, in `site/spine-player.js` (around line 11071), enable buffer readback so
@@ -105,7 +129,9 @@ You also need the loader to carry the flag through: find
 `skeletonData.imagesPath = skeletonMap.images;` and add
 `skeletonData.e7v21x = skeletonMap.e7v21x;` after it. The branch is gated on the
 flag, so 3.8.99 rigs and any bone without non-uniform scale under rotation are
-untouched.
+untouched. Apply the same two edits to the `render/vendor/` and
+`render/illust/` copies — the bakes need them too (only the readback one is
+viewer-specific).
 
 ### 2. Bring your own data
 
@@ -119,46 +145,47 @@ This is the step you do yourself. You need:
   (ceciliabot, epic7rtastats). See `CREDITS.md`. These are not bundled.
   - *Optional, self-sufficient:* if you have your own decrypted game data +
     keys set up (see the voice pipeline below — same `voice_keys.json`), run
-    `python tools/build_names.py` to pull names + rarity/attribute/role
+    `python pipeline/names.py` to pull names + rarity/attribute/role
     straight from the game into `data_external/names_from_db.json`. The indexer
     layers it ahead of the community DBs. This also writes
     `unreleased_units.json` (units the game still labels "Unknown Hero"); the
     indexer drops those — the project does not publish unannounced/datamined
     units. Both files are gitignored.
-  - *Artifacts (same setup):* `python tools/build_artifacts.py` decodes
+  - *Artifacts (same setup):* `python pipeline/artifacts.py` decodes
     `equip_item.db` into `data_external/artifacts_from_db.json`, layered ahead
     of the community `Artifacts.json` for name/rarity/role. Gitignored.
-  - *Localization (same setup):* `python tools/build_i18n.py` decodes each
+  - *Localization (same setup):* `python pipeline/i18n.py` decodes each
     language's `text.db` into per-language display-name overlays
     (`site/data/lang/<lang>.json`) that power the site's language switcher
     (10 game languages + unofficial Vietnamese). It needs the same keys/data
-    as `build_names.py`, plus hand-maintained UI-chrome translations
+    as `pipeline/names.py`, plus hand-maintained UI-chrome translations
     (`data_external/i18n_ui/<lang>.json`, not bundled). Without the overlays
     the switcher still renders and every name falls back to English.
 
 Tell the pipeline where your data lives in **one place**: copy
-`tools/voice_keys.example.json` to `tools/voice_keys.json` (gitignored) and set
-`raw_dir` (your extracted `output/`), `img_dir` (decoded images), and `voice_dir`
-(voice scratch). `tools/paths.py` resolves these for every tool, so there's no
-code to edit; omitted keys default under `dump_dir`.
+`e7lib/voice_keys.example.json` to `private/keys/voice_keys.json` (gitignored —
+the whole `private/` tree is) and set `raw_dir` (your extracted `output/`),
+`img_dir` (decoded images), and `voice_dir` (voice scratch). `e7lib/config.py`
+resolves these for every tool, so there's no code to edit; omitted keys default
+under `dump_dir`.
 
 ### 3. Convert + stage
 
 ```powershell
-python tools/prepare_assets.py --all          # portraits → site/assets/<slug>/
-python tools/prepare_combat_assets.py --all    # combat rigs (optional)
+python pipeline/prepare_assets.py --all          # portraits → site/assets/<slug>/
+python pipeline/prepare_combat_assets.py --all   # combat rigs (optional)
 ```
 
-`tools/scsp_to_json.py` auto-detects the rig version (2.1.27, 3.8.x, or 4.2.x)
+`convert/scsp_to_json.py` auto-detects the rig version (2.1.27, 3.8.x, or 4.2.x)
 and dispatches to the right converter — the vendored third-party ones for
-2.1.27 / 3.8.x, and `tools/skel42_to_json38.py` for Spine 4.2 rigs (an
+2.1.27 / 3.8.x, and `convert/skel42_to_json38.py` for Spine 4.2 rigs (an
 E7-wrapped stock `.skel`, converted down to 3.8-compatible JSON so the same
 spine-player renders every rig).
 
 ### 4. Render pose thumbnails
 
 ```powershell
-node tools/render_poses.js        # bakes site/assets/<slug>/pose.png
+node render/poses.js        # bakes site/assets/<slug>/pose.png
 ```
 
 Optionally, bake tighter character-only hub thumbnails (the site falls back to
@@ -166,13 +193,14 @@ Optionally, bake tighter character-only hub thumbnails (the site falls back to
 time:
 
 ```powershell
-node tools/render_thumbs.js       # site/assets/<slug>/thumb.png (FX/backdrop stripped, smart-cropped)
+node render/thumbs.js       # site/assets/<slug>/thumb.png (FX/backdrop stripped, smart-cropped)
 ```
 
 ### 5. Build the data index
 
 ```powershell
-python build_index.py --img <your_img_dir> --raw <your_raw_dir> --out ./site
+python e7.py build                                    # uses e7lib/config.py roots
+python pipeline/build_index.py --img <img_dir> --raw <raw_dir> --out ./site
 ```
 
 ### 6. Run locally
@@ -198,34 +226,32 @@ You'll need:
 
 - **vgmstream** — download a release build from
   [vgmstream](https://github.com/vgmstream/vgmstream/releases) and unzip it into
-  `tools/vendor/vgmstream/` (so `tools/vendor/vgmstream/vgmstream-cli.exe` exists).
+  `pipeline/vendor/vgmstream/` (so `pipeline/vendor/vgmstream/vgmstream-cli.exe`
+  exists).
 - **FFmpeg** — install it and make sure `ffmpeg` is on your `PATH`.
-- **Your own keys + data** — copy `tools/voice_keys.example.json` to
-  `tools/voice_keys.json` (gitignored) and fill in the values from your own
-  install: `dump_dir` (+ optional `raw_dir` / `img_dir` / `voice_dir`), your
+- **Your own keys + data** — copy `e7lib/voice_keys.example.json` to
+  `private/keys/voice_keys.json` (gitignored) and fill in the values from your
+  own install: `dump_dir` (+ optional `raw_dir` / `img_dir` / `voice_dir`), your
   outer-XOR key file (`outer_key_file`), and the default XXTEA key
-  (`default_xxtea_key`). For `sync_voice_banks.py`, optionally set
-  `game_sound_dir` (your read-only `<game install>/data.unpacked/sound`). None of
-  these are provided here.
+  (`default_xxtea_key`). None of these are provided here.
 - **Your own voice banks** — the FMOD `.bank` files, under
-  `<sound_dir>/<lang>/*.bank`.
+  `<voice_dir>/sound/<lang>/*.bank`. Copy them out of your game install
+  yourself: the bank copier is part of the extraction tooling, which is not in
+  this repository (it writes only into the scratch tree and treats the install
+  as read-only).
 
 Then:
 
 ```powershell
 # Credits + a fallback line catalog from your local data files → site/data/voices.json
-python tools/build_voices.py
-
-# (optional) copy banks OUT of your game install into the voice scratch tree,
-# with a download-settle wait + per-language freshness gate (never writes to the game folder)
-python tools/sync_voice_banks.py --extract       # syncs + chains extraction for changed langs
+python pipeline/voices.py
 
 # Decode the voice banks → OGG + a per-language catalog
-python tools/extract_voice_audio.py --langs en --slugs c1001     # subset / pilot
-python tools/extract_voice_audio.py --langs en ja ko --all       # full
+python pipeline/voice_audio.py --langs en --slugs c1001     # subset / pilot
+python pipeline/voice_audio.py --langs en ja ko --all       # full
 ```
 
-`extract_voice_audio.py` reads banks from / writes OGGs to your configured
+`pipeline/voice_audio.py` reads banks from / writes OGGs to your configured
 `voice_dir` (from `voice_keys.json`, default `<dump_dir>/_voice_work`); override
 per-run with `--sound` / `--out` (or the `E7_VOICE_SOUND` / `E7_VOICE_OUT` env
 vars). The generated audio and JSON stay local — they're gitignored and not part
