@@ -39,8 +39,8 @@ RAW_DIR = config.RAW_DIR  # central data-dir config
 MODEL = RAW_DIR / "model"
 from decode_sct import decode_one as decode_sct  # noqa: E402  (convert/)
 import scsp_to_json  # noqa: E402  (convert/)
-import build_index  # noqa: E402  effective_swap_map — the single source of truth for
-                    # backdrop swaps (bare = scene, bare_1 = character)
+from indexing.tables import effective_swap_map  # noqa: E402  the single source
+# of truth for backdrop swaps (bare = scene, bare_1 = character)
 
 
 # Suffix peeling: combat-rig stems use underscore-separated variants
@@ -88,7 +88,7 @@ DUAL_COMBAT: dict[str, list[tuple[str, str]]] = {
     "c2181_1": [("notos", "Notos"), ("notos_t", "Domain")],
 }
 
-# Backdrop swaps are defined ONCE in pipeline/build_index.py (PRIMARY_SWAP +
+# Backdrop swaps are defined ONCE in pipeline/indexing/tables.py (PRIMARY_SWAP +
 # effective_swap_map: any staged (X, X_1) pair defaults to bare = scene,
 # X_1 = character). For those slugs the bare c#### directory holds the
 # backdrop rig and the character lives at <slug>_1. Combat rigs (which
@@ -228,14 +228,14 @@ _SWAP_MAP: dict[str, dict] | None = None
 
 
 def _swap_map() -> dict[str, dict]:
-    """Cached backdrop-swap map (bare slug -> meta) from build_index's
+    """Cached backdrop-swap map (bare slug -> meta) from indexing.tables'
     effective_swap_map, computed over the staged site dirs. Mirrors the site
     build's auto rule: any staged (X, X_1) pair is a swap by default."""
     global _SWAP_MAP
     if _SWAP_MAP is None:
         staged = {p.name for p in SITE.iterdir()
                   if p.is_dir() and not p.name.startswith("_")}
-        _SWAP_MAP = build_index.effective_swap_map(staged)
+        _SWAP_MAP = effective_swap_map(staged)
     return _SWAP_MAP
 
 

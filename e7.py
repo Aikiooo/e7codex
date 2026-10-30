@@ -79,11 +79,24 @@ def _run(cmd: list[str]) -> int:
     return subprocess.call([str(c) for c in cmd], cwd=str(REPO))
 
 
+def _missing(script: str) -> bool:
+    # The public mirror ships only part of the tree (no private/, ops/ or tests/golden/).
+    if (REPO / script).is_file():
+        return False
+    print(f"{script} is not part of this checkout "
+          "(that command is not available in this repository)", file=sys.stderr)
+    return True
+
+
 def _node(script: str, *args: str) -> int:
+    if _missing(script):
+        return 2
     return _run(["node", str(REPO / script), *args])
 
 
 def _py(script: str, *args: str) -> int:
+    if _missing(script):
+        return 2
     return _run([sys.executable, str(REPO / script), *args])
 
 

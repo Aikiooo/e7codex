@@ -155,7 +155,7 @@ binary→JSON converter — TASKS #54).
 
 1. Re-bake + stage over `site/assets/<slug>/intimacy.webm` (back up the old one OUTSIDE `site/`).
 2. **Re-run `pipeline/build_index.py`** — it appends `?v=<file mtime>` to the intimacy URL in `units.json`
-   (pipeline/build_index.py ~L666). This is the cache-bust; without a fresh `?v` the CF edge serves the
+   (`pipeline/indexing/artwork.py:stage_intimacy`). This is the cache-bust; without a fresh `?v` the CF edge serves the
    stale clip for ~4h (`max-age=14400`). `-SkipSync` skips build_index, so run it by hand:
    `python pipeline/build_index.py --img <IMG_DIR> --raw <RAW_DIR> --out ./site` (paths from `e7lib/config.py`).
 3. **`python e7.py deploy -SkipSync -SkipR2`** — intimacy.webm is a Pages asset (NOT in the R2 manifest,

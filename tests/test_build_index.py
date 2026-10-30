@@ -19,16 +19,13 @@ from e7lib.bootstrap import add_source_dirs  # noqa: E402
 
 add_source_dirs(REPO)
 
-from build_index import (  # noqa: E402
-    CODE_RE,
-    kebab,
-    kind_of,
+from indexing.slugs import kebab, kind_of, split_variant  # noqa: E402
+from indexing.sources import (  # noqa: E402
     load_artifact_db,
     load_event_labels,
     load_name_db,
-    split_variant,
-    KNOWN_UPDATES,
 )
+from indexing.tables import CODE_RE, KNOWN_UPDATES  # noqa: E402
 
 
 # ── split_variant ─────────────────────────────────────────────────────────────

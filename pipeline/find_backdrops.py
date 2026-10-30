@@ -3,13 +3,13 @@
 Audit staged (X, X_1) pairs under the auto backdrop-swap rule.
 
 Second-rig releases are treated as a backdrop/character split by default:
-build_index.effective_swap_map() flips every staged (X, X_1) pair so the
+indexing.tables.effective_swap_map() flips every staged (X, X_1) pair so the
 bare slug is the scene (backdrop) and X_1 is the character. This tool lists
 every pair and flags the ones worth a second look:
 
   - bare rigs with CHARACTER-like slots (normal_*/angry_*/hair_*/face_* …)
     — those are likely char+char pairs, NOT scene+char, and should be added
-    to PRIMARY_SWAP_EXCEPT in pipeline/build_index.py;
+    to PRIMARY_SWAP_EXCEPT in pipeline/indexing/tables.py;
   - bare rigs with no obvious backdrop slots at all (0% match) — usually
     still a scene with exotic slot names (c5190 reef, c2113_s01), but check.
 
@@ -28,7 +28,7 @@ sys.path.insert(0, str(THIS.parent))
 sys.path.insert(0, str(REPO))
 from e7lib.bootstrap import add_source_dirs  # noqa: E402
 add_source_dirs(REPO)
-import build_index  # noqa: E402  effective_swap_map, PRIMARY_SWAP_EXCEPT
+from indexing.tables import EXTRA_SUFFIX, PRIMARY_SWAP_EXCEPT  # noqa: E402
 
 # Backdrop slot-name patterns: covers all confirmed conventions across the
 # known backdrop-swap entries plus the eff_back_* pattern seen in c2112_s01.
@@ -79,7 +79,7 @@ def main() -> None:
         d.name for d in SITE.iterdir()
         if d.is_dir() and d.name != "_updates" and (d / f"{d.name}.json").exists()
     }
-    extra_suffix = build_index.EXTRA_SUFFIX  # "_1"
+    extra_suffix = EXTRA_SUFFIX  # "_1"
 
     pairs: list[tuple[str, str]] = []
     for slug in sorted(staged):
@@ -99,7 +99,7 @@ def main() -> None:
 
     flagged = 0
     for bare, x1 in pairs:
-        exempt = bare in build_index.PRIMARY_SWAP_EXCEPT
+        exempt = bare in PRIMARY_SWAP_EXCEPT
         ratio, bd, ch = backdrop_score(slot_names(bare))
         _, _, x1_char = backdrop_score(slot_names(x1))
         line = f"  {bare:14s} + {x1}"
@@ -122,7 +122,7 @@ def main() -> None:
     if flagged:
         print(f"\n{flagged} pair(s) flagged — review in viewer.html. If a bare rig "
               f"is actually a character (not a scene), add it to "
-              f"PRIMARY_SWAP_EXCEPT in pipeline/build_index.py.")
+              f"PRIMARY_SWAP_EXCEPT in pipeline/indexing/tables.py.")
     else:
         print("\nNo anomalies — auto-swap looks right across the board.")
 

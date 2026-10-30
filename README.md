@@ -28,17 +28,18 @@ raw .scsp/.sct/.atlas  ──►  convert/  ──►  staged Spine JSON  ──
                                            site/index.html + viewer.html
 ```
 
-`e7.py` is the entry point for all of it (`python e7.py build|render|mirror|check`),
+`e7.py` is the entry point for all of it (`python e7.py build` / `python e7.py render`),
 and `e7lib/` holds the shared plumbing every tool imports: data-root config,
 `sys.path` bootstrap, the DB cipher primitives and the progress logger.
 
 ## Layout
 
 ```
-e7.py                one entry point: build / render / mirror / check
+e7.py                one entry point: build / render
 e7lib/               shared config (reads private/keys/voice_keys.json), bootstrap,
                      db cipher primitives, logger
-convert/             .scsp/.sct → Spine JSON / PNG (2.1.27, 3.8.99, 4.2.43)
+convert/             ssra.py (the local SSRA archive reader) + .scsp/.sct →
+                     Spine JSON / PNG (2.1.27, 3.8.99, 4.2.43)
 pipeline/            data builders: index, names, artifacts, voices, i18n, staging
 render/              puppeteer bakes: poses, thumbs, skill-3 clips, backgrounds,
                      and illust/ (the lobby-illustration pipeline)
@@ -50,7 +51,8 @@ tests/               a few unit tests (pytest)
 
 ## Prerequisites
 
-- Python 3.11+ (`pip install lz4 pillow texture2ddecoder`)
+- Python 3.11+ (`pip install lz4 pillow texture2ddecoder xxhash zstandard`;
+  `xxhash` + `zstandard` are only needed by `convert/ssra.py`)
 - Node 18+ (`npm install` — pulls puppeteer + sharp for thumbnail rendering)
 - Your own extracted Epic Seven assets (see step 2)
 
@@ -138,9 +140,25 @@ viewer-specific).
 This is the step you do yourself. You need:
 
 - **Raw rigs** — the game's `.scsp` skeleton files (+ `.sct` textures, `.atlas`)
-  for portraits and combat models. Extracting these from the client is on you;
-  the community tool for it is
-  [EpicSevenAssetRipper](https://github.com/CeciliaBot/EpicSevenAssetRipper).
+  for portraits and combat models. Since the 2026-10-29 patch the PC client no
+  longer ships `data.pack`: its assets are an **SSRA archive** (`manifest.ssra`
+  + `chunks/*.ssrc`, in the client's `gameres` folder). `convert/ssra.py` reads
+  it locally — it never writes into the game folder and never downloads
+  anything, so launch the game once first so it has installed every chunk:
+
+  ```powershell
+  python convert/ssra.py --game-dir "<EpicSeven>\gameres" --list              # what is installed
+  python convert/ssra.py --game-dir "<EpicSeven>\gameres" --out <dump>\output  # extract
+  python convert/ssra.py --game-dir "<EpicSeven>\gameres" --verify-only       # hash-check only
+  ```
+
+  The output tree keeps the client's folder layout (`portrait/`, `model/`,
+  `effect/`, `db/`, `text/`, …); that folder is your `raw_dir`. `--groups a,b`
+  limits the run to some groups (names from `--list`); missing chunks are
+  listed and the run fails rather than writing a partial tree. Textures stay
+  `.sct` — decode them into your `img_dir` with
+  `python convert/decode_sct.py --batch <src_dir> <dst_dir>` (one folder at a
+  time) or `python convert/decode_sct.py <in.sct> <out.png>`.
 - **Names / slugs** — point the indexer at the public community databases
   (ceciliabot, epic7rtastats). See `CREDITS.md`. These are not bundled.
   - *Optional, self-sufficient:* if you have your own decrypted game data +
@@ -176,6 +194,7 @@ python pipeline/prepare_assets.py --all          # portraits → site/assets/<sl
 python pipeline/prepare_combat_assets.py --all   # combat rigs (optional)
 ```
 
+To convert a single rig by hand: `python convert/scsp_to_json.py <in.scsp> <out.json>`.
 `convert/scsp_to_json.py` auto-detects the rig version (2.1.27, 3.8.x, or 4.2.x)
 and dispatches to the right converter — the vendored third-party ones for
 2.1.27 / 3.8.x, and `convert/skel42_to_json38.py` for Spine 4.2 rigs (an
@@ -235,10 +254,19 @@ You'll need:
   outer-XOR key file (`outer_key_file`), and the default XXTEA key
   (`default_xxtea_key`). None of these are provided here.
 - **Your own voice banks** — the FMOD `.bank` files, under
-  `<voice_dir>/sound/<lang>/*.bank`. Copy them out of your game install
-  yourself: the bank copier is part of the extraction tooling, which is not in
-  this repository (it writes only into the scratch tree and treats the install
-  as read-only).
+  `<voice_dir>/sound/<lang>/*.bank`. They are the `media_en` / `media_ja` /
+  `media_ko` groups of the SSRA archive:
+
+  ```powershell
+  python convert/ssra.py --game-dir "<EpicSeven>\gameres" --groups media_en,media_ja,media_ko --out <tmp>
+  ```
+
+  The client only installs the voice languages you picked in its settings;
+  `--list --include-media` shows which `media_*` chunks are missing.
+  Then copy `<tmp>/sound/<lang>/*.bank` to `<voice_dir>/sound/<lang>/` (keep
+  the file names). The three shared banks (`master.bank`,
+  `master.strings.bank`, `voc.event.bank`) are in the main extraction under
+  `sound/`; copy them to `<voice_dir>/sound/`.
 
 Then:
 
