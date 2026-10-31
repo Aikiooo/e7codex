@@ -88,6 +88,26 @@ those units (Byblis etc.) have fully authored `.stg` graphs; the executor just d
 > cfx tail, cut-in field-pause, track-time bake clock — VOD-verified to ~0.2s). Divergence is
 > concentrated in **camera, post, blend, anchors** — not timing.
 
+### When an effect counts as finished (static RE, `data/_game_re/cfx_re/decomp_effect.c`)
+
+- A `.cfx` composite finishes only once **all** its prims have (`FUN_140320cd0`).
+- A particle prim finishes only once every emitter is inactive **and** empty (`FUN_140322720`).
+- A `duration -1` (cocos "forever") emitter never goes inactive by itself. Its only self-stop is
+  the prim's `lifeTime`, which is in **milliseconds**: the prim update compares `lifeTime / 1000.0`
+  against the seconds elapsed since the prim's delay (`FUN_1403200b0`; the constant reads 1000.0 on
+  disk). At that point emission stops and the live particles drain.
+- So a forever emitter without `lifeTime` sets no end. The skill's end removes it.
+  `particle_duration` returns `None` for it, and the S3 end extension skips it.
+
+That end extension used to count such an emitter as one `maxParticles / emissionRate` burst. For
+example `valkyrie_sk3_pati3` (250 / 10 = 25 s) stretched `c1003_s01` to 27.8 s, about 20 s of it a
+frozen character. In total 65 clips got shorter; no cue or camera track moved.
+
+**Not switched yet: EFFECT-completion chaining** (`cfx_total_ms` → `particle_burst_s`) still uses
+the burst estimate. Under the engine rule, a composite holding a forever emitter never completes,
+and how the stagept graph advances past such a node has not been recovered. Applying the rule
+there moves the camera/segment schedule of about 55 units, so it waits for that RE.
+
 ## The exact chain (proposed)
 
 **Source of truth:** `output/stagept/c_<stem>_skill_NN.stg` for *all* skills (retire skill_03-only +

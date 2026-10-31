@@ -1876,10 +1876,11 @@ function makeFxEngine(charP, cues, base) {
     }
     return out;
   }
-  // duration -1 (cocos "forever") + repeat N: every E7 skill emitter authors
-  // emissionRate == maxParticles, i.e. a ~1 s burst per repeat, and the engine
-  // removes the node afterwards — treat it that way.
-  function buildSim(em, seed) {
+  // duration -1 (cocos "forever") + repeat N: simulated as one maxParticles
+  // pass per repeat. In-engine such an emitter never stops by itself; the cfx
+  // lifeTime (stopAt, seconds) is its only self-stop — emission ends there and
+  // the live particles drain (pipeline/prepare_fx_assets.py:particle_duration).
+  function buildSim(em, seed, stopAt) {
     const R = mulberry32(seed), rnd = () => R() * 2 - 1;
     const n = Math.max(1, Math.round(+em.maxParticles || 1));
     const rate = (+em.emissionRate || n) || 1;
@@ -1895,6 +1896,7 @@ function makeFxEngine(charP, cues, base) {
         const off = i / rate;
         if (off > emitDur + 1e-6) break;
         const birth = delay0 + r * emitDur + off;
+        if (birth > stopAt) break;
         const life = Math.max(0.05, (+em.particleLifespan || 1) + rnd() * (+em.particleLifespanVariance || 0));
         total = Math.max(total, birth + life);
         const p = {
@@ -1984,8 +1986,11 @@ function makeFxEngine(charP, cues, base) {
     e.scaleY = (spawn.scale || 1) * (prim.scaleY != null ? prim.scaleY : (prim.scale || 1));
     e.rot = ((prim.rotate || 0) * Math.PI) / 180;   // cocos node rotation: CW-positive
     e.startT = st.gt - (lateBy > 0 ? lateBy : 0);   // engine-clock spawn time
-    e.sims = e.emitters.map((em, i) => buildSim(em, hashStr(e.rig + "#" + i)));
-    e.dur = prim.lifeTime || Math.max(0.5, ...e.sims.map(s => s.total));
+    // cfx lifeTime is authored in MILLISECONDS (the engine compares
+    // lifeTime / 1000 against seconds elapsed since the prim's delay)
+    const stopAt = prim.lifeTime ? prim.lifeTime / 1000 : Infinity;
+    e.sims = e.emitters.map((em, i) => buildSim(em, hashStr(e.rig + "#" + i), stopAt));
+    e.dur = Math.max(0.5, ...e.sims.map(s => s.total));
     if (!e.tints) {
       e.tints = e.sims.map(s => {
         const img = e.textures[s.tex];
